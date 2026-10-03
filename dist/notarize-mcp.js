@@ -14541,49 +14541,49 @@ var require_fast_uri = __commonJS({
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    function resolveComponent(base, relative3, options, skipNormalization) {
+    function resolveComponent(base, relative4, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
         base = parse4(serialize(base, options), options);
-        relative3 = parse4(serialize(relative3, options), options);
+        relative4 = parse4(serialize(relative4, options), options);
       }
       options = options || {};
-      if (!options.tolerant && relative3.scheme) {
-        target.scheme = relative3.scheme;
-        target.userinfo = relative3.userinfo;
-        target.host = relative3.host;
-        target.port = relative3.port;
-        target.path = removeDotSegments(relative3.path || "");
-        target.query = relative3.query;
+      if (!options.tolerant && relative4.scheme) {
+        target.scheme = relative4.scheme;
+        target.userinfo = relative4.userinfo;
+        target.host = relative4.host;
+        target.port = relative4.port;
+        target.path = removeDotSegments(relative4.path || "");
+        target.query = relative4.query;
       } else {
-        if (relative3.userinfo !== void 0 || relative3.host !== void 0 || relative3.port !== void 0) {
-          target.userinfo = relative3.userinfo;
-          target.host = relative3.host;
-          target.port = relative3.port;
-          target.path = removeDotSegments(relative3.path || "");
-          target.query = relative3.query;
+        if (relative4.userinfo !== void 0 || relative4.host !== void 0 || relative4.port !== void 0) {
+          target.userinfo = relative4.userinfo;
+          target.host = relative4.host;
+          target.port = relative4.port;
+          target.path = removeDotSegments(relative4.path || "");
+          target.query = relative4.query;
         } else {
-          if (!relative3.path) {
+          if (!relative4.path) {
             target.path = base.path;
-            if (relative3.query !== void 0) {
-              target.query = relative3.query;
+            if (relative4.query !== void 0) {
+              target.query = relative4.query;
             } else {
               target.query = base.query;
             }
           } else {
-            if (relative3.path[0] === "/") {
-              target.path = removeDotSegments(relative3.path);
+            if (relative4.path[0] === "/") {
+              target.path = removeDotSegments(relative4.path);
             } else {
               if ((base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0) && !base.path) {
-                target.path = "/" + relative3.path;
+                target.path = "/" + relative4.path;
               } else if (!base.path) {
-                target.path = relative3.path;
+                target.path = relative4.path;
               } else {
-                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative3.path;
+                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative4.path;
               }
               target.path = removeDotSegments(target.path);
             }
-            target.query = relative3.query;
+            target.query = relative4.query;
           }
           target.userinfo = base.userinfo;
           target.host = base.host;
@@ -14591,7 +14591,7 @@ var require_fast_uri = __commonJS({
         }
         target.scheme = base.scheme;
       }
-      target.fragment = relative3.fragment;
+      target.fragment = relative4.fragment;
       return target;
     }
     function equal(uriA, uriB, options) {
@@ -42246,7 +42246,7 @@ var BUNDLE_EXTS = {
 async function discoverNestedCode(root) {
   const results = [];
   const rootKind = BUNDLE_EXTS[extname(root).toLowerCase()];
-  async function walk(dir, depth, bundleRoot) {
+  async function walk2(dir, depth, bundleRoot) {
     let entries;
     try {
       entries = await readdir2(dir, { withFileTypes: true });
@@ -42260,10 +42260,10 @@ async function discoverNestedCode(root) {
         const kind = BUNDLE_EXTS[extname(e.name).toLowerCase()];
         if (kind) {
           const target = kind === "framework" ? await frameworkSignTarget(full) : full;
-          await walk(full, depth + 1, full);
+          await walk2(full, depth + 1, full);
           results.push({ path: target, relativePath: relative(root, target) || ".", kind, depth: depth + 1 });
         } else if (e.name !== "_CodeSignature" && e.name !== "Headers" && e.name !== "Modules") {
-          await walk(full, depth, bundleRoot);
+          await walk2(full, depth, bundleRoot);
         }
         continue;
       }
@@ -42292,7 +42292,7 @@ async function discoverNestedCode(root) {
       }
     }
   }
-  await walk(root, 0, root);
+  await walk2(root, 0, root);
   results.sort((a, b) => b.depth - a.depth);
   if (rootKind) results.push({ path: root, relativePath: ".", kind: rootKind, depth: 0 });
   else if (await isMachO(root))
@@ -53315,11 +53315,466 @@ var package_default = {
 };
 
 // src/prompts/index.ts
-function registerPrompts(_server) {
+function user(text) {
+  return { messages: [{ role: "user", content: { type: "text", text } }] };
+}
+function registerPrompts(server) {
+  server.registerPrompt(
+    "setup-distribution",
+    {
+      title: "Set up signing & distribution for an app",
+      description: "Zero-context walkthrough: machine check \u2192 project detection \u2192 target choice \u2192 checklist \u2192 fixes \u2192 build/sign \u2192 notarize or upload.",
+      argsSchema: {
+        path: external_exports.string().describe("Project folder or built artifact"),
+        target: external_exports.string().optional().describe("mac-developer-id, mac-app-store, testflight-ios, ios-app-store, ios-ad-hoc, \u2026")
+      }
+    },
+    ({ path, target }) => user(
+      [
+        `Help me ship the app at ${path}${target ? ` as ${target}` : ""}. I may not know Apple's terminology \u2014 explain briefly as we go.`,
+        "1. Run `doctor`, then `detect_project` on the path.",
+        target ? `2. Use target ${target}.` : "2. Ask me which distribution target I want (explain the options in one line each).",
+        "3. Run `distribution_checklist` and fix blocking items in order; tell me exactly what I must do by hand (with URLs).",
+        "4. Show me every PREVIEW before confirming it.",
+        "5. Build/sign, verify with `inspect_code_signature`, then notarize+staple (Developer ID) or upload (stores).",
+        "6. If notarization or processing is still running, start a Monitor with the returned monitor.command and keep going; never block."
+      ].join("\n")
+    )
+  );
+  server.registerPrompt(
+    "debug-gatekeeper",
+    {
+      title: "Why won't my Mac app open on other Macs?",
+      description: "Diagnose 'cannot be opened', 'is damaged', 'developer cannot be verified'.",
+      argsSchema: { path: external_exports.string().describe(".app, .dmg, .pkg or .zip as distributed") }
+    },
+    ({ path }) => user(
+      `Users can't open ${path}. Run gatekeeper action=simulate_download on it, then inspect_code_signature target=mac-developer-id, and explain the root cause in plain words with the exact fix (sign / notarize_and_staple / packaging change). Use system_logs preset=gatekeeper or amfi if needed.`
+    )
+  );
+  server.registerPrompt(
+    "debug-notarization",
+    {
+      title: "Why was notarization rejected?",
+      description: "Fetch and explain a notarization log, then fix and resubmit.",
+      argsSchema: {
+        submission_id: external_exports.string().optional().describe("Submission UUID (omit to use the latest from history)")
+      }
+    },
+    ({ submission_id }) => user(
+      `${submission_id ? `Notarization submission ${submission_id}` : "My latest notarization (see notary action=history)"} failed or is stuck. Use notary action=status/log to explain every issue, map each to a fix, re-sign with the sign tool, and resubmit with notarize_and_staple (monitor it with the returned Monitor command).`
+    )
+  );
+  server.registerPrompt(
+    "debug-sandbox",
+    {
+      title: "Fix App Sandbox / privacy permission problems",
+      description: "Find sandbox denials and TCC issues and the entitlements/usage strings that fix them.",
+      argsSchema: {
+        app_name: external_exports.string().describe("Process/app name"),
+        path: external_exports.string().optional().describe("Path to the .app")
+      }
+    },
+    ({ app_name, path }) => user(
+      `A feature fails in ${app_name}. Ask me to reproduce it, then run system_logs preset=sandbox process=${app_name} last=5m and preset=tcc, ${path ? `privacy action=audit path=${path} and entitlements action=read path=${path}, ` : ""}and tell me which entitlements / Info.plist usage strings to add. Preview any file changes and re-sign afterwards.`
+    )
+  );
 }
 
 // src/resources/index.ts
-function registerResources(_server) {
+import { existsSync, readdirSync, readFileSync as readFileSync2, statSync } from "fs";
+import { join as join10, relative as relative2 } from "path";
+import { fileURLToPath } from "url";
+
+// src/knowledge/privacy-keys.ts
+var PRIVACY_RESOURCES = [
+  {
+    id: "camera",
+    title: "Camera",
+    usageKeys: ["NSCameraUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["AVFoundation", "AVKit", "VisionKit"],
+    tccService: "Camera",
+    macEntitlement: "com.apple.security.device.camera"
+  },
+  {
+    id: "microphone",
+    title: "Microphone",
+    usageKeys: ["NSMicrophoneUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["AVFoundation", "AVFAudio", "Speech"],
+    tccService: "Microphone",
+    macEntitlement: "com.apple.security.device.audio-input"
+  },
+  {
+    id: "location",
+    title: "Location",
+    usageKeys: [
+      "NSLocationWhenInUseUsageDescription",
+      "NSLocationAlwaysAndWhenInUseUsageDescription",
+      "NSLocationUsageDescription"
+    ],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["CoreLocation", "MapKit"],
+    macEntitlement: "com.apple.security.personal-information.location",
+    notes: "MapKit alone does not require location permission; only CLLocationManager usage does."
+  },
+  {
+    id: "contacts",
+    title: "Contacts",
+    usageKeys: ["NSContactsUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["Contacts", "ContactsUI", "AddressBook"],
+    tccService: "AddressBook",
+    macEntitlement: "com.apple.security.personal-information.addressbook"
+  },
+  {
+    id: "calendars",
+    title: "Calendars",
+    usageKeys: [
+      "NSCalendarsFullAccessUsageDescription",
+      "NSCalendarsWriteOnlyAccessUsageDescription",
+      "NSCalendarsUsageDescription"
+    ],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["EventKit", "EventKitUI"],
+    tccService: "Calendar",
+    macEntitlement: "com.apple.security.personal-information.calendars"
+  },
+  {
+    id: "reminders",
+    title: "Reminders",
+    usageKeys: ["NSRemindersFullAccessUsageDescription", "NSRemindersUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["EventKit"],
+    tccService: "Reminders",
+    macEntitlement: "com.apple.security.personal-information.calendars"
+  },
+  {
+    id: "photos",
+    title: "Photos",
+    usageKeys: ["NSPhotoLibraryUsageDescription", "NSPhotoLibraryAddUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["Photos", "PhotosUI"],
+    tccService: "Photos",
+    macEntitlement: "com.apple.security.personal-information.photos-library",
+    notes: "PHPickerViewController (PhotosUI) does not need permission; direct PHPhotoLibrary access does."
+  },
+  {
+    id: "bluetooth",
+    title: "Bluetooth",
+    usageKeys: ["NSBluetoothAlwaysUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["CoreBluetooth"],
+    tccService: "BluetoothAlways",
+    macEntitlement: "com.apple.security.device.bluetooth"
+  },
+  {
+    id: "speech",
+    title: "Speech recognition",
+    usageKeys: ["NSSpeechRecognitionUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["Speech"],
+    tccService: "SpeechRecognition"
+  },
+  {
+    id: "motion",
+    title: "Motion & fitness",
+    usageKeys: ["NSMotionUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["CoreMotion"],
+    tccService: "Motion"
+  },
+  {
+    id: "health",
+    title: "Health",
+    usageKeys: ["NSHealthShareUsageDescription", "NSHealthUpdateUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["HealthKit"]
+  },
+  {
+    id: "homekit",
+    title: "HomeKit",
+    usageKeys: ["NSHomeKitUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["HomeKit"],
+    tccService: "Willow"
+  },
+  {
+    id: "faceid",
+    title: "Face ID",
+    usageKeys: ["NSFaceIDUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["LocalAuthentication"]
+  },
+  {
+    id: "tracking",
+    title: "App Tracking Transparency",
+    usageKeys: ["NSUserTrackingUsageDescription"],
+    platforms: ["iOS", "macOS"],
+    frameworks: ["AppTrackingTransparency", "AdSupport"]
+  },
+  {
+    id: "local-network",
+    title: "Local network",
+    usageKeys: ["NSLocalNetworkUsageDescription"],
+    platforms: ["iOS", "macOS"],
+    frameworks: ["Network", "MultipeerConnectivity"],
+    notes: "Also declare NSBonjourServices for Bonjour browsing. macOS 15+ prompts for local network access too."
+  },
+  {
+    id: "apple-events",
+    title: "Automation (Apple Events)",
+    usageKeys: ["NSAppleEventsUsageDescription"],
+    platforms: ["macOS"],
+    frameworks: ["ScriptingBridge", "OSAKit"],
+    tccService: "AppleEvents",
+    macEntitlement: "com.apple.security.automation.apple-events"
+  },
+  {
+    id: "nfc",
+    title: "NFC",
+    usageKeys: ["NFCReaderUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["CoreNFC"]
+  },
+  {
+    id: "media-library",
+    title: "Media library",
+    usageKeys: ["NSAppleMusicUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["MediaPlayer", "MusicKit"],
+    tccService: "MediaLibrary"
+  },
+  {
+    id: "screen-capture",
+    title: "Screen recording",
+    usageKeys: [],
+    platforms: ["macOS"],
+    frameworks: ["ScreenCaptureKit"],
+    tccService: "ScreenCapture",
+    notes: "No Info.plist key: the user must enable the app in System Settings \u2192 Privacy & Security \u2192 Screen & System Audio Recording."
+  },
+  {
+    id: "accessibility",
+    title: "Accessibility",
+    usageKeys: [],
+    platforms: ["macOS"],
+    frameworks: [],
+    tccService: "Accessibility",
+    notes: "No Info.plist key; AXIsProcessTrustedWithOptions prompts and the user enables it in System Settings. Not allowed for sandboxed Mac App Store apps."
+  },
+  {
+    id: "files-desktop",
+    title: "Desktop / Documents / Downloads folders",
+    usageKeys: [
+      "NSDesktopFolderUsageDescription",
+      "NSDocumentsFolderUsageDescription",
+      "NSDownloadsFolderUsageDescription"
+    ],
+    platforms: ["macOS"],
+    frameworks: [],
+    tccService: "SystemPolicyDesktopFolder",
+    notes: "Non-sandboxed apps reading these folders trigger a TCC prompt on first access; provide the usage strings."
+  },
+  {
+    id: "removable-volumes",
+    title: "Removable / network volumes",
+    usageKeys: ["NSRemovableVolumesUsageDescription", "NSNetworkVolumesUsageDescription"],
+    platforms: ["macOS"],
+    frameworks: [],
+    tccService: "SystemPolicyRemovableVolumes"
+  }
+];
+var TCC_SERVICES = [
+  "All",
+  "Accessibility",
+  "AddressBook",
+  "AppleEvents",
+  "BluetoothAlways",
+  "Calendar",
+  "Camera",
+  "ListenEvent",
+  "MediaLibrary",
+  "Microphone",
+  "Motion",
+  "Photos",
+  "PostEvent",
+  "Reminders",
+  "ScreenCapture",
+  "SpeechRecognition",
+  "SystemPolicyAllFiles",
+  "SystemPolicyDesktopFolder",
+  "SystemPolicyDocumentsFolder",
+  "SystemPolicyDownloadsFolder",
+  "SystemPolicyNetworkVolumes",
+  "SystemPolicyRemovableVolumes",
+  "Willow"
+];
+var REQUIRED_REASON_APIS = [
+  {
+    category: "NSPrivacyAccessedAPICategoryUserDefaults",
+    title: "User defaults",
+    markers: ["NSUserDefaults"],
+    commonReasons: [
+      { code: "CA92.1", meaning: "Access info from the same app that wrote it" },
+      { code: "1C8F.1", meaning: "Shared via App Group with apps/extensions of the same developer" }
+    ]
+  },
+  {
+    category: "NSPrivacyAccessedAPICategoryFileTimestamp",
+    title: "File timestamp APIs",
+    markers: [
+      "\0_stat\0",
+      "\0_fstat\0",
+      "\0_lstat\0",
+      "\0_fstatat\0",
+      "\0_getattrlist\0",
+      "\0_getattrlistbulk\0",
+      "NSFileModificationDate",
+      "NSFileCreationDate",
+      "contentModificationDate",
+      "creationDate"
+    ],
+    commonReasons: [
+      { code: "C617.1", meaning: "Timestamps of files inside the app container / app group" },
+      { code: "3B52.1", meaning: "Timestamps of files the user granted access to" },
+      { code: "DDA9.1", meaning: "Display timestamps to the user" }
+    ]
+  },
+  {
+    category: "NSPrivacyAccessedAPICategorySystemBootTime",
+    title: "System boot time",
+    markers: ["systemUptime", "\0_mach_absolute_time\0"],
+    commonReasons: [{ code: "35F9.1", meaning: "Measure elapsed time between in-app events" }]
+  },
+  {
+    category: "NSPrivacyAccessedAPICategoryDiskSpace",
+    title: "Disk space",
+    markers: [
+      "\0_statfs\0",
+      "\0_statvfs\0",
+      "\0_fstatfs\0",
+      "\0_fstatvfs\0",
+      "NSFileSystemFreeSize",
+      "NSFileSystemSize",
+      "volumeAvailableCapacity"
+    ],
+    commonReasons: [
+      { code: "E174.1", meaning: "Check there is enough space before writing files" },
+      { code: "85F4.1", meaning: "Display disk space to the user" }
+    ]
+  },
+  {
+    category: "NSPrivacyAccessedAPICategoryActiveKeyboards",
+    title: "Active keyboards",
+    markers: ["activeInputModes"],
+    commonReasons: [{ code: "3EC4.1", meaning: "Custom keyboard app determining active keyboards" }]
+  }
+];
+
+// src/knowledge/sdk-requirements.ts
+var SDK_REQUIREMENTS = [
+  {
+    effective: "2024-04-29",
+    minXcode: "15.0",
+    sdks: "iOS 17 / iPadOS 17 / tvOS 17 / watchOS 10 / visionOS 1 SDKs",
+    source: "https://developer.apple.com/news/upcoming-requirements/"
+  },
+  {
+    effective: "2025-04-24",
+    minXcode: "16.0",
+    sdks: "iOS 18 / iPadOS 18 / tvOS 18 / visionOS 2 / watchOS 11 SDKs",
+    source: "https://developer.apple.com/news/upcoming-requirements/"
+  },
+  {
+    effective: "2026-04-28",
+    minXcode: "26.0",
+    sdks: "iOS 26 / iPadOS 26 / tvOS 26 / visionOS 26 / watchOS 26 SDKs",
+    source: "https://developer.apple.com/news/upcoming-requirements/"
+  }
+];
+var SDK_REQUIREMENTS_LAST_REVIEWED = "2026-06-01";
+function currentSdkRequirement(date5) {
+  const iso = date5.toISOString().slice(0, 10);
+  return [...SDK_REQUIREMENTS].reverse().find((r) => r.effective <= iso);
+}
+var NOTARIZATION_MIN_SDK = "10.9";
+
+// src/resources/index.ts
+function findSkillDir() {
+  const candidates = [
+    process.env.NOTARIZE_MCP_SKILL_DIR,
+    fileURLToPath(new URL("../skills/apple-distribution", import.meta.url)),
+    fileURLToPath(new URL("../../skills/apple-distribution", import.meta.url))
+  ].filter((x) => !!x);
+  return candidates.find((c) => existsSync(join10(c, "SKILL.md")));
+}
+function walk(dir) {
+  const out = [];
+  for (const e of readdirSync(dir)) {
+    const p = join10(dir, e);
+    if (statSync(p).isDirectory()) out.push(...walk(p));
+    else if (e.endsWith(".md")) out.push(p);
+  }
+  return out;
+}
+function guideTopics(skillDir) {
+  const refs = join10(skillDir, "references");
+  const files = [join10(skillDir, "SKILL.md"), ...existsSync(refs) ? walk(refs) : []];
+  return files.map((p) => {
+    const rel2 = p.endsWith("SKILL.md") ? "overview" : relative2(refs, p).replace(/\.md$/, "").replace(/[\\/]/g, "-");
+    const text = readFileSync2(p, "utf8");
+    const title = /^#\s+(.+)$/m.exec(text)?.[1] ?? rel2;
+    return { topic: rel2, path: p, title };
+  });
+}
+var CATALOGS = {
+  targets: { description: "Distribution targets and what each requires", data: () => TARGETS },
+  "certificate-types": {
+    description: "Apple certificate types, who can create them, keychain names",
+    data: () => CERTIFICATE_TYPES
+  },
+  entitlements: {
+    description: "Entitlement catalog + presets",
+    data: () => ({ entitlements: ENTITLEMENTS, presets: ENTITLEMENT_PRESETS })
+  },
+  errors: {
+    description: "Known codesign/notarization/Gatekeeper/xcodebuild/ITMS errors with fixes",
+    data: () => ERROR_CATALOG.map((e) => ({ ...e, pattern: e.pattern.source }))
+  },
+  privacy: {
+    description: "Privacy usage strings, TCC services, required-reason APIs",
+    data: () => ({ resources: PRIVACY_RESOURCES, requiredReasonApis: REQUIRED_REASON_APIS })
+  },
+  "sdk-requirements": { description: "App Store minimum Xcode/SDK by date", data: () => SDK_REQUIREMENTS }
+};
+function registerResources(server) {
+  const skillDir = findSkillDir();
+  if (skillDir) {
+    for (const g of guideTopics(skillDir)) {
+      const uri = `notarize://guides/${g.topic}`;
+      server.registerResource(
+        g.topic,
+        uri,
+        { title: g.title, description: `Guide: ${g.title}`, mimeType: "text/markdown" },
+        async () => ({
+          contents: [{ uri, mimeType: "text/markdown", text: readFileSync2(g.path, "utf8") }]
+        })
+      );
+    }
+  }
+  for (const [name, c] of Object.entries(CATALOGS)) {
+    const uri = `notarize://catalog/${name}`;
+    server.registerResource(
+      `catalog-${name}`,
+      uri,
+      { title: `Catalog: ${name}`, description: c.description, mimeType: "application/json" },
+      async () => ({
+        contents: [{ uri, mimeType: "application/json", text: JSON.stringify(c.data(), null, 2) }]
+      })
+    );
+  }
 }
 
 // src/tools/asc-common.ts
@@ -53635,14 +54090,14 @@ var ascApiTool = defineTool({
 
 // src/tools/asc-signing.ts
 import { mkdir as mkdir6, readFile as readFile5, writeFile as writeFile6 } from "fs/promises";
-import { join as join12 } from "path";
+import { join as join13 } from "path";
 
 // src/tools/keychain.ts
 import { randomBytes as randomBytes3 } from "crypto";
 import { chmod as chmod3, mkdir as mkdir4, readFile as readFile4, unlink, writeFile as writeFile4 } from "fs/promises";
-import { basename as basename6, join as join10 } from "path";
+import { basename as basename6, join as join11 } from "path";
 function loginKeychain(home) {
-  return join10(home, "Library", "Keychains", "login.keychain-db");
+  return join11(home, "Library", "Keychains", "login.keychain-db");
 }
 var TRUSTED_APPS = [
   "/usr/bin/codesign",
@@ -53665,8 +54120,8 @@ async function certToPem(path) {
 }
 async function importKeyAndCert(ctx, keyPath, certPem, keychain) {
   const dir = await scratchDir("p12");
-  const certPath = join10(dir, "cert.pem");
-  const p12 = join10(dir, "identity.p12");
+  const certPath = join11(dir, "cert.pem");
+  const p12 = join11(dir, "identity.p12");
   const pass = randomBytes3(18).toString("base64url");
   await writeFile4(certPath, certPem, { mode: 384 });
   try {
@@ -53732,8 +54187,8 @@ var keychainTool = defineTool({
     const keychain = args.keychain ? await resolveUserPath(ctx, args.keychain, false) : loginKeychain(ctx.platform.homeDir);
     if (args.action === "create_csr") {
       const name = args.key_name ?? `signing-${ctx.now().toISOString().slice(0, 10)}`;
-      const keyPath2 = join10(keysDir, `${name}.key`);
-      const csrPath = join10(keysDir, `${name}.csr`);
+      const keyPath2 = join11(keysDir, `${name}.key`);
+      const csrPath = join11(keysDir, `${name}.csr`);
       if (await pathExists(keyPath2))
         throw new ToolError(`A key named ${name} already exists at ${keyPath2}. Choose another key_name.`);
       const subjParts = [
@@ -53792,7 +54247,7 @@ var keychainTool = defineTool({
       if (!args.certificate_path || !args.key_name)
         throw new ToolError("certificate_path and key_name are required.");
       const certPath2 = await resolveUserPath(ctx, args.certificate_path);
-      const keyPath2 = join10(keysDir, `${args.key_name}.key`);
+      const keyPath2 = join11(keysDir, `${args.key_name}.key`);
       if (!await pathExists(keyPath2))
         throw new ToolError(
           `No key ${keyPath2}. It must be the key used to create the CSR for this certificate.`
@@ -53886,7 +54341,7 @@ var keychainTool = defineTool({
               results.push({ name: im.name, ok: false, error: `HTTP ${res.status}` });
               continue;
             }
-            const file2 = join10(dir, basename6(im.url));
+            const file2 = join11(dir, basename6(im.url));
             await writeFile4(file2, new Uint8Array(await res.arrayBuffer()));
             const r = await ctx.runner.run("security", ["import", file2, "-k", keychain], {
               timeoutMs: 3e4
@@ -53906,7 +54361,7 @@ var keychainTool = defineTool({
     }
     if (!args.key_name || !args.certificate_path || !args.output_path)
       throw new ToolError("key_name, certificate_path and output_path are required.");
-    const keyPath = join10(keysDir, `${args.key_name}.key`);
+    const keyPath = join11(keysDir, `${args.key_name}.key`);
     if (!await pathExists(keyPath)) throw new ToolError(`No key ${keyPath}.`);
     const certPath = await resolveUserPath(ctx, args.certificate_path);
     const out = await resolveUserPath(ctx, args.output_path, false);
@@ -53929,7 +54384,7 @@ var keychainTool = defineTool({
       }),
       async () => {
         const password = readSecretEnv(args.password_env) ?? randomBytes3(18).toString("base64url");
-        const pemPath = join10(await scratchDir("export"), "cert.pem");
+        const pemPath = join11(await scratchDir("export"), "cert.pem");
         await writeFile4(pemPath, await certToPem(certPath), { mode: 384 });
         const r = await ctx.runner.run(
           "openssl",
@@ -53971,11 +54426,11 @@ var keychainTool = defineTool({
 
 // src/tools/provisioning.ts
 import { copyFile, mkdir as mkdir5, readdir as readdir5, writeFile as writeFile5 } from "fs/promises";
-import { basename as basename7, extname as extname6, join as join11 } from "path";
+import { basename as basename7, extname as extname6, join as join12 } from "path";
 function profileDirs(home) {
   return [
-    join11(home, "Library", "Developer", "Xcode", "UserData", "Provisioning Profiles"),
-    join11(home, "Library", "MobileDevice", "Provisioning Profiles")
+    join12(home, "Library", "Developer", "Xcode", "UserData", "Provisioning Profiles"),
+    join12(home, "Library", "MobileDevice", "Provisioning Profiles")
   ];
 }
 function summarizeProfile(pl, now, path) {
@@ -54025,9 +54480,9 @@ async function listInstalledProfiles(ctx) {
     for (const f of files.filter((x) => /\.(mobileprovision|provisionprofile)$/.test(x))) {
       try {
         const s = summarizeProfile(
-          await decodeProvisioningProfile(ctx.runner, join11(dir, f), ctx.platform.isMac),
+          await decodeProvisioningProfile(ctx.runner, join12(dir, f), ctx.platform.isMac),
           ctx.now(),
-          join11(dir, f)
+          join12(dir, f)
         );
         if (s.uuid && seen.has(s.uuid)) continue;
         if (s.uuid) seen.add(s.uuid);
@@ -54043,7 +54498,7 @@ async function installProfileBytes(ctx, bytes, uuid3, isMac) {
   const written = [];
   for (const dir of profileDirs(ctx.platform.homeDir)) {
     await mkdir5(dir, { recursive: true });
-    const p = join11(dir, `${uuid3}.${ext}`);
+    const p = join12(dir, `${uuid3}.${ext}`);
     await writeFile5(p, bytes);
     written.push(p);
   }
@@ -54126,7 +54581,7 @@ ${formatFindings(findings)}` : ""}`,
     if (args.action === "install") {
       if (!summary.uuid) throw new ToolError("Profile has no UUID.");
       const dests = profileDirs(ctx.platform.homeDir).map(
-        (d) => join11(d, `${summary.uuid}.${isMac ? "provisionprofile" : "mobileprovision"}`)
+        (d) => join12(d, `${summary.uuid}.${isMac ? "provisionprofile" : "mobileprovision"}`)
       );
       return withConfirmation(
         ctx,
@@ -54155,8 +54610,8 @@ ${written.join("\n")}`,
     if (!args.app_path) throw new ToolError("app_path is required for embed.");
     const app = await resolveUserPath(ctx, args.app_path);
     if (!await isDirectory(app)) throw new ToolError(`${app} is not a bundle directory.`);
-    const isMacBundle = await pathExists(join11(app, "Contents"));
-    const dest = isMacBundle ? join11(app, "Contents", "embedded.provisionprofile") : join11(app, "embedded.mobileprovision");
+    const isMacBundle = await pathExists(join12(app, "Contents"));
+    const dest = isMacBundle ? join12(app, "Contents", "embedded.provisionprofile") : join12(app, "embedded.mobileprovision");
     const replacing = await pathExists(dest);
     return withConfirmation(
       ctx,
@@ -54484,7 +54939,7 @@ var ascCertificatesTool = defineTool({
     const keysDir = ctx.config.keysDir;
     if (args.action === "create") {
       if (!args.certificate_type) throw new ToolError("certificate_type is required.");
-      const csrPath = args.csr_path ? await resolveUserPath(ctx, args.csr_path) : args.key_name ? join12(keysDir, `${args.key_name}.csr`) : void 0;
+      const csrPath = args.csr_path ? await resolveUserPath(ctx, args.csr_path) : args.key_name ? join13(keysDir, `${args.key_name}.csr`) : void 0;
       if (!csrPath || !await pathExists(csrPath))
         throw new ToolError("Provide key_name (from keychain create_csr) or csr_path.");
       const install = args.install ?? !!args.key_name;
@@ -54533,7 +54988,7 @@ var ascCertificatesTool = defineTool({
           const content = created.attributes?.certificateContent;
           if (content) {
             await mkdir6(keysDir, { recursive: true, mode: 448 });
-            const cerPath = join12(keysDir, `${args.key_name ?? created.id}.cer`);
+            const cerPath = join13(keysDir, `${args.key_name ?? created.id}.cer`);
             await writeFile6(cerPath, Buffer.from(content, "base64"));
             data.cerPath = cerPath;
             lines.push(`Saved ${cerPath}.`);
@@ -54541,7 +54996,7 @@ var ascCertificatesTool = defineTool({
               requireMacOS(ctx.platform, "Keychain import");
               const res = await importKeyAndCert(
                 ctx,
-                join12(keysDir, `${args.key_name}.key`),
+                join13(keysDir, `${args.key_name}.key`),
                 derToPem(Buffer.from(content, "base64")),
                 loginKeychain(ctx.platform.homeDir)
               );
@@ -54564,7 +55019,7 @@ var ascCertificatesTool = defineTool({
     if (args.action === "download_install") {
       if (!args.key_name)
         throw new ToolError("key_name is required: the private key that created this certificate's CSR.");
-      const keyPath = join12(keysDir, `${args.key_name}.key`);
+      const keyPath = join13(keysDir, `${args.key_name}.key`);
       if (!await pathExists(keyPath))
         throw new ToolError(
           `No private key ${keyPath}. A certificate is useless without the key that created its CSR \u2014 create a new certificate instead.`
@@ -54879,39 +55334,11 @@ Installed: ${r.installed.join(", ")}` : ""}`,
 
 // src/tools/checklist.ts
 import { readFile as readFile7 } from "fs/promises";
-import { dirname as dirname4, extname as extname8, isAbsolute as isAbsolute2, join as join14 } from "path";
-
-// src/knowledge/sdk-requirements.ts
-var SDK_REQUIREMENTS = [
-  {
-    effective: "2024-04-29",
-    minXcode: "15.0",
-    sdks: "iOS 17 / iPadOS 17 / tvOS 17 / watchOS 10 / visionOS 1 SDKs",
-    source: "https://developer.apple.com/news/upcoming-requirements/"
-  },
-  {
-    effective: "2025-04-24",
-    minXcode: "16.0",
-    sdks: "iOS 18 / iPadOS 18 / tvOS 18 / visionOS 2 / watchOS 11 SDKs",
-    source: "https://developer.apple.com/news/upcoming-requirements/"
-  },
-  {
-    effective: "2026-04-28",
-    minXcode: "26.0",
-    sdks: "iOS 26 / iPadOS 26 / tvOS 26 / visionOS 26 / watchOS 26 SDKs",
-    source: "https://developer.apple.com/news/upcoming-requirements/"
-  }
-];
-var SDK_REQUIREMENTS_LAST_REVIEWED = "2026-06-01";
-function currentSdkRequirement(date5) {
-  const iso = date5.toISOString().slice(0, 10);
-  return [...SDK_REQUIREMENTS].reverse().find((r) => r.effective <= iso);
-}
-var NOTARIZATION_MIN_SDK = "10.9";
+import { dirname as dirname4, extname as extname8, isAbsolute as isAbsolute2, join as join15 } from "path";
 
 // src/parsers/project/detect.ts
 import { readdir as readdir6, readFile as readFile6, stat as stat3 } from "fs/promises";
-import { basename as basename8, extname as extname7, join as join13, relative as relative2 } from "path";
+import { basename as basename8, extname as extname7, join as join14, relative as relative3 } from "path";
 var SKIP_DIRS = /* @__PURE__ */ new Set([
   "node_modules",
   "Pods",
@@ -55005,11 +55432,11 @@ async function detectXcode(dir, path, kind) {
   const c = component(kind, path, { name });
   let pbxPaths = [];
   if (kind === "xcode-project") {
-    pbxPaths = [join13(path, "project.pbxproj")];
+    pbxPaths = [join14(path, "project.pbxproj")];
   } else {
-    const contents = await readText(join13(path, "contents.xcworkspacedata"));
+    const contents = await readText(join14(path, "contents.xcworkspacedata"));
     const refs = [...(contents ?? "").matchAll(/location = "group:([^"]+\.xcodeproj)"/g)].map((m) => m[1]);
-    pbxPaths = refs.filter((r) => !r.startsWith("Pods/")).map((r) => join13(dir, r, "project.pbxproj"));
+    pbxPaths = refs.filter((r) => !r.startsWith("Pods/")).map((r) => join14(dir, r, "project.pbxproj"));
     c.signing.projects = refs;
     if (refs.some((r) => r.startsWith("Pods/")))
       c.findings.push("CocoaPods workspace: always build the .xcworkspace, not the .xcodeproj.");
@@ -55062,20 +55489,20 @@ async function detectXcode(dir, path, kind) {
   c.suggestedTargets = targetsFor(c.platforms);
   const flag = kind === "xcode-workspace" ? "-workspace" : "-project";
   c.buildCommands = [
-    `xcodebuild -list -json ${flag} ${relative2(dir, path) || basename8(path)}`,
+    `xcodebuild -list -json ${flag} ${relative3(dir, path) || basename8(path)}`,
     "Use the `xcode` tool: action=archive (automatic signing with -allowProvisioningUpdates + API key), then action=export"
   ];
   return c;
 }
 async function detectSwiftPM(dir) {
-  const pkg = await readText(join13(dir, "Package.swift"));
+  const pkg = await readText(join14(dir, "Package.swift"));
   if (!pkg) return void 0;
   const name = /name:\s*"([^"]+)"/.exec(pkg)?.[1];
   const execs = [...pkg.matchAll(/\.executableTarget\(\s*name:\s*"([^"]+)"/g)].map((m) => m[1]);
   const platforms = [];
   if (/\.macOS\(/.test(pkg)) platforms.push("macOS");
   if (/\.iOS\(/.test(pkg)) platforms.push("iOS");
-  const c = component("swiftpm", join13(dir, "Package.swift"), {
+  const c = component("swiftpm", join14(dir, "Package.swift"), {
     name,
     platforms: platforms.length ? platforms : ["macOS"],
     signing: { executableTargets: execs },
@@ -55155,13 +55582,13 @@ async function detectElectron(dir, pkg) {
     "electron-builder.json5",
     "electron-builder.config.js"
   ];
-  const builderFile = (await Promise.all(builderFiles.map(async (f) => await exists(join13(dir, f)) ? f : void 0))).find(Boolean);
-  const forgeFile = await exists(join13(dir, "forge.config.js")) ? "forge.config.js" : await exists(join13(dir, "forge.config.ts")) ? "forge.config.ts" : void 0;
+  const builderFile = (await Promise.all(builderFiles.map(async (f) => await exists(join14(dir, f)) ? f : void 0))).find(Boolean);
+  const forgeFile = await exists(join14(dir, "forge.config.js")) ? "forge.config.js" : await exists(join14(dir, "forge.config.ts")) ? "forge.config.ts" : void 0;
   const build2 = pkg.build ?? {};
-  const builderText = builderFile ? await readText(join13(dir, builderFile)) : void 0;
+  const builderText = builderFile ? await readText(join14(dir, builderFile)) : void 0;
   const appId = build2.appId ?? (builderText ? /appId:\s*["']?([\w.-]+)/.exec(builderText)?.[1] : void 0);
   const mac4 = build2.mac ?? {};
-  const c = component("electron", join13(dir, "package.json"), {
+  const c = component("electron", join14(dir, "package.json"), {
     name: pkg.productName ?? pkg.name,
     platforms: ["macOS"],
     bundleIds: appId ? [appId] : [],
@@ -55195,7 +55622,7 @@ async function detectElectron(dir, pkg) {
   return c;
 }
 async function detectTauri(dir) {
-  const confPath = ["src-tauri/tauri.conf.json", "tauri.conf.json"].map((p) => join13(dir, p));
+  const confPath = ["src-tauri/tauri.conf.json", "tauri.conf.json"].map((p) => join14(dir, p));
   let file2;
   let conf;
   for (const p of confPath) {
@@ -55206,8 +55633,8 @@ async function detectTauri(dir) {
     }
   }
   if (!conf || !file2) {
-    if (await exists(join13(dir, "src-tauri", "Tauri.toml")))
-      return component("tauri", join13(dir, "src-tauri", "Tauri.toml"), {
+    if (await exists(join14(dir, "src-tauri", "Tauri.toml")))
+      return component("tauri", join14(dir, "src-tauri", "Tauri.toml"), {
         platforms: ["macOS"],
         findings: ["Tauri.toml config detected; signing keys live under [bundle.macOS]."],
         suggestedTargets: ["mac-developer-id"]
@@ -55220,7 +55647,7 @@ async function detectTauri(dir) {
   const macOS = bundle.macOS ?? {};
   const iOS = bundle.iOS ?? {};
   const platforms = ["macOS"];
-  if (await exists(join13(dir, "src-tauri", "gen", "apple"))) platforms.push("iOS");
+  if (await exists(join14(dir, "src-tauri", "gen", "apple"))) platforms.push("iOS");
   const c = component("tauri", file2, {
     name: conf.productName ?? conf.package?.productName,
     platforms,
@@ -55235,7 +55662,7 @@ async function detectTauri(dir) {
     c.findings.push("bundle.macOS.signingIdentity not set \u2014 set it or export APPLE_SIGNING_IDENTITY.");
   c.configSnippets = [
     {
-      file: relative2(dir, file2),
+      file: relative3(dir, file2),
       description: "Tauri v2 macOS signing (notarization runs automatically when APPLE_API_* env vars are set)",
       snippet: JSON.stringify(
         {
@@ -55276,13 +55703,13 @@ async function nativeIds(dir, sub) {
   const teamIds = [];
   let entries = [];
   try {
-    entries = await readdir6(join13(dir, sub), { withFileTypes: true });
+    entries = await readdir6(join14(dir, sub), { withFileTypes: true });
   } catch {
     return { bundleIds, teamIds };
   }
   for (const e of entries) {
     if (e.isDirectory() && e.name.endsWith(".xcodeproj")) {
-      const text = await readText(join13(dir, sub, e.name, "project.pbxproj"));
+      const text = await readText(join14(dir, sub, e.name, "project.pbxproj"));
       if (text) {
         const s = summarizePbxproj(text);
         bundleIds.push(...s.bundleIds);
@@ -55293,7 +55720,7 @@ async function nativeIds(dir, sub) {
   return { bundleIds: uniq(bundleIds), teamIds: uniq(teamIds) };
 }
 async function detectFlutter(dir) {
-  const pubspec = await readText(join13(dir, "pubspec.yaml"));
+  const pubspec = await readText(join14(dir, "pubspec.yaml"));
   if (!pubspec || !/^\s*flutter:/m.test(pubspec)) return void 0;
   const platforms = [];
   const ids = { bundleIds: [], teamIds: [] };
@@ -55301,14 +55728,14 @@ async function detectFlutter(dir) {
     ["ios", "iOS"],
     ["macos", "macOS"]
   ]) {
-    if (await exists(join13(dir, sub, "Runner.xcodeproj"))) {
+    if (await exists(join14(dir, sub, "Runner.xcodeproj"))) {
       platforms.push(plat);
       const n = await nativeIds(dir, sub);
       ids.bundleIds.push(...n.bundleIds);
       ids.teamIds.push(...n.teamIds);
     }
   }
-  const c = component("flutter", join13(dir, "pubspec.yaml"), {
+  const c = component("flutter", join14(dir, "pubspec.yaml"), {
     name: /^name:\s*(\S+)/m.exec(pubspec)?.[1],
     platforms,
     bundleIds: uniq(ids.bundleIds),
@@ -55334,13 +55761,13 @@ async function detectReactNativeOrExpo(dir, pkg) {
   const isExpo = !!deps.expo;
   const isRN = !!deps["react-native"];
   if (!isExpo && !isRN) return void 0;
-  const hasIos = await exists(join13(dir, "ios"));
+  const hasIos = await exists(join14(dir, "ios"));
   const ids = hasIos ? await nativeIds(dir, "ios") : { bundleIds: [], teamIds: [] };
   if (isExpo) {
-    const appJson = await readJson(join13(dir, "app.json")) ?? {};
+    const appJson = await readJson(join14(dir, "app.json")) ?? {};
     const expo = appJson.expo ?? appJson;
-    const eas = await readJson(join13(dir, "eas.json"));
-    const c2 = component("expo", join13(dir, "package.json"), {
+    const eas = await readJson(join14(dir, "eas.json"));
+    const c2 = component("expo", join14(dir, "package.json"), {
       name: expo.name ?? pkg.name,
       platforms: ["iOS"],
       bundleIds: uniq([expo.ios?.bundleIdentifier, ...ids.bundleIds]),
@@ -55351,7 +55778,7 @@ async function detectReactNativeOrExpo(dir, pkg) {
         version: expo.version,
         easBuildProfiles: eas?.build ? Object.keys(eas.build) : void 0,
         easSubmitIos: eas?.submit?.production?.ios,
-        appConfigDynamic: await exists(join13(dir, "app.config.js")) || await exists(join13(dir, "app.config.ts"))
+        appConfigDynamic: await exists(join14(dir, "app.config.js")) || await exists(join14(dir, "app.config.ts"))
       },
       suggestedTargets: ["testflight-ios", "ios-app-store"]
     });
@@ -55385,7 +55812,7 @@ async function detectReactNativeOrExpo(dir, pkg) {
     c2.buildCommands = ["eas build -p ios --profile production", "eas submit -p ios --latest"];
     return c2;
   }
-  const c = component("react-native", join13(dir, "package.json"), {
+  const c = component("react-native", join14(dir, "package.json"), {
     name: pkg.name,
     platforms: hasIos ? ["iOS"] : [],
     bundleIds: ids.bundleIds,
@@ -55402,7 +55829,7 @@ async function detectReactNativeOrExpo(dir, pkg) {
   return c;
 }
 async function readBundleInfo(appPath) {
-  for (const p of [join13(appPath, "Contents", "Info.plist"), join13(appPath, "Info.plist")]) {
+  for (const p of [join14(appPath, "Contents", "Info.plist"), join14(appPath, "Info.plist")]) {
     try {
       return parsePlistDict(new Uint8Array(await readFile6(p)));
     } catch {
@@ -55414,7 +55841,7 @@ async function detectArtifact(path) {
   const ext = extname7(path).toLowerCase();
   if (ext === ".app") {
     const info = await readBundleInfo(path);
-    const isMac = await exists(join13(path, "Contents"));
+    const isMac = await exists(join14(path, "Contents"));
     const c = component("app-bundle", path, {
       name: info?.CFBundleName ?? basename8(path, ".app"),
       platforms: [isMac ? "macOS" : "iOS"],
@@ -55423,7 +55850,7 @@ async function detectArtifact(path) {
         version: info?.CFBundleShortVersionString,
         build: info?.CFBundleVersion,
         minimumSystemVersion: info?.LSMinimumSystemVersion ?? info?.MinimumOSVersion,
-        embeddedProfile: await exists(join13(path, "Contents", "embedded.provisionprofile")) ? "Contents/embedded.provisionprofile" : await exists(join13(path, "embedded.mobileprovision")) ? "embedded.mobileprovision" : void 0
+        embeddedProfile: await exists(join14(path, "Contents", "embedded.provisionprofile")) ? "Contents/embedded.provisionprofile" : await exists(join14(path, "embedded.mobileprovision")) ? "embedded.mobileprovision" : void 0
       },
       suggestedTargets: isMac ? ["mac-developer-id"] : ["ios-ad-hoc"]
     });
@@ -55435,14 +55862,14 @@ async function detectArtifact(path) {
   if (ext === ".xcarchive") {
     let info;
     try {
-      info = parsePlistDict(new Uint8Array(await readFile6(join13(path, "Info.plist"))));
+      info = parsePlistDict(new Uint8Array(await readFile6(join14(path, "Info.plist"))));
     } catch {
     }
     const props = info?.ApplicationProperties ?? {};
     const appPath = String(props.ApplicationPath ?? "");
     return component("xcarchive", path, {
       name: String(info?.Name ?? basename8(path, ".xcarchive")),
-      platforms: appPath.includes("Applications/") && await exists(join13(path, "Products", appPath, "Contents")) ? ["macOS"] : ["iOS"],
+      platforms: appPath.includes("Applications/") && await exists(join14(path, "Products", appPath, "Contents")) ? ["macOS"] : ["iOS"],
       bundleIds: props.CFBundleIdentifier ? [String(props.CFBundleIdentifier)] : [],
       teamIds: props.Team ? [String(props.Team)] : [],
       signing: {
@@ -55511,26 +55938,26 @@ async function detectProject(root, maxDepth = 2) {
   const components = [];
   const claimed = /* @__PURE__ */ new Set();
   async function scanDir(dir, depth) {
-    const pkg = await readJson(join13(dir, "package.json"));
+    const pkg = await readJson(join14(dir, "package.json"));
     if (pkg) {
       const deps = { ...pkg.dependencies, ...pkg.devDependencies };
       if (deps.electron) components.push(await detectElectron(dir, pkg));
       const rn = await detectReactNativeOrExpo(dir, pkg);
       if (rn) {
         components.push(rn);
-        claimed.add(join13(dir, "ios"));
+        claimed.add(join14(dir, "ios"));
       }
     }
     const tauri = await detectTauri(dir);
     if (tauri) {
       components.push(tauri);
-      claimed.add(join13(dir, "src-tauri"));
+      claimed.add(join14(dir, "src-tauri"));
     }
     const flutter = await detectFlutter(dir);
     if (flutter) {
       components.push(flutter);
-      claimed.add(join13(dir, "ios"));
-      claimed.add(join13(dir, "macos"));
+      claimed.add(join14(dir, "ios"));
+      claimed.add(join14(dir, "macos"));
     }
     const spm = await detectSwiftPM(dir);
     if (spm) components.push(spm);
@@ -55544,19 +55971,19 @@ async function detectProject(root, maxDepth = 2) {
     const projects = entries.filter((e) => e.isDirectory() && e.name.endsWith(".xcodeproj"));
     if (!claimed.has(dir)) {
       for (const w of workspaces)
-        components.push(await detectXcode(dir, join13(dir, w.name), "xcode-workspace"));
+        components.push(await detectXcode(dir, join14(dir, w.name), "xcode-workspace"));
       if (!workspaces.length)
-        for (const p of projects) components.push(await detectXcode(dir, join13(dir, p.name), "xcode-project"));
+        for (const p of projects) components.push(await detectXcode(dir, join14(dir, p.name), "xcode-project"));
     } else if (workspaces.length || projects.length) {
       const owner = components.find((c) => ["flutter", "react-native", "expo"].includes(c.kind));
       if (owner)
         owner.signing.nativeProjects = [...workspaces, ...projects].map(
-          (e) => relative2(root, join13(dir, e.name))
+          (e) => relative3(root, join14(dir, e.name))
         );
     }
     for (const e of entries) {
       if (e.isDirectory() && /\.(app|xcarchive)$/.test(e.name) && depth === 0) {
-        const a = await detectArtifact(join13(dir, e.name));
+        const a = await detectArtifact(join14(dir, e.name));
         if (a) components.push(a);
       }
     }
@@ -55564,7 +55991,7 @@ async function detectProject(root, maxDepth = 2) {
     for (const e of entries) {
       if (!e.isDirectory() || SKIP_DIRS.has(e.name) || e.name.startsWith(".")) continue;
       if (/\.(xcodeproj|xcworkspace|app|xcarchive|framework|bundle|lproj|xcassets)$/.test(e.name)) continue;
-      await scanDir(join13(dir, e.name), depth + 1);
+      await scanDir(join14(dir, e.name), depth + 1);
     }
   }
   await scanDir(root, 0);
@@ -55583,7 +56010,7 @@ async function readEntitlementsFiles(component2) {
   if (s.macOS?.entitlements) files.push(s.macOS.entitlements);
   const out = {};
   for (const f of files) {
-    for (const candidate of [isAbsolute2(f) ? f : join14(base, f), join14(base, "..", f)]) {
+    for (const candidate of [isAbsolute2(f) ? f : join15(base, f), join15(base, "..", f)]) {
       try {
         Object.assign(out, parsePlistDict(new Uint8Array(await readFile7(candidate))));
         break;
@@ -56463,294 +56890,7 @@ var detectProjectTool = defineTool({
 
 // src/tools/diagnostics.ts
 import { readdir as readdir7, readFile as readFile8, stat as stat4, unlink as unlink2 } from "fs/promises";
-import { basename as basename9, join as join15 } from "path";
-
-// src/knowledge/privacy-keys.ts
-var PRIVACY_RESOURCES = [
-  {
-    id: "camera",
-    title: "Camera",
-    usageKeys: ["NSCameraUsageDescription"],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["AVFoundation", "AVKit", "VisionKit"],
-    tccService: "Camera",
-    macEntitlement: "com.apple.security.device.camera"
-  },
-  {
-    id: "microphone",
-    title: "Microphone",
-    usageKeys: ["NSMicrophoneUsageDescription"],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["AVFoundation", "AVFAudio", "Speech"],
-    tccService: "Microphone",
-    macEntitlement: "com.apple.security.device.audio-input"
-  },
-  {
-    id: "location",
-    title: "Location",
-    usageKeys: [
-      "NSLocationWhenInUseUsageDescription",
-      "NSLocationAlwaysAndWhenInUseUsageDescription",
-      "NSLocationUsageDescription"
-    ],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["CoreLocation", "MapKit"],
-    macEntitlement: "com.apple.security.personal-information.location",
-    notes: "MapKit alone does not require location permission; only CLLocationManager usage does."
-  },
-  {
-    id: "contacts",
-    title: "Contacts",
-    usageKeys: ["NSContactsUsageDescription"],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["Contacts", "ContactsUI", "AddressBook"],
-    tccService: "AddressBook",
-    macEntitlement: "com.apple.security.personal-information.addressbook"
-  },
-  {
-    id: "calendars",
-    title: "Calendars",
-    usageKeys: [
-      "NSCalendarsFullAccessUsageDescription",
-      "NSCalendarsWriteOnlyAccessUsageDescription",
-      "NSCalendarsUsageDescription"
-    ],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["EventKit", "EventKitUI"],
-    tccService: "Calendar",
-    macEntitlement: "com.apple.security.personal-information.calendars"
-  },
-  {
-    id: "reminders",
-    title: "Reminders",
-    usageKeys: ["NSRemindersFullAccessUsageDescription", "NSRemindersUsageDescription"],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["EventKit"],
-    tccService: "Reminders",
-    macEntitlement: "com.apple.security.personal-information.calendars"
-  },
-  {
-    id: "photos",
-    title: "Photos",
-    usageKeys: ["NSPhotoLibraryUsageDescription", "NSPhotoLibraryAddUsageDescription"],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["Photos", "PhotosUI"],
-    tccService: "Photos",
-    macEntitlement: "com.apple.security.personal-information.photos-library",
-    notes: "PHPickerViewController (PhotosUI) does not need permission; direct PHPhotoLibrary access does."
-  },
-  {
-    id: "bluetooth",
-    title: "Bluetooth",
-    usageKeys: ["NSBluetoothAlwaysUsageDescription"],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["CoreBluetooth"],
-    tccService: "BluetoothAlways",
-    macEntitlement: "com.apple.security.device.bluetooth"
-  },
-  {
-    id: "speech",
-    title: "Speech recognition",
-    usageKeys: ["NSSpeechRecognitionUsageDescription"],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["Speech"],
-    tccService: "SpeechRecognition"
-  },
-  {
-    id: "motion",
-    title: "Motion & fitness",
-    usageKeys: ["NSMotionUsageDescription"],
-    platforms: ["iOS"],
-    frameworks: ["CoreMotion"],
-    tccService: "Motion"
-  },
-  {
-    id: "health",
-    title: "Health",
-    usageKeys: ["NSHealthShareUsageDescription", "NSHealthUpdateUsageDescription"],
-    platforms: ["iOS"],
-    frameworks: ["HealthKit"]
-  },
-  {
-    id: "homekit",
-    title: "HomeKit",
-    usageKeys: ["NSHomeKitUsageDescription"],
-    platforms: ["iOS"],
-    frameworks: ["HomeKit"],
-    tccService: "Willow"
-  },
-  {
-    id: "faceid",
-    title: "Face ID",
-    usageKeys: ["NSFaceIDUsageDescription"],
-    platforms: ["iOS"],
-    frameworks: ["LocalAuthentication"]
-  },
-  {
-    id: "tracking",
-    title: "App Tracking Transparency",
-    usageKeys: ["NSUserTrackingUsageDescription"],
-    platforms: ["iOS", "macOS"],
-    frameworks: ["AppTrackingTransparency", "AdSupport"]
-  },
-  {
-    id: "local-network",
-    title: "Local network",
-    usageKeys: ["NSLocalNetworkUsageDescription"],
-    platforms: ["iOS", "macOS"],
-    frameworks: ["Network", "MultipeerConnectivity"],
-    notes: "Also declare NSBonjourServices for Bonjour browsing. macOS 15+ prompts for local network access too."
-  },
-  {
-    id: "apple-events",
-    title: "Automation (Apple Events)",
-    usageKeys: ["NSAppleEventsUsageDescription"],
-    platforms: ["macOS"],
-    frameworks: ["ScriptingBridge", "OSAKit"],
-    tccService: "AppleEvents",
-    macEntitlement: "com.apple.security.automation.apple-events"
-  },
-  {
-    id: "nfc",
-    title: "NFC",
-    usageKeys: ["NFCReaderUsageDescription"],
-    platforms: ["iOS"],
-    frameworks: ["CoreNFC"]
-  },
-  {
-    id: "media-library",
-    title: "Media library",
-    usageKeys: ["NSAppleMusicUsageDescription"],
-    platforms: ["iOS"],
-    frameworks: ["MediaPlayer", "MusicKit"],
-    tccService: "MediaLibrary"
-  },
-  {
-    id: "screen-capture",
-    title: "Screen recording",
-    usageKeys: [],
-    platforms: ["macOS"],
-    frameworks: ["ScreenCaptureKit"],
-    tccService: "ScreenCapture",
-    notes: "No Info.plist key: the user must enable the app in System Settings \u2192 Privacy & Security \u2192 Screen & System Audio Recording."
-  },
-  {
-    id: "accessibility",
-    title: "Accessibility",
-    usageKeys: [],
-    platforms: ["macOS"],
-    frameworks: [],
-    tccService: "Accessibility",
-    notes: "No Info.plist key; AXIsProcessTrustedWithOptions prompts and the user enables it in System Settings. Not allowed for sandboxed Mac App Store apps."
-  },
-  {
-    id: "files-desktop",
-    title: "Desktop / Documents / Downloads folders",
-    usageKeys: [
-      "NSDesktopFolderUsageDescription",
-      "NSDocumentsFolderUsageDescription",
-      "NSDownloadsFolderUsageDescription"
-    ],
-    platforms: ["macOS"],
-    frameworks: [],
-    tccService: "SystemPolicyDesktopFolder",
-    notes: "Non-sandboxed apps reading these folders trigger a TCC prompt on first access; provide the usage strings."
-  },
-  {
-    id: "removable-volumes",
-    title: "Removable / network volumes",
-    usageKeys: ["NSRemovableVolumesUsageDescription", "NSNetworkVolumesUsageDescription"],
-    platforms: ["macOS"],
-    frameworks: [],
-    tccService: "SystemPolicyRemovableVolumes"
-  }
-];
-var TCC_SERVICES = [
-  "All",
-  "Accessibility",
-  "AddressBook",
-  "AppleEvents",
-  "BluetoothAlways",
-  "Calendar",
-  "Camera",
-  "ListenEvent",
-  "MediaLibrary",
-  "Microphone",
-  "Motion",
-  "Photos",
-  "PostEvent",
-  "Reminders",
-  "ScreenCapture",
-  "SpeechRecognition",
-  "SystemPolicyAllFiles",
-  "SystemPolicyDesktopFolder",
-  "SystemPolicyDocumentsFolder",
-  "SystemPolicyDownloadsFolder",
-  "SystemPolicyNetworkVolumes",
-  "SystemPolicyRemovableVolumes",
-  "Willow"
-];
-var REQUIRED_REASON_APIS = [
-  {
-    category: "NSPrivacyAccessedAPICategoryUserDefaults",
-    title: "User defaults",
-    markers: ["NSUserDefaults"],
-    commonReasons: [
-      { code: "CA92.1", meaning: "Access info from the same app that wrote it" },
-      { code: "1C8F.1", meaning: "Shared via App Group with apps/extensions of the same developer" }
-    ]
-  },
-  {
-    category: "NSPrivacyAccessedAPICategoryFileTimestamp",
-    title: "File timestamp APIs",
-    markers: [
-      "\0_stat\0",
-      "\0_fstat\0",
-      "\0_lstat\0",
-      "\0_fstatat\0",
-      "\0_getattrlist\0",
-      "\0_getattrlistbulk\0",
-      "NSFileModificationDate",
-      "NSFileCreationDate",
-      "contentModificationDate",
-      "creationDate"
-    ],
-    commonReasons: [
-      { code: "C617.1", meaning: "Timestamps of files inside the app container / app group" },
-      { code: "3B52.1", meaning: "Timestamps of files the user granted access to" },
-      { code: "DDA9.1", meaning: "Display timestamps to the user" }
-    ]
-  },
-  {
-    category: "NSPrivacyAccessedAPICategorySystemBootTime",
-    title: "System boot time",
-    markers: ["systemUptime", "\0_mach_absolute_time\0"],
-    commonReasons: [{ code: "35F9.1", meaning: "Measure elapsed time between in-app events" }]
-  },
-  {
-    category: "NSPrivacyAccessedAPICategoryDiskSpace",
-    title: "Disk space",
-    markers: [
-      "\0_statfs\0",
-      "\0_statvfs\0",
-      "\0_fstatfs\0",
-      "\0_fstatvfs\0",
-      "NSFileSystemFreeSize",
-      "NSFileSystemSize",
-      "volumeAvailableCapacity"
-    ],
-    commonReasons: [
-      { code: "E174.1", meaning: "Check there is enough space before writing files" },
-      { code: "85F4.1", meaning: "Display disk space to the user" }
-    ]
-  },
-  {
-    category: "NSPrivacyAccessedAPICategoryActiveKeyboards",
-    title: "Active keyboards",
-    markers: ["activeInputModes"],
-    commonReasons: [{ code: "3EC4.1", meaning: "Custom keyboard app determining active keyboards" }]
-  }
-];
+import { basename as basename9, join as join16 } from "path";
 
 // src/parsers/ips.ts
 function parseCrashReport(text) {
@@ -57094,7 +57234,7 @@ var crashReportsTool = defineTool({
   },
   async handler(args, ctx) {
     const dirs = [
-      join15(ctx.platform.homeDir, "Library", "Logs", "DiagnosticReports"),
+      join16(ctx.platform.homeDir, "Library", "Logs", "DiagnosticReports"),
       "/Library/Logs/DiagnosticReports"
     ];
     const files = [];
@@ -57104,7 +57244,7 @@ var crashReportsTool = defineTool({
           if (!/\.(ips|crash)$/.test(f)) continue;
           if (args.process && !f.toLowerCase().includes(args.process.toLowerCase().split(".").pop()))
             continue;
-          const p = join15(d, f);
+          const p = join16(d, f);
           files.push({ path: p, mtime: (await stat4(p)).mtimeMs });
         }
       } catch {
@@ -57145,7 +57285,7 @@ async function scanRequiredReasonApis(binary) {
 }
 async function mainExecutable(app, info) {
   const exe = info?.CFBundleExecutable;
-  for (const p of [exe && join15(app, "Contents", "MacOS", exe), exe && join15(app, exe)])
+  for (const p of [exe && join16(app, "Contents", "MacOS", exe), exe && join16(app, exe)])
     if (p && await pathExists(p)) return p;
   return void 0;
 }
@@ -57189,7 +57329,7 @@ var privacyTool = defineTool({
     const app = await resolveUserPath(ctx, args.path);
     if (!await isDirectory(app)) throw new ToolError("audit expects an .app bundle.");
     const info = await readBundleInfo(app) ?? {};
-    const isMac = await pathExists(join15(app, "Contents"));
+    const isMac = await pathExists(join16(app, "Contents"));
     const platform = isMac ? "macOS" : "iOS";
     const exe = await mainExecutable(app, info);
     const findings = [];
@@ -57241,8 +57381,8 @@ var privacyTool = defineTool({
         findings.push(finding("info", `${res.title}: ${res.notes}`));
     }
     const manifestPath = [
-      join15(app, "PrivacyInfo.xcprivacy"),
-      join15(app, "Contents", "Resources", "PrivacyInfo.xcprivacy")
+      join16(app, "PrivacyInfo.xcprivacy"),
+      join16(app, "Contents", "Resources", "PrivacyInfo.xcprivacy")
     ];
     let manifest;
     for (const p of manifestPath) {
@@ -57330,7 +57470,7 @@ var devicesTool = defineTool({
       } catch {
       }
     }
-    const tmp = join15(await scratchDir("devicectl"), "devices.json");
+    const tmp = join16(await scratchDir("devicectl"), "devices.json");
     const dc = await ctx.runner.run("xcrun", ["devicectl", "list", "devices", "--json-output", tmp], {
       timeoutMs: 6e4
     });
@@ -57680,7 +57820,7 @@ ${formatFindings(findings)}`,
 
 // src/tools/entitlements.ts
 import { readFile as readFile9, writeFile as writeFile8 } from "fs/promises";
-import { extname as extname9, join as join16 } from "path";
+import { extname as extname9, join as join17 } from "path";
 async function loadEntitlements(ctx, path) {
   const ext = extname9(path).toLowerCase();
   if (ext === ".mobileprovision" || ext === ".provisionprofile") {
@@ -57925,8 +58065,8 @@ ${ann.length ? ann.map((a) => `\u2022 ${a.key} = ${JSON.stringify(a.value)}${a.t
       profileSource = pp;
     } else if (await isDirectory(path)) {
       for (const rel2 of ["Contents/embedded.provisionprofile", "embedded.mobileprovision"]) {
-        if (await pathExists(join16(path, rel2))) {
-          const prof = await decodeProvisioningProfile(ctx.runner, join16(path, rel2), ctx.platform.isMac);
+        if (await pathExists(join17(path, rel2))) {
+          const prof = await decodeProvisioningProfile(ctx.runner, join17(path, rel2), ctx.platform.isMac);
           profileEnt = asDict(prof.Entitlements);
           profileSource = `${rel2} (embedded)`;
         }
@@ -57950,7 +58090,7 @@ ${formatFindings(findings) || "All good."}`,
 
 // src/tools/inspect.ts
 import { readdir as readdir8 } from "fs/promises";
-import { extname as extname10, join as join17 } from "path";
+import { extname as extname10, join as join18 } from "path";
 var signingIdentitiesTool = defineTool({
   name: "signing_identities",
   title: "List keychain signing identities and certificates",
@@ -58136,11 +58276,11 @@ ${formatFindings(findings)}` : ""}`,
   }
 });
 async function mainExecutables(bundle) {
-  for (const dir of [join17(bundle, "Contents", "MacOS"), bundle]) {
+  for (const dir of [join18(bundle, "Contents", "MacOS"), bundle]) {
     try {
       const files = await readdir8(dir);
       const out = [];
-      for (const f of files) if (await isMachO(join17(dir, f))) out.push(join17(dir, f));
+      for (const f of files) if (await isMachO(join18(dir, f))) out.push(join18(dir, f));
       if (out.length) return out;
     } catch {
     }
@@ -58150,7 +58290,7 @@ async function mainExecutables(bundle) {
 
 // src/tools/signing.ts
 import { copyFile as copyFile2, readdir as readdir9, writeFile as writeFile9 } from "fs/promises";
-import { basename as basename10, dirname as dirname6, extname as extname11, join as join18 } from "path";
+import { basename as basename10, dirname as dirname6, extname as extname11, join as join19 } from "path";
 var ENTITLED_KINDS = /* @__PURE__ */ new Set(["app", "xpc", "appex", "executable", "systemextension"]);
 function codesignArgs(item, s, isRoot) {
   const adhoc = s.identity === "-";
@@ -58278,7 +58418,7 @@ var signTool = defineTool({
     const isBundle = await isDirectory(path);
     const pre = [];
     const profile = await resolve2(args.embed_profile);
-    const profileDest = profile && isBundle ? await pathExists(join18(path, "Contents")) ? join18(path, "Contents", "embedded.provisionprofile") : join18(path, "embedded.mobileprovision") : void 0;
+    const profileDest = profile && isBundle ? await pathExists(join19(path, "Contents")) ? join19(path, "Contents", "embedded.provisionprofile") : join19(path, "embedded.mobileprovision") : void 0;
     if (profileDest) pre.push({ description: `Embed ${basename10(profile)} at ${profileDest}` });
     if (args.clear_xattrs !== false && isBundle)
       pre.push(cmdStep("Remove extended attributes (avoids 'detritus' errors)", "xattr", ["-cr", path]));
@@ -58394,7 +58534,7 @@ var resignTool = defineTool({
     if (ext === ".xcarchive")
       throw new ToolError("For .xcarchive use xcode action=export with the export method you need.");
     if (ext !== ".app" && ext !== ".ipa") throw new ToolError("resign supports .app and .ipa.");
-    const out = args.output_path ? await resolveUserPath(ctx, args.output_path, false) : join18(dirname6(src), `${basename10(src, ext)}-resigned${ext}`);
+    const out = args.output_path ? await resolveUserPath(ctx, args.output_path, false) : join19(dirname6(src), `${basename10(src, ext)}-resigned${ext}`);
     const identity = await resolveIdentity(ctx, args.identity, args.target);
     const profile = args.profile ? await resolveUserPath(ctx, args.profile) : void 0;
     const isDist = !args.target || !["ios-development", "mac-development"].includes(args.target);
@@ -58430,26 +58570,26 @@ var resignTool = defineTool({
             if (ext === ".ipa") {
               const x = await ctx.runner.run("ditto", ["-x", "-k", src, work], { timeoutMs: 6e5 });
               if (!ok(x)) throw new ToolError(`Extract failed: ${output2(x)}`);
-              const apps = (await readdir9(join18(work, "Payload"))).filter((f) => f.endsWith(".app"));
+              const apps = (await readdir9(join19(work, "Payload"))).filter((f) => f.endsWith(".app"));
               if (!apps[0]) throw new ToolError("No app in Payload/.");
-              app = join18(work, "Payload", apps[0]);
+              app = join19(work, "Payload", apps[0]);
             } else {
               const c = await ctx.runner.run("ditto", [src, out], { timeoutMs: 6e5 });
               if (!ok(c)) throw new ToolError(`Copy failed: ${output2(c)}`);
               app = out;
             }
-            const isMacApp = await pathExists(join18(app, "Contents"));
-            const profilePath = isMacApp ? join18(app, "Contents", "embedded.provisionprofile") : join18(app, "embedded.mobileprovision");
+            const isMacApp = await pathExists(join19(app, "Contents"));
+            const profilePath = isMacApp ? join19(app, "Contents", "embedded.provisionprofile") : join19(app, "embedded.mobileprovision");
             const entDir = await scratchDir("resign-ent");
             const nestedEnt = {};
             for (const [rel2, prof] of Object.entries(args.extension_profiles ?? {})) {
-              const appex = join18(app, rel2);
+              const appex = join19(app, rel2);
               const pp = await resolveUserPath(ctx, prof);
-              const dest = isMacApp ? join18(appex, "Contents", "embedded.provisionprofile") : join18(appex, "embedded.mobileprovision");
+              const dest = isMacApp ? join19(appex, "Contents", "embedded.provisionprofile") : join19(appex, "embedded.mobileprovision");
               await copyFile2(pp, dest);
               const pl = await decodeProvisioningProfile(ctx.runner, pp, true);
               const existing = await readSignedEntitlements(ctx, appex);
-              const f = join18(entDir, `${basename10(rel2)}.plist`);
+              const f = join19(entDir, `${basename10(rel2)}.plist`);
               await writeFile9(
                 f,
                 buildPlist(entitlementsFromProfile(pl, existing, args.target))
@@ -58473,7 +58613,7 @@ var resignTool = defineTool({
                 delete derived2["com.apple.security.get-task-allow"];
               }
               if (derived2) {
-                mainEnt = join18(entDir, "main.plist");
+                mainEnt = join19(entDir, "main.plist");
                 await writeFile9(mainEnt, buildPlist(derived2));
               }
             } else if (profile) await copyFile2(profile, profilePath);
@@ -58501,7 +58641,7 @@ ${formatMatches(known)}`,
             if (ext === ".ipa") {
               const z1 = await ctx.runner.run(
                 "ditto",
-                ["-c", "-k", "--sequesterRsrc", "--keepParent", join18(work, "Payload"), out],
+                ["-c", "-k", "--sequesterRsrc", "--keepParent", join19(work, "Payload"), out],
                 { timeoutMs: 6e5 }
               );
               if (!ok(z1)) throw new ToolError(`Zip failed: ${output2(z1)}`);
@@ -59028,7 +59168,7 @@ var appStoreTool = defineTool({
 
 // src/tools/upload.ts
 import { copyFile as copyFile3, mkdir as mkdir8 } from "fs/promises";
-import { basename as basename11, extname as extname12, join as join19 } from "path";
+import { basename as basename11, extname as extname12, join as join20 } from "path";
 async function ipaInfo(ctx, ipa) {
   const list = await ctx.runner.run("unzip", ["-Z1", ipa], { timeoutMs: 6e4 });
   const plistEntry = list.stdout.split("\n").find((l) => /^Payload\/[^/]+\.app\/Info\.plist$/.test(l.trim()));
@@ -59091,8 +59231,8 @@ var uploadBuildTool = defineTool({
       throw new ToolError("altool not available \u2014 install Xcode (not just Command Line Tools).");
     const supportsPackage = helpText.includes("--upload-package");
     const supportsP8Flag = helpText.includes("--p8-file-path");
-    const keyDir = join19(ctx.platform.homeDir, ".appstoreconnect", "private_keys");
-    const keyDest = join19(keyDir, `AuthKey_${creds.keyId}.p8`);
+    const keyDir = join20(ctx.platform.homeDir, ".appstoreconnect", "private_keys");
+    const keyDest = join20(keyDir, `AuthKey_${creds.keyId}.p8`);
     const needsCopy = !supportsP8Flag && !await pathExists(keyDest);
     const type = args.platform ?? (ext === ".ipa" ? "ios" : "macos");
     const cmd = supportsPackage ? [
@@ -59195,7 +59335,7 @@ ${formatMatches(known)}` : ""}`,
 
 // src/tools/xcode.ts
 import { mkdir as mkdir9, readdir as readdir10, writeFile as writeFile10 } from "fs/promises";
-import { basename as basename12, dirname as dirname7, extname as extname13, join as join20 } from "path";
+import { basename as basename12, dirname as dirname7, extname as extname13, join as join21 } from "path";
 async function containerArgs(ctx, path) {
   const p = await resolveUserPath(ctx, path);
   if (p.endsWith(".xcworkspace")) return { flag: "-workspace", path: p };
@@ -59203,9 +59343,9 @@ async function containerArgs(ctx, path) {
   if (await isDirectory(p)) {
     const entries = await readdir10(p);
     const ws = entries.find((e) => e.endsWith(".xcworkspace"));
-    if (ws) return { flag: "-workspace", path: join20(p, ws) };
+    if (ws) return { flag: "-workspace", path: join21(p, ws) };
     const proj = entries.find((e) => e.endsWith(".xcodeproj"));
-    if (proj) return { flag: "-project", path: join20(p, proj) };
+    if (proj) return { flag: "-project", path: join21(p, proj) };
   }
   throw new ToolError(`No .xcworkspace or .xcodeproj at ${p}.`, {
     hint: "Flutter: ios/Runner.xcworkspace or macos/Runner.xcworkspace; React Native: ios/<Name>.xcworkspace (run pod install first)."
@@ -59359,7 +59499,7 @@ ${formatFindings(findings)}` : ""}`,
       const c = await containerArgs(ctx, args.path);
       const platform = args.target ? TARGETS[args.target].platform : void 0;
       if (!platform) throw new ToolError("target is required for archive (it decides the platform).");
-      const archivePath = args.archive_path ? await resolveUserPath(ctx, args.archive_path, false) : join20(dirname7(c.path), "build", `${args.scheme}.xcarchive`);
+      const archivePath = args.archive_path ? await resolveUserPath(ctx, args.archive_path, false) : join21(dirname7(c.path), "build", `${args.scheme}.xcarchive`);
       const cmd2 = [
         "archive",
         c.flag,
@@ -59434,7 +59574,7 @@ Full log: ${r.logPath ?? "(not written)"}`,
     if (!args.archive_path || !args.target) throw new ToolError("archive_path and target are required.");
     const archive = await resolveUserPath(ctx, args.archive_path);
     const method = await exportMethodFor(ctx, args.target);
-    const exportPath = args.export_path ? await resolveUserPath(ctx, args.export_path, false) : join20(dirname7(archive), `${basename12(archive, extname13(archive))}-${method}`);
+    const exportPath = args.export_path ? await resolveUserPath(ctx, args.export_path, false) : join21(dirname7(archive), `${basename12(archive, extname13(archive))}-${method}`);
     const opts = exportOptions({
       method,
       destination: args.destination ?? "export",
@@ -59443,7 +59583,7 @@ Full log: ${r.logPath ?? "(not written)"}`,
       provisioningProfiles: args.provisioning_profiles,
       signingCertificate: args.signing_certificate
     });
-    const optsPath = join20(exportPath, "ExportOptions.plist");
+    const optsPath = join21(exportPath, "ExportOptions.plist");
     const cmd = [
       "-exportArchive",
       "-archivePath",
@@ -59496,9 +59636,9 @@ ${formatMatches(known)}` : ""}`,
             }
             const files = await readdir10(exportPath).catch(() => []);
             const next = args.destination === "upload" ? ["asc_builds action=wait_processing app=<bundle id> build_number=<CFBundleVersion>"] : args.target === "mac-developer-id" ? [
-              `notarize_and_staple path=${join20(exportPath, files.find((f) => f.endsWith(".app")) ?? "<App>.app")}`
+              `notarize_and_staple path=${join21(exportPath, files.find((f) => f.endsWith(".app")) ?? "<App>.app")}`
             ] : TARGETS[args.target].ascAppRecord ? [
-              `upload_build path=${join20(exportPath, files.find((f) => /\.(ipa|pkg)$/.test(f)) ?? "<file>")}`
+              `upload_build path=${join21(exportPath, files.find((f) => /\.(ipa|pkg)$/.test(f)) ?? "<file>")}`
             ] : [];
             return {
               summary: `Exported to ${exportPath}: ${files.join(", ")}${args.destination === "upload" ? "\nUploaded to App Store Connect." : ""}`,
