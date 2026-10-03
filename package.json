@@ -1,0 +1,58 @@
+{
+  "name": "notarize-mcp",
+  "version": "0.1.0",
+  "description": "Local stdio MCP server + skill for Apple code signing, notarization, certificates, provisioning, entitlements, Gatekeeper debugging, TestFlight and App Store Connect.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "notarize-mcp": "dist/notarize-mcp.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "start": "node dist/notarize-mcp.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run lint && npm run typecheck && npm test"
+  },
+  "keywords": [
+    "mcp",
+    "apple",
+    "codesign",
+    "notarization",
+    "notarytool",
+    "app-store-connect",
+    "testflight",
+    "provisioning",
+    "entitlements",
+    "gatekeeper"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/krishchow/notarize.git"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.0",
+    "jose": "^6.2.12",
+    "plist": "^5.0.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@types/node": "^26.6.4",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

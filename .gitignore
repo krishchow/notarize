@@ -1,0 +1,9 @@
+node_modules/
+coverage/
+*.log
+.DS_Store
+*.p8
+*.p12
+*.mobileprovision
+*.provisionprofile
+!test/fixtures/**
