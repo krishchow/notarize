@@ -4,7 +4,7 @@ import { ConfigStore } from "./core/config";
 import { ConfirmManager } from "./core/confirm";
 import { type CommandRunner, SpawnRunner } from "./core/exec";
 import { JobManager } from "./core/jobs";
-import { FileLogWriter } from "./core/logs";
+import { defaultJobsDir, FileLogWriter } from "./core/logs";
 import { detectPlatform, type PlatformInfo } from "./core/platform";
 import type { ToolContext } from "./tools/types";
 
@@ -29,7 +29,7 @@ export function createContext(o: ContextOverrides = {}): ToolContext {
     platform,
     config,
     confirm: o.confirm ?? new ConfirmManager(),
-    jobs: o.jobs ?? new JobManager(),
+    jobs: o.jobs ?? new JobManager(defaultJobsDir(platform.os, platform.homeDir)),
     fetch: fetchFn,
     now: o.now ?? (() => new Date()),
     async asc(profile?: string) {

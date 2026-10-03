@@ -4,7 +4,11 @@ import { doctorTool } from "./doctor";
 import { entitlementsTool } from "./entitlements";
 import { gatekeeperTool, quarantineTool } from "./gatekeeper";
 import { inspectBinaryTool, inspectCodeSignatureTool, signingIdentitiesTool } from "./inspect";
+import { keychainTool } from "./keychain";
+import { notarizeAndStapleTool, notaryTool, stapleTool } from "./notary";
+import { packageTool } from "./package";
 import { provisioningProfilesTool } from "./provisioning";
+import { resignTool, signTool } from "./signing";
 import type { ToolDef } from "./types";
 
 export const allTools: ToolDef<any>[] = [
@@ -23,4 +27,12 @@ export const allTools: ToolDef<any>[] = [
   privacyTool,
   devicesTool,
   jobsTool,
+  // keychain, signing, packaging, notarization
+  keychainTool,
+  signTool,
+  resignTool,
+  packageTool,
+  notaryTool,
+  stapleTool,
+  notarizeAndStapleTool,
 ];

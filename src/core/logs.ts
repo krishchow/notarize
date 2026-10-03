@@ -43,3 +43,9 @@ export function tail(text: string, maxLines = 40, maxChars = 4000): string {
   if (out.length > maxChars) out = `…${out.slice(-maxChars)}`;
   return lines.length > maxLines ? `…(${lines.length - maxLines} earlier lines omitted)\n${out}` : out;
 }
+
+/** Where background job state files live (watched by `notarize-mcp watch-job`). */
+export function defaultJobsDir(platform: NodeJS.Platform = process.platform, home = homedir()): string {
+  if (process.env.NOTARIZE_MCP_STATE_DIR) return process.env.NOTARIZE_MCP_STATE_DIR;
+  return join(defaultLogDir(platform, home), "jobs");
+}

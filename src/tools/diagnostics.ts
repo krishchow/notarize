@@ -4,6 +4,7 @@ import { z } from "zod";
 import { cmdStep } from "../core/confirm";
 import { ok, output } from "../core/exec";
 import { tail } from "../core/logs";
+import { jobMonitor } from "../core/monitor";
 import { requireMacOS } from "../core/platform";
 import { asArray, asDict, type PlistDict, parsePlistDict } from "../core/plist";
 import { ToolError } from "../core/result";
@@ -508,10 +509,17 @@ export const jobsTool = defineTool({
       if (args.wait_seconds && job.status === "running")
         job = (await ctx.jobs.wait(args.job_id, args.wait_seconds * 1000)) ?? job;
       const { lines, ...rest } = job;
+      const resultSummary = (job.result as { summary?: string } | undefined)?.summary;
       return {
-        summary: `${job.id} ${job.name}: ${job.status}${job.progress ? ` — ${job.progress}` : ""}${job.error ? `\nError: ${job.error}` : ""}`,
+        summary: `${job.id} ${job.name}: ${job.status}${job.progress && job.status === "running" ? ` — ${job.progress}` : ""}${job.error ? `\nError: ${job.error}` : ""}${resultSummary ? `\n\n${resultSummary}` : ""}`,
         data: { ...rest, recentOutput: lines.slice(-20) },
-        next_steps: job.status === "running" ? [`jobs action=status job_id=${job.id} wait_seconds=300`] : [],
+        next_steps:
+          job.status === "running"
+            ? [
+                `Monitor: ${jobMonitor({ jobId: job.id, description: job.description, stateDir: ctx.jobs.stateDir }).command}`,
+                `or jobs action=status job_id=${job.id} wait_seconds=600`,
+              ]
+            : [],
       };
     }
     if (args.action === "tail") {
