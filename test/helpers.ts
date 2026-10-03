@@ -74,3 +74,51 @@ export async function callConfirmed(client: Client, name: string, args: Record<s
     result: await call(client, name, { ...args, confirm_token: preview.data.confirm_token }),
   };
 }
+
+export interface FakeRequest {
+  method: string;
+  path: string;
+  query: URLSearchParams;
+  body: any;
+}
+
+export type FakeRoute = (req: FakeRequest) => { status?: number; body?: unknown } | undefined;
+
+/** Minimal App Store Connect API fake: routes keyed by "METHOD /v1/path" (exact) or a function. */
+export function fakeAsc(routes: Record<string, FakeRoute | { status?: number; body?: unknown }>) {
+  const requests: FakeRequest[] = [];
+  const fetchFn = (async (input: string, init?: RequestInit) => {
+    const url = new URL(input);
+    const req: FakeRequest = {
+      method: init?.method ?? "GET",
+      path: url.pathname,
+      query: url.searchParams,
+      body: init?.body ? JSON.parse(String(init.body)) : undefined,
+    };
+    requests.push(req);
+    const route = routes[`${req.method} ${req.path}`];
+    const res = typeof route === "function" ? route(req) : route;
+    if (!res)
+      return jsonResponse(404, {
+        errors: [
+          { status: "404", code: "NOT_FOUND", title: "Not found", detail: `${req.method} ${req.path}` },
+        ],
+      });
+    return jsonResponse(res.status ?? 200, res.body ?? { data: [] });
+  }) as typeof fetch;
+  return { fetch: fetchFn, requests };
+}
+
+/** Write a real ES256 PKCS#8 key and return ASC env vars pointing at it. */
+export async function ascEnv(dir: string): Promise<NodeJS.ProcessEnv> {
+  const { generateKeyPair, exportPKCS8 } = await import("jose");
+  const { writeFile } = await import("node:fs/promises");
+  const { privateKey } = await generateKeyPair("ES256", { extractable: true });
+  const p = join(dir, "AuthKey_TESTKEY123.p8");
+  await writeFile(p, await exportPKCS8(privateKey));
+  return {
+    ASC_KEY_ID: "TESTKEY123",
+    ASC_ISSUER_ID: "11111111-2222-3333-4444-555555555555",
+    ASC_PRIVATE_KEY_PATH: p,
+  };
+}

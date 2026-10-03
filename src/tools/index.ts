@@ -1,3 +1,12 @@
+import { ascApiTool, ascAppsTool, ascBuildsTool } from "./asc-apps";
+import {
+  ascAuthTool,
+  ascBundleIdsTool,
+  ascCertificatesTool,
+  ascDevicesTool,
+  ascProfilesTool,
+} from "./asc-signing";
+import { distributionChecklistTool } from "./checklist";
 import { detectProjectTool } from "./detect-project";
 import { crashReportsTool, devicesTool, jobsTool, privacyTool, systemLogsTool } from "./diagnostics";
 import { doctorTool } from "./doctor";
@@ -15,6 +24,7 @@ export const allTools: ToolDef<any>[] = [
   // discovery & diagnostics
   doctorTool,
   detectProjectTool,
+  distributionChecklistTool,
   signingIdentitiesTool,
   inspectCodeSignatureTool,
   inspectBinaryTool,
@@ -35,4 +45,13 @@ export const allTools: ToolDef<any>[] = [
   notaryTool,
   stapleTool,
   notarizeAndStapleTool,
+  // App Store Connect / developer portal
+  ascAuthTool,
+  ascBundleIdsTool,
+  ascCertificatesTool,
+  ascDevicesTool,
+  ascProfilesTool,
+  ascAppsTool,
+  ascBuildsTool,
+  ascApiTool,
 ];

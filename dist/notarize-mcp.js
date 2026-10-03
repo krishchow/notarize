@@ -19178,9 +19178,9 @@ var Class = class {
   constructor(..._args) {
   }
 };
-function members(proto, table2) {
-  for (const key in table2) {
-    const desc = Object.getOwnPropertyDescriptor(table2, key);
+function members(proto, table3) {
+  for (const key in table3) {
+    const desc = Object.getOwnPropertyDescriptor(table3, key);
     if (desc.get)
       Object.defineProperty(proto, key, { ...desc, enumerable: false });
     else
@@ -19195,10 +19195,10 @@ function hide(inst, key, value) {
   return own(inst, key, value, false);
 }
 // @__NO_SIDE_EFFECTS__
-function derived(computes, table2) {
+function derived(computes, table3) {
   for (const key in computes) {
     const compute = computes[key];
-    Object.defineProperty(table2, key, {
+    Object.defineProperty(table3, key, {
       configurable: true,
       enumerable: true,
       get() {
@@ -19209,7 +19209,7 @@ function derived(computes, table2) {
       }
     });
   }
-  return table2;
+  return table3;
 }
 function defineBound(proto, key, fn) {
   Object.defineProperty(proto, key, {
@@ -41436,12 +41436,33 @@ var CERTIFICATE_TYPES = [
     legacy: true
   }
 ];
+function certType(id) {
+  return CERTIFICATE_TYPES.find((c) => c.id === id);
+}
 function classifyCertificateName(name) {
   return CERTIFICATE_TYPES.find((c) => c.keychainPrefixes.some((p) => name.startsWith(p)));
+}
+function classifyAscCertificateType(ascType) {
+  return CERTIFICATE_TYPES.find((c) => c.ascTypes.includes(ascType));
 }
 function teamIdFromCertName(name) {
   return /\(([A-Z0-9]{10})\)\s*$/.exec(name)?.[1];
 }
+var ASC_CERTIFICATE_TYPES = [
+  "DEVELOPMENT",
+  "DISTRIBUTION",
+  "DEVELOPER_ID_APPLICATION",
+  "DEVELOPER_ID_APPLICATION_G2",
+  "DEVELOPER_ID_KEXT",
+  "DEVELOPER_ID_KEXT_G2",
+  "MAC_INSTALLER_DISTRIBUTION",
+  "MAC_APP_DISTRIBUTION",
+  "MAC_APP_DEVELOPMENT",
+  "IOS_DEVELOPMENT",
+  "IOS_DISTRIBUTION",
+  "PASS_TYPE_ID",
+  "PASS_TYPE_ID_WITH_NFC"
+];
 var APPLE_INTERMEDIATES = [
   {
     name: "Apple Worldwide Developer Relations Certification Authority (G3)",
@@ -42296,8 +42317,8 @@ async function isMainExecutable(file2, bundleRoot) {
     join4(bundleRoot, "Versions", "A", name)
   ];
   if (candidates.includes(file2)) return true;
-  const rel = relative(bundleRoot, file2);
-  if (/^Contents\/MacOS\/[^/]+$/.test(rel) || /^Versions\/[^/]+\/[^/]+$/.test(rel)) {
+  const rel2 = relative(bundleRoot, file2);
+  if (/^Contents\/MacOS\/[^/]+$/.test(rel2) || /^Versions\/[^/]+\/[^/]+$/.test(rel2)) {
     const exe = await readBundleExecutable(bundleRoot);
     if (exe && basename(file2) === exe) return true;
   }
@@ -43410,6 +43431,32 @@ var TARGETS = {
     ]
   }
 };
+var PROFILE_TYPES = [
+  "IOS_APP_DEVELOPMENT",
+  "IOS_APP_STORE",
+  "IOS_APP_ADHOC",
+  "IOS_APP_INHOUSE",
+  "MAC_APP_DEVELOPMENT",
+  "MAC_APP_STORE",
+  "MAC_APP_DIRECT",
+  "TVOS_APP_DEVELOPMENT",
+  "TVOS_APP_STORE",
+  "TVOS_APP_ADHOC",
+  "TVOS_APP_INHOUSE",
+  "MAC_CATALYST_APP_DEVELOPMENT",
+  "MAC_CATALYST_APP_STORE",
+  "MAC_CATALYST_APP_DIRECT"
+];
+function certTypesForProfile(profileType) {
+  if (/DEVELOPMENT$/.test(profileType)) return ["DEVELOPMENT", "IOS_DEVELOPMENT", "MAC_APP_DEVELOPMENT"];
+  if (/DIRECT$/.test(profileType)) return ["DEVELOPER_ID_APPLICATION_G2", "DEVELOPER_ID_APPLICATION"];
+  if (profileType.startsWith("MAC_APP_STORE") || profileType === "MAC_CATALYST_APP_STORE")
+    return ["DISTRIBUTION", "MAC_APP_DISTRIBUTION"];
+  return ["DISTRIBUTION", "IOS_DISTRIBUTION"];
+}
+function profileNeedsDevices(profileType) {
+  return /DEVELOPMENT$|ADHOC$/.test(profileType);
+}
 
 // src/tools/package.ts
 function dittoZipArgs(src, out) {
@@ -45129,6 +45176,12 @@ function parseRateLimit(header) {
   const rem = /user-hour-rem:(\d+)/.exec(header)?.[1];
   if (!lim && !rem) return void 0;
   return { limit: lim ? Number(lim) : void 0, remaining: rem ? Number(rem) : void 0 };
+}
+function rel(type, id) {
+  return { data: { type, id } };
+}
+function relMany(type, ids) {
+  return { data: ids.map((id) => ({ type, id })) };
 }
 
 // src/context.ts
@@ -53269,9 +53322,1596 @@ function registerPrompts(_server) {
 function registerResources(_server) {
 }
 
+// src/tools/asc-common.ts
+function slimResource(r) {
+  const attrs = { ...r.attributes ?? {} };
+  for (const k of ["certificateContent", "profileContent", "csrContent"]) {
+    if (typeof attrs[k] === "string") attrs[k] = `<${attrs[k].length} base64 chars>`;
+  }
+  return { id: r.id, type: r.type, ...attrs };
+}
+function clientFromKey(ctx, keyId, issuerId, pem) {
+  return new AscClient({
+    tokens: new AscTokenProvider({ keyId, issuerId, privateKeyPem: pem }),
+    fetch: ctx.fetch
+  });
+}
+async function resolveBundleIdResource(client, idOrIdentifier) {
+  if (!idOrIdentifier.includes(".")) {
+    return (await client.get(`bundleIds/${idOrIdentifier}`)).data;
+  }
+  const res = await client.list("bundleIds", { "filter[identifier]": idOrIdentifier }, 50);
+  const exact = res.data.find((b) => b.attributes?.identifier === idOrIdentifier);
+  if (!exact)
+    throw new ToolError(`Bundle ID ${idOrIdentifier} is not registered for this team.`, {
+      hint: "Register it with asc_bundle_ids action=create (identifiers are globally unique across all Apple teams)."
+    });
+  return exact;
+}
+async function resolveAppId(client, appIdOrBundleId) {
+  if (/^\d+$/.test(appIdOrBundleId)) {
+    const app2 = (await client.get(`apps/${appIdOrBundleId}`)).data;
+    return { id: app2.id, app: app2 };
+  }
+  const res = await client.list("apps", { "filter[bundleId]": appIdOrBundleId }, 10);
+  const app = res.data.find((a) => a.attributes?.bundleId === appIdOrBundleId);
+  if (!app)
+    throw new ToolError(`No App Store Connect app record for ${appIdOrBundleId}.`, {
+      hint: "App records cannot be created through the API. Create it at https://appstoreconnect.apple.com/apps \u2192 + \u2192 New App (platform, name, primary language, bundle ID, SKU).",
+      next_steps: ["asc_apps action=create_instructions bundle_id=<\u2026>"]
+    });
+  return { id: app.id, app };
+}
+function table2(rows, cols) {
+  return rows.map(
+    (r) => `\u2022 ${cols.map((c) => r[c] === void 0 || r[c] === null ? "" : String(r[c])).filter(Boolean).join("  ")}`
+  ).join("\n");
+}
+var PLATFORMS = ["IOS", "MAC_OS", "UNIVERSAL"];
+
+// src/tools/asc-apps.ts
+var ascAppsTool = defineTool({
+  name: "asc_apps",
+  title: "App Store Connect app records",
+  description: "action=list / get / find_by_bundle_id: app records (name, bundle ID, SKU, primary locale, Apple ID). App records CANNOT be created through the API \u2014 action=create_instructions returns the exact web steps and values to enter (bundle ID must already be registered with asc_bundle_ids).",
+  input: {
+    action: external_exports.enum(["list", "get", "find_by_bundle_id", "create_instructions"]),
+    app_id: external_exports.string().optional(),
+    bundle_id: external_exports.string().optional(),
+    name: external_exports.string().optional().describe("create_instructions: intended app name (must be unique on the App Store)."),
+    platform: external_exports.enum(["iOS", "macOS", "tvOS", "visionOS"]).optional(),
+    profile: profileArg
+  },
+  async handler(args, ctx) {
+    if (args.action === "create_instructions") {
+      return {
+        summary: [
+          "Create the app record in App Store Connect (cannot be automated via the API):",
+          "1. Open https://appstoreconnect.apple.com/apps and click + \u2192 New App.",
+          `2. Platforms: ${args.platform ?? "the platform(s) you ship"}.`,
+          `3. Name: ${args.name ?? "<your app name>"} (max 30 chars, must be unique on the store).`,
+          "4. Primary Language: the default listing language.",
+          `5. Bundle ID: choose ${args.bundle_id ?? "<your bundle id>"} from the dropdown (register it first with asc_bundle_ids action=create if it is missing).`,
+          "6. SKU: any internal unique string (e.g. the bundle ID).",
+          "7. User Access: Full Access (or limit to specific users).",
+          "Then: asc_apps action=find_by_bundle_id to get the app's id."
+        ].join("\n"),
+        data: { manual: true, url: "https://appstoreconnect.apple.com/apps" }
+      };
+    }
+    const client = await ctx.asc(args.profile);
+    if (args.action === "list") {
+      const res = await client.list("apps", { "fields[apps]": "name,bundleId,sku,primaryLocale" }, 200);
+      const rows = res.data.map(slimResource);
+      return {
+        summary: rows.length ? table2(rows, ["name", "bundleId", "sku", "id"]) : "No app records.",
+        data: { apps: rows }
+      };
+    }
+    const key = args.app_id ?? args.bundle_id;
+    if (!key) throw new ToolError("app_id or bundle_id is required.");
+    const { app } = await resolveAppId(client, key);
+    return {
+      summary: `${app.attributes?.name} \u2014 ${app.attributes?.bundleId} (app id ${app.id}, SKU ${app.attributes?.sku})`,
+      data: { app: slimResource(app) }
+    };
+  }
+});
+var TERMINAL = /* @__PURE__ */ new Set(["VALID", "FAILED", "INVALID"]);
+var ascBuildsTool = defineTool({
+  name: "asc_builds",
+  title: "Uploaded builds and processing status",
+  description: "action=list: recent builds for an app (version, build number, processing state, expiry). action=get. action=wait_processing: after an upload, poll until the build appears and reaches VALID (usable for TestFlight / review) or FAILED/INVALID \u2014 typically 5\u201330 min; continues as a background job with a Monitor command. action=set_encryption_compliance (confirm): answer the export-compliance question (usesNonExemptEncryption) so the build becomes testable \u2014 or add ITSAppUsesNonExemptEncryption to Info.plist to skip this forever. action=expire (confirm).",
+  mutating: true,
+  input: {
+    action: external_exports.enum(["list", "get", "wait_processing", "set_encryption_compliance", "expire"]),
+    app: external_exports.string().optional().describe("App id or bundle ID."),
+    build_id: external_exports.string().optional(),
+    build_number: external_exports.string().optional().describe("CFBundleVersion (wait_processing / list filter)."),
+    version: external_exports.string().optional().describe("CFBundleShortVersionString (list filter)."),
+    uses_non_exempt_encryption: external_exports.boolean().optional().describe(
+      "set_encryption_compliance: true only if you use non-exempt encryption (HTTPS/standard OS crypto is exempt)."
+    ),
+    limit: external_exports.number().int().min(1).max(200).optional(),
+    wait_minutes: external_exports.number().int().min(1).max(240).optional().describe("wait_processing: overall wait (default 60)."),
+    max_wait_seconds: external_exports.number().int().min(1).max(3600).optional().describe("wait_processing: foreground wait before handing off to a background job (default 90)."),
+    profile: profileArg
+  },
+  async handler(args, ctx, extra) {
+    const client = await ctx.asc(args.profile);
+    const listBuilds = async (appId, buildNumber, version2, limit = 20) => client.list(
+      "builds",
+      {
+        "filter[app]": appId,
+        "filter[version]": buildNumber,
+        "filter[preReleaseVersion.version]": version2,
+        sort: "-uploadedDate",
+        include: "preReleaseVersion",
+        "fields[builds]": "version,uploadedDate,expirationDate,expired,minOsVersion,processingState,usesNonExemptEncryption,preReleaseVersion"
+      },
+      limit
+    );
+    const rowsOf = (res) => {
+      const versions = new Map(
+        res.included.filter((i) => i.type === "preReleaseVersions").map((i) => [i.id, i.attributes?.version])
+      );
+      return res.data.map((b) => {
+        const pre = b.relationships?.preReleaseVersion?.data;
+        return {
+          ...slimResource(b),
+          marketingVersion: pre ? versions.get(pre.id) : void 0,
+          buildNumber: b.attributes?.version
+        };
+      });
+    };
+    if (args.action === "list") {
+      if (!args.app) throw new ToolError("app is required.");
+      const { id } = await resolveAppId(client, args.app);
+      const rows = rowsOf(await listBuilds(id, args.build_number, args.version, args.limit ?? 20));
+      return {
+        summary: rows.length ? table2(rows, ["marketingVersion", "buildNumber", "processingState", "uploadedDate", "id"]) : "No builds uploaded yet.",
+        data: { builds: rows, latestBuildNumber: rows[0]?.buildNumber }
+      };
+    }
+    if (args.action === "wait_processing") {
+      if (!args.app || !args.build_number) throw new ToolError("app and build_number are required.");
+      const { id: appId } = await resolveAppId(client, args.app);
+      const job = await ctx.jobs.runWithDeadline(
+        "build-processing",
+        `Processing of build ${args.build_number}`,
+        (args.max_wait_seconds ?? 90) * 1e3,
+        async (j) => {
+          const deadline = Date.now() + (args.wait_minutes ?? 60) * 6e4;
+          let state = "NOT_VISIBLE_YET";
+          let build2;
+          while (Date.now() < deadline && !j.signal.aborted) {
+            const rows = rowsOf(await listBuilds(appId, args.build_number, void 0, 5));
+            build2 = rows[0];
+            state = String(build2?.processingState ?? "NOT_VISIBLE_YET");
+            j.progress(`Build ${args.build_number}: ${state}`);
+            if (build2) j.setMeta("buildId", build2.id);
+            if (TERMINAL.has(state)) break;
+            await new Promise((r) => setTimeout(r, 3e4));
+          }
+          const ok2 = state === "VALID";
+          return {
+            summary: `Build ${args.build_number}: ${state}.${ok2 ? "" : state === "NOT_VISIBLE_YET" || state === "PROCESSING" ? " Still processing \u2014 check again later." : " Processing failed \u2014 check the email from App Store Connect for ITMS errors."}`,
+            data: { build: build2, state },
+            next_steps: ok2 ? [
+              build2?.usesNonExemptEncryption === void 0 || build2?.usesNonExemptEncryption === null ? `asc_builds action=set_encryption_compliance build_id=${build2?.id} uses_non_exempt_encryption=false (if you only use HTTPS/OS crypto)` : "testflight action=add_build_to_group",
+              "app_store action=attach_build to submit this build for review"
+            ] : [],
+            isError: state === "FAILED" || state === "INVALID"
+          };
+        }
+      );
+      if (!job.done)
+        return detachedOutput(ctx, job.jobId, `App Store Connect processing of build ${args.build_number}`, [
+          "Uploads typically take 5\u201330 minutes to process."
+        ]);
+      return job.value;
+    }
+    if (!args.build_id) throw new ToolError("build_id is required.");
+    if (args.action === "get") {
+      const b = (await client.get(`builds/${args.build_id}`, { include: "buildBetaDetail" })).data;
+      return {
+        summary: `Build ${b.attributes?.version}: ${b.attributes?.processingState}${b.attributes?.expired ? " (expired)" : ""}`,
+        data: { build: slimResource(b) }
+      };
+    }
+    if (args.action === "set_encryption_compliance") {
+      if (args.uses_non_exempt_encryption === void 0)
+        throw new ToolError("uses_non_exempt_encryption is required.");
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Set export compliance on build ${args.build_id}: usesNonExemptEncryption=${args.uses_non_exempt_encryption}`,
+          steps: [{ description: `PATCH /v1/builds/${args.build_id}` }],
+          notes: [
+            "Exempt (false) covers apps that only use HTTPS/TLS and Apple's OS crypto APIs. Proprietary or non-standard encryption may require documentation (true).",
+            "Tip: set ITSAppUsesNonExemptEncryption in Info.plist so future builds don't need this step."
+          ]
+        }),
+        async () => {
+          await client.patch(`builds/${args.build_id}`, {
+            data: {
+              type: "builds",
+              id: args.build_id,
+              attributes: { usesNonExemptEncryption: args.uses_non_exempt_encryption }
+            }
+          });
+          return {
+            summary: "Export compliance set.",
+            data: { ok: true },
+            next_steps: ["testflight action=add_build_to_group"]
+          };
+        }
+      );
+    }
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `Expire build ${args.build_id}`,
+        steps: [{ description: `PATCH /v1/builds/${args.build_id} expired=true` }],
+        destructive: true,
+        warnings: ["Testers can no longer install this build. Cannot be undone."]
+      }),
+      async () => {
+        await client.patch(`builds/${args.build_id}`, {
+          data: { type: "builds", id: args.build_id, attributes: { expired: true } }
+        });
+        return { summary: "Build expired.", data: { ok: true } };
+      }
+    );
+  }
+});
+var ascApiTool = defineTool({
+  name: "asc_api",
+  title: "Raw App Store Connect API request (escape hatch)",
+  description: "Call any App Store Connect API endpoint not covered by other tools (pricing, screenshots, in-app purchases, Xcode Cloud, analytics, users\u2026). path is relative to https://api.appstoreconnect.apple.com (e.g. /v1/apps/123/appInfos, /v2/inAppPurchases). GET runs directly (follows pagination when paginate=true); POST/PATCH/DELETE require confirmation. See https://developer.apple.com/documentation/appstoreconnectapi for payload shapes.",
+  mutating: true,
+  input: {
+    method: external_exports.enum(["GET", "POST", "PATCH", "DELETE"]),
+    path: external_exports.string().describe("e.g. /v1/apps or /v1/apps/{id}/appStoreVersions"),
+    query: external_exports.record(external_exports.string(), external_exports.string()).optional().describe('Query params, e.g. {"filter[platform]": "IOS", "include": "build"}'),
+    body: external_exports.record(external_exports.string(), external_exports.any()).optional().describe("JSON:API body for POST/PATCH/DELETE."),
+    paginate: external_exports.boolean().optional().describe("GET: follow links.next (up to max_items)."),
+    max_items: external_exports.number().int().min(1).max(2e3).optional(),
+    profile: profileArg
+  },
+  async handler(args, ctx, extra) {
+    const client = await ctx.asc(args.profile);
+    if (!args.path.startsWith("/")) throw new ToolError("path must start with /, e.g. /v1/apps");
+    if (args.method === "GET") {
+      if (args.paginate) {
+        const res = await client.list(args.path, args.query ?? {}, args.max_items ?? 200);
+        return {
+          summary: `${res.data.length} item(s)${res.truncated ? " (truncated)" : ""} from GET ${args.path}`,
+          data: {
+            data: res.data.map(slimResource),
+            included: res.included.map(slimResource),
+            total: res.total
+          }
+        };
+      }
+      const r = await client.request("GET", args.path, { query: args.query });
+      return {
+        summary: `GET ${args.path} \u2192 ${r.status}`,
+        data: { status: r.status, body: r.body }
+      };
+    }
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `${args.method} ${args.path}`,
+        steps: [
+          {
+            description: `${args.method} https://api.appstoreconnect.apple.com${args.path}`,
+            command: args.body ? JSON.stringify(args.body).slice(0, 2e3) : void 0
+          }
+        ],
+        destructive: args.method === "DELETE",
+        warnings: ["Raw API calls change your App Store Connect account directly."]
+      }),
+      async () => {
+        const r = await client.request(args.method, args.path, {
+          query: args.query,
+          body: args.body
+        });
+        return {
+          summary: `${args.method} ${args.path} \u2192 ${r.status}`,
+          data: { status: r.status, body: r.body ?? null }
+        };
+      }
+    );
+  }
+});
+
+// src/tools/asc-signing.ts
+import { mkdir as mkdir6, readFile as readFile5, writeFile as writeFile6 } from "fs/promises";
+import { join as join12 } from "path";
+
+// src/tools/keychain.ts
+import { randomBytes as randomBytes3 } from "crypto";
+import { chmod as chmod3, mkdir as mkdir4, readFile as readFile4, unlink, writeFile as writeFile4 } from "fs/promises";
+import { basename as basename6, join as join10 } from "path";
+function loginKeychain(home) {
+  return join10(home, "Library", "Keychains", "login.keychain-db");
+}
+var TRUSTED_APPS = [
+  "/usr/bin/codesign",
+  "/usr/bin/productsign",
+  "/usr/bin/productbuild",
+  "/usr/bin/pkgbuild",
+  "/usr/bin/security"
+];
+var P12_COMPAT = ["-keypbe", "PBE-SHA1-3DES", "-certpbe", "PBE-SHA1-3DES", "-macalg", "sha1"];
+function readSecretEnv(name) {
+  if (!name) return void 0;
+  const v = process.env[name];
+  if (!v) throw new ToolError(`Environment variable ${name} is not set in the MCP server's environment.`);
+  return v;
+}
+async function certToPem(path) {
+  const buf = await readFile4(path);
+  const text = buf.toString("latin1");
+  return text.includes("-----BEGIN CERTIFICATE-----") ? text : derToPem(new Uint8Array(buf));
+}
+async function importKeyAndCert(ctx, keyPath, certPem, keychain) {
+  const dir = await scratchDir("p12");
+  const certPath = join10(dir, "cert.pem");
+  const p12 = join10(dir, "identity.p12");
+  const pass = randomBytes3(18).toString("base64url");
+  await writeFile4(certPath, certPem, { mode: 384 });
+  try {
+    const exp = await ctx.runner.run(
+      "openssl",
+      [
+        "pkcs12",
+        "-export",
+        "-inkey",
+        keyPath,
+        "-in",
+        certPath,
+        "-out",
+        p12,
+        "-passout",
+        "env:NOTARIZE_P12_PASS",
+        ...P12_COMPAT
+      ],
+      { env: { NOTARIZE_P12_PASS: pass }, timeoutMs: 3e4, secrets: [pass] }
+    );
+    if (!ok(exp)) throw new ToolError(`openssl pkcs12 failed: ${output2(exp)}`);
+    const imp = await ctx.runner.run(
+      "security",
+      ["import", p12, "-k", keychain, "-f", "pkcs12", "-P", pass, ...TRUSTED_APPS.flatMap((a) => ["-T", a])],
+      { timeoutMs: 6e4, secrets: [pass], logName: "security-import" }
+    );
+    if (!ok(imp) && !/already exists/i.test(output2(imp)))
+      throw new ToolError(`security import failed: ${output2(imp)}`);
+    let identity;
+    try {
+      identity = describeCertificate(certPem).commonName;
+    } catch {
+    }
+    return { identity, logPath: imp.logPath };
+  } finally {
+    await unlink(p12).catch(() => {
+    });
+    await unlink(certPath).catch(() => {
+    });
+  }
+}
+var keychainTool = defineTool({
+  name: "keychain",
+  title: "Create CSRs and manage signing identities in the keychain",
+  description: "action=create_csr (confirm): generate an RSA-2048 private key (stored 0600 in ~/.config/notarize-mcp/keys) and a Certificate Signing Request to upload to Apple (asc_certificates create, or the developer portal for Developer ID). action=import_certificate (confirm): pair a downloaded .cer with that private key and import the identity into the login keychain, pre-authorizing codesign/productsign. action=import_p12 (confirm): import an existing .p12 (password via password_env). action=install_intermediates (confirm): download and import Apple's WWDR G3 and Developer ID G2 intermediate certificates (fixes 'unable to build chain' / errSecInternalComponent). action=export_p12 (confirm): export a key generated here + its certificate as a .p12 (+ base64) for CI secrets.",
+  mutating: true,
+  input: {
+    action: external_exports.enum(["create_csr", "import_certificate", "import_p12", "install_intermediates", "export_p12"]),
+    key_name: external_exports.string().regex(/^[A-Za-z0-9_.-]+$/).optional().describe("Name for the generated key/CSR (create_csr/import_certificate/export_p12)."),
+    common_name: external_exports.string().optional().describe("create_csr: your name or company (Apple replaces it with your team name)."),
+    email: external_exports.string().optional().describe("create_csr: your Apple Developer account email."),
+    country: external_exports.string().length(2).optional().describe("create_csr: 2-letter country code (default US)."),
+    certificate_path: external_exports.string().optional().describe("import_certificate/export_p12: .cer (DER) or .pem certificate from Apple."),
+    p12_path: external_exports.string().optional().describe("import_p12: the .p12 file."),
+    password_env: external_exports.string().optional().describe(
+      "Name of an environment variable (in the MCP server's env) holding the .p12 password \u2014 keeps secrets out of the conversation."
+    ),
+    keychain: external_exports.string().optional().describe("Target keychain (default login keychain)."),
+    output_path: external_exports.string().optional().describe("export_p12: where to write the .p12.")
+  },
+  async handler(args, ctx, extra) {
+    const keysDir = ctx.config.keysDir;
+    const keychain = args.keychain ? await resolveUserPath(ctx, args.keychain, false) : loginKeychain(ctx.platform.homeDir);
+    if (args.action === "create_csr") {
+      const name = args.key_name ?? `signing-${ctx.now().toISOString().slice(0, 10)}`;
+      const keyPath2 = join10(keysDir, `${name}.key`);
+      const csrPath = join10(keysDir, `${name}.csr`);
+      if (await pathExists(keyPath2))
+        throw new ToolError(`A key named ${name} already exists at ${keyPath2}. Choose another key_name.`);
+      const subjParts = [
+        args.email && `emailAddress=${args.email}`,
+        `CN=${args.common_name ?? "Apple Developer"}`,
+        `C=${args.country ?? "US"}`
+      ].filter(Boolean);
+      const subj = `/${subjParts.map((p) => p.replace(/\//g, "\\/")).join("/")}`;
+      const cmd = [
+        "req",
+        "-new",
+        "-newkey",
+        "rsa:2048",
+        "-nodes",
+        "-keyout",
+        keyPath2,
+        "-out",
+        csrPath,
+        "-subj",
+        subj
+      ];
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: "Create a private key and Certificate Signing Request",
+          steps: [
+            cmdStep("Generate RSA-2048 key + CSR", "openssl", cmd),
+            { description: `Restrict ${keyPath2} to mode 0600` }
+          ],
+          notes: [
+            "The private key never leaves this Mac. Back it up (export_p12) once the certificate is issued \u2014 Apple cannot re-issue it."
+          ]
+        }),
+        async () => {
+          await mkdir4(keysDir, { recursive: true, mode: 448 });
+          const r = await ctx.runner.run("openssl", cmd, { timeoutMs: 6e4 });
+          if (!ok(r)) throw new ToolError(`openssl req failed: ${output2(r)}`);
+          await chmod3(keyPath2, 384).catch(() => {
+          });
+          const csr = await readFile4(csrPath, "utf8");
+          return {
+            summary: `Created key ${keyPath2} and CSR ${csrPath}.`,
+            data: { keyName: name, keyPath: keyPath2, csrPath, csrPem: csr },
+            next_steps: [
+              `asc_certificates action=create certificate_type=<DISTRIBUTION|DEVELOPMENT|MAC_INSTALLER_DISTRIBUTION|DEVELOPER_ID_APPLICATION_G2> csr_path=${csrPath} key_name=${name}`,
+              "Developer ID certificates usually require the Account Holder in the web portal: developer.apple.com/account/resources/certificates/add \u2192 upload this .csr \u2192 download the .cer \u2192 keychain action=import_certificate"
+            ]
+          };
+        }
+      );
+    }
+    if (args.action === "import_certificate") {
+      requireMacOS(ctx.platform, "Keychain import");
+      if (!args.certificate_path || !args.key_name)
+        throw new ToolError("certificate_path and key_name are required.");
+      const certPath2 = await resolveUserPath(ctx, args.certificate_path);
+      const keyPath2 = join10(keysDir, `${args.key_name}.key`);
+      if (!await pathExists(keyPath2))
+        throw new ToolError(
+          `No key ${keyPath2}. It must be the key used to create the CSR for this certificate.`
+        );
+      const pem = await certToPem(certPath2);
+      const cert = describeCertificate(pem, ctx.now());
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Import "${cert.commonName}" into ${basename6(keychain)}`,
+          steps: [
+            {
+              description: `Bundle ${basename6(keyPath2)} + ${basename6(certPath2)} into a temporary .p12 (openssl)`
+            },
+            { description: `security import \u2192 ${keychain}, trusting ${TRUSTED_APPS.join(", ")}` },
+            { description: "Delete the temporary .p12" }
+          ],
+          notes: [
+            `Certificate: ${cert.commonName} (team ${cert.teamId ?? "?"}), expires ${cert.validTo.slice(0, 10)}`
+          ]
+        }),
+        async () => {
+          const res = await importKeyAndCert(ctx, keyPath2, pem, keychain);
+          return {
+            summary: `Imported identity "${res.identity ?? cert.commonName}" into ${keychain}.`,
+            data: { identity: res.identity, sha1: cert.sha1, keychain },
+            next_steps: [
+              "signing_identities to confirm it is valid",
+              "keychain action=export_p12 to back it up / use in CI"
+            ]
+          };
+        }
+      );
+    }
+    if (args.action === "import_p12") {
+      requireMacOS(ctx.platform, "Keychain import");
+      if (!args.p12_path) throw new ToolError("p12_path is required.");
+      const p12 = await resolveUserPath(ctx, args.p12_path);
+      const password = readSecretEnv(args.password_env) ?? "";
+      const cmd = [
+        "import",
+        p12,
+        "-k",
+        keychain,
+        "-f",
+        "pkcs12",
+        "-P",
+        password,
+        ...TRUSTED_APPS.flatMap((a) => ["-T", a])
+      ];
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Import ${basename6(p12)} into ${basename6(keychain)}`,
+          steps: [cmdStep("security import", "security", cmd, [password])]
+        }),
+        async () => {
+          const r = await ctx.runner.run("security", cmd, { timeoutMs: 6e4, secrets: [password] });
+          if (!ok(r) && !/already exists/i.test(output2(r)))
+            throw new ToolError(`security import failed: ${output2(r)}`);
+          return {
+            summary: `Imported ${basename6(p12)}.`,
+            data: { keychain },
+            next_steps: ["signing_identities"]
+          };
+        }
+      );
+    }
+    if (args.action === "install_intermediates") {
+      requireMacOS(ctx.platform, "Keychain import");
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: "Install Apple intermediate certificates",
+          steps: APPLE_INTERMEDIATES.map((i) => ({
+            description: `Download ${i.url} and import into ${basename6(keychain)}`
+          }))
+        }),
+        async () => {
+          const dir = await scratchDir("intermediates");
+          const results = [];
+          for (const im of APPLE_INTERMEDIATES) {
+            const res = await ctx.fetch(im.url);
+            if (!res.ok) {
+              results.push({ name: im.name, ok: false, error: `HTTP ${res.status}` });
+              continue;
+            }
+            const file2 = join10(dir, basename6(im.url));
+            await writeFile4(file2, new Uint8Array(await res.arrayBuffer()));
+            const r = await ctx.runner.run("security", ["import", file2, "-k", keychain], {
+              timeoutMs: 3e4
+            });
+            results.push({
+              name: im.name,
+              ok: ok(r) || /already exists/i.test(output2(r)),
+              detail: output2(r).slice(0, 200)
+            });
+          }
+          return {
+            summary: results.map((r) => `${r.ok ? "\u2713" : "\u2717"} ${r.name}`).join("\n"),
+            data: { results }
+          };
+        }
+      );
+    }
+    if (!args.key_name || !args.certificate_path || !args.output_path)
+      throw new ToolError("key_name, certificate_path and output_path are required.");
+    const keyPath = join10(keysDir, `${args.key_name}.key`);
+    if (!await pathExists(keyPath)) throw new ToolError(`No key ${keyPath}.`);
+    const certPath = await resolveUserPath(ctx, args.certificate_path);
+    const out = await resolveUserPath(ctx, args.output_path, false);
+    const steps = [
+      { description: `openssl pkcs12 -export ${basename6(keyPath)} + ${basename6(certPath)} \u2192 ${out}` },
+      { description: `Write base64 copy to ${out}.base64 (for CI secrets)` }
+    ];
+    if (!args.password_env)
+      steps.push({ description: `Generate a random password and save it to ${out}.password (0600)` });
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `Export ${args.key_name} as .p12`,
+        steps,
+        warnings: [
+          "The .p12 contains your private key \u2014 store it as a CI secret and delete local copies you don't need."
+        ]
+      }),
+      async () => {
+        const password = readSecretEnv(args.password_env) ?? randomBytes3(18).toString("base64url");
+        const pemPath = join10(await scratchDir("export"), "cert.pem");
+        await writeFile4(pemPath, await certToPem(certPath), { mode: 384 });
+        const r = await ctx.runner.run(
+          "openssl",
+          [
+            "pkcs12",
+            "-export",
+            "-inkey",
+            keyPath,
+            "-in",
+            pemPath,
+            "-out",
+            out,
+            "-passout",
+            "env:NOTARIZE_P12_PASS",
+            ...P12_COMPAT
+          ],
+          { env: { NOTARIZE_P12_PASS: password }, timeoutMs: 3e4, secrets: [password] }
+        );
+        await unlink(pemPath).catch(() => {
+        });
+        if (!ok(r)) throw new ToolError(`openssl pkcs12 failed: ${output2(r)}`);
+        await chmod3(out, 384).catch(() => {
+        });
+        await writeFile4(`${out}.base64`, (await readFile4(out)).toString("base64"), { mode: 384 });
+        if (!args.password_env) await writeFile4(`${out}.password`, password, { mode: 384 });
+        return {
+          summary: `Exported ${out} (+ ${out}.base64${args.password_env ? "" : `, password in ${out}.password`}).`,
+          data: {
+            p12: out,
+            base64: `${out}.base64`,
+            passwordFile: args.password_env ? void 0 : `${out}.password`
+          },
+          next_steps: ["ci_config to generate a workflow that imports it from secrets"]
+        };
+      }
+    );
+  }
+});
+
+// src/tools/provisioning.ts
+import { copyFile, mkdir as mkdir5, readdir as readdir5, writeFile as writeFile5 } from "fs/promises";
+import { basename as basename7, extname as extname6, join as join11 } from "path";
+function profileDirs(home) {
+  return [
+    join11(home, "Library", "Developer", "Xcode", "UserData", "Provisioning Profiles"),
+    join11(home, "Library", "MobileDevice", "Provisioning Profiles")
+  ];
+}
+function summarizeProfile(pl, now, path) {
+  const ent = asDict(pl.Entitlements) ?? {};
+  const appId = ent["application-identifier"] ?? ent["com.apple.application-identifier"];
+  const teamId = asArray(pl.TeamIdentifier)[0];
+  const exp = pl.ExpirationDate instanceof Date ? pl.ExpirationDate : void 0;
+  const certs = asArray(pl.DeveloperCertificates).filter((c) => c instanceof Uint8Array).map((der) => {
+    try {
+      const d = describeCertificate(der, now);
+      return { commonName: d.commonName, sha1: d.sha1, expires: d.validTo, expired: d.expired };
+    } catch {
+      return { sha1: "?", expires: "?", expired: false };
+    }
+  });
+  return {
+    path,
+    name: pl.Name,
+    uuid: pl.UUID,
+    appIdName: pl.AppIDName,
+    applicationIdentifier: appId,
+    bundleId: appId && teamId && appId.startsWith(`${teamId}.`) ? appId.slice(teamId.length + 1) : appId,
+    teamId,
+    teamName: pl.TeamName,
+    platforms: asArray(pl.Platform).map(String),
+    kind: profileKind(pl),
+    created: pl.CreationDate instanceof Date ? pl.CreationDate.toISOString() : void 0,
+    expires: exp?.toISOString(),
+    expired: exp ? exp.getTime() < now.getTime() : false,
+    daysUntilExpiry: exp ? Math.floor((exp.getTime() - now.getTime()) / 864e5) : void 0,
+    deviceCount: asArray(pl.ProvisionedDevices).length,
+    provisionsAllDevices: pl.ProvisionsAllDevices === true,
+    certificates: certs,
+    entitlements: ent
+  };
+}
+async function listInstalledProfiles(ctx) {
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const dir of profileDirs(ctx.platform.homeDir)) {
+    let files = [];
+    try {
+      files = await readdir5(dir);
+    } catch {
+      continue;
+    }
+    for (const f of files.filter((x) => /\.(mobileprovision|provisionprofile)$/.test(x))) {
+      try {
+        const s = summarizeProfile(
+          await decodeProvisioningProfile(ctx.runner, join11(dir, f), ctx.platform.isMac),
+          ctx.now(),
+          join11(dir, f)
+        );
+        if (s.uuid && seen.has(s.uuid)) continue;
+        if (s.uuid) seen.add(s.uuid);
+        out.push(s);
+      } catch {
+      }
+    }
+  }
+  return out;
+}
+async function installProfileBytes(ctx, bytes, uuid3, isMac) {
+  const ext = isMac ? "provisionprofile" : "mobileprovision";
+  const written = [];
+  for (const dir of profileDirs(ctx.platform.homeDir)) {
+    await mkdir5(dir, { recursive: true });
+    const p = join11(dir, `${uuid3}.${ext}`);
+    await writeFile5(p, bytes);
+    written.push(p);
+  }
+  return written;
+}
+function profileText(s) {
+  return [
+    `${s.name ?? "(unnamed)"} \u2014 ${s.kind}`,
+    `  App ID: ${s.applicationIdentifier ?? "?"}  Team: ${s.teamId ?? "?"}${s.teamName ? ` (${s.teamName})` : ""}`,
+    `  UUID: ${s.uuid ?? "?"}  Platforms: ${s.platforms.join(", ") || "?"}`,
+    `  Expires: ${s.expires?.slice(0, 10) ?? "?"}${s.expired ? " (EXPIRED)" : ""}  Devices: ${s.provisionsAllDevices ? "all" : s.deviceCount}`,
+    `  Certificates: ${s.certificates.map((c) => `${c.commonName ?? "?"}${c.inKeychain === false ? " [not in keychain]" : c.inKeychain ? " [in keychain]" : ""}`).join("; ")}`
+  ].join("\n");
+}
+var provisioningProfilesTool = defineTool({
+  name: "provisioning_profiles",
+  title: "List, inspect, install or embed provisioning profiles",
+  description: "action=list_installed: profiles installed for Xcode (both ~/Library/Developer/Xcode/UserData/Provisioning Profiles and the legacy MobileDevice folder) with expiry and type, optionally filtered by bundle_id. action=inspect: decode a .mobileprovision/.provisionprofile (app ID, team, type, devices, entitlements, embedded certificates and whether their private keys are in this keychain). action=install (confirm): copy a profile into Xcode's folders. action=embed (confirm): copy a profile into an app bundle (Contents/embedded.provisionprofile or embedded.mobileprovision) \u2014 re-sign afterwards.",
+  mutating: true,
+  input: {
+    action: external_exports.enum(["list_installed", "inspect", "install", "embed"]),
+    path: external_exports.string().optional().describe("inspect/install/embed: the profile file."),
+    bundle_id: external_exports.string().optional().describe("list_installed: filter by bundle ID (wildcard profiles also match)."),
+    app_path: external_exports.string().optional().describe("embed: the .app bundle to embed into.")
+  },
+  async handler(args, ctx, extra) {
+    if (args.action === "list_installed") {
+      let list = await listInstalledProfiles(ctx);
+      if (args.bundle_id) {
+        list = list.filter((p) => {
+          const id = p.bundleId ?? "";
+          return id === args.bundle_id || id === "*" || id.endsWith("*") && args.bundle_id.startsWith(id.slice(0, -1));
+        });
+      }
+      list.sort((a, b) => (b.expires ?? "").localeCompare(a.expires ?? ""));
+      return {
+        summary: list.length ? `${list.length} installed profile(s):
+${list.map(profileText).join("\n")}` : "No matching provisioning profiles installed.",
+        data: { profiles: list.map((p) => ({ ...p, entitlements: Object.keys(p.entitlements) })) },
+        next_steps: list.length ? [] : ["asc_profiles action=list / create / download_install"]
+      };
+    }
+    if (!args.path) throw new ToolError("path (profile file) is required.");
+    const path = await resolveUserPath(ctx, args.path);
+    const pl = await decodeProvisioningProfile(ctx.runner, path, ctx.platform.isMac);
+    const summary = summarizeProfile(pl, ctx.now(), path);
+    const isMac = summary.platforms.some((p) => p === "OSX" || p === "macOS") || extname6(path) === ".provisionprofile";
+    if (args.action === "inspect") {
+      const findings = [];
+      if (ctx.platform.isMac) {
+        try {
+          const ids = await listIdentities(ctx);
+          const have = new Set(ids.map((i) => i.sha1));
+          for (const c of summary.certificates) c.inKeychain = have.has(c.sha1);
+          if (!summary.certificates.some((c) => c.inKeychain))
+            findings.push(
+              finding(
+                "error",
+                "None of the profile's certificates has a private key in this keychain \u2014 signing with this profile will fail.",
+                "Import the matching .p12, or regenerate the profile with a certificate you own (asc_profiles regenerate)."
+              )
+            );
+        } catch {
+        }
+      }
+      if (summary.expired)
+        findings.push(finding("error", "Profile has expired.", "asc_profiles action=regenerate"));
+      else if ((summary.daysUntilExpiry ?? 999) < 30)
+        findings.push(finding("warning", `Profile expires in ${summary.daysUntilExpiry} days.`));
+      if (summary.certificates.every((c) => c.expired))
+        findings.push(finding("error", "All certificates in the profile are expired."));
+      return {
+        summary: `${profileText(summary)}
+  Entitlements: ${Object.keys(summary.entitlements).join(", ")}${findings.length ? `
+
+${formatFindings(findings)}` : ""}`,
+        data: { profile: summary, findings }
+      };
+    }
+    if (args.action === "install") {
+      if (!summary.uuid) throw new ToolError("Profile has no UUID.");
+      const dests = profileDirs(ctx.platform.homeDir).map(
+        (d) => join11(d, `${summary.uuid}.${isMac ? "provisionprofile" : "mobileprovision"}`)
+      );
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Install profile "${summary.name}" (${summary.kind})`,
+          steps: dests.map((d) => ({ description: `Copy ${basename7(path)} \u2192 ${d}` }))
+        }),
+        async () => {
+          const { readFile: readFile10 } = await import("fs/promises");
+          const written = await installProfileBytes(
+            ctx,
+            new Uint8Array(await readFile10(path)),
+            summary.uuid,
+            isMac
+          );
+          return {
+            summary: `Installed "${summary.name}" to:
+${written.join("\n")}`,
+            data: { installed: written, profile: { ...summary, entitlements: void 0 } }
+          };
+        }
+      );
+    }
+    if (!args.app_path) throw new ToolError("app_path is required for embed.");
+    const app = await resolveUserPath(ctx, args.app_path);
+    if (!await isDirectory(app)) throw new ToolError(`${app} is not a bundle directory.`);
+    const isMacBundle = await pathExists(join11(app, "Contents"));
+    const dest = isMacBundle ? join11(app, "Contents", "embedded.provisionprofile") : join11(app, "embedded.mobileprovision");
+    const replacing = await pathExists(dest);
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `Embed "${summary.name}" into ${basename7(app)}`,
+        steps: [{ description: `${replacing ? "Replace" : "Create"} ${dest}` }],
+        warnings: [
+          "This invalidates the bundle's current signature \u2014 re-sign the bundle afterwards (sign tool)."
+        ]
+      }),
+      async () => {
+        await copyFile(path, dest);
+        return {
+          summary: `Embedded profile at ${dest}. Re-sign the bundle now.`,
+          data: { embedded: dest },
+          next_steps: ["sign path=<app> (with entitlements matching the profile)"]
+        };
+      }
+    );
+  }
+});
+
+// src/tools/asc-signing.ts
+var ascAuthTool = defineTool({
+  name: "asc_auth",
+  title: "App Store Connect API key setup and validation",
+  description: "action=status: show which API key is configured (env vars or saved profile) without network calls, plus .p8 files found in ~/.appstoreconnect/private_keys. action=test: make an authenticated call and report success, rate limit, and role/agreement problems. action=configure (confirm): validate a key (key_id, issuer_id, private_key_path) and save it as a named profile in ~/.config/notarize-mcp/config.json (0600; only the .p8 PATH is stored). One Team API key (Admin or App Manager role) powers portal automation, notarization and uploads. Creating the key itself is manual: App Store Connect \u2192 Users and Access \u2192 Integrations \u2192 App Store Connect API \u2192 Team Keys \u2192 Generate (the .p8 downloads only once).",
+  mutating: true,
+  input: {
+    action: external_exports.enum(["status", "test", "configure"]),
+    profile: profileArg,
+    profile_name: external_exports.string().optional().describe("configure: profile name to save (default 'default')."),
+    key_id: external_exports.string().optional().describe("configure: Key ID (10 characters)."),
+    issuer_id: external_exports.string().optional().describe("configure: Issuer ID (UUID shown above the keys table). Omit for an individual key."),
+    private_key_path: external_exports.string().optional().describe("configure: path to AuthKey_<KEYID>.p8."),
+    team_id: external_exports.string().optional().describe("configure: your 10-character Team ID (developer.apple.com \u2192 Membership)."),
+    make_default: external_exports.boolean().optional().describe("configure: make this the default profile (default true).")
+  },
+  async handler(args, ctx, extra) {
+    if (args.action === "status") {
+      const cfg = await ctx.config.load();
+      const discovered = await ctx.config.listDiscoveredP8();
+      let active;
+      try {
+        const c = await ctx.config.resolveAsc(args.profile);
+        active = {
+          keyId: c.keyId,
+          issuerId: c.issuerId ?? "(individual key)",
+          source: c.source,
+          privateKeyPath: c.privateKeyPath,
+          teamId: c.teamId
+        };
+      } catch (e) {
+        active = { error: e.message };
+      }
+      return {
+        summary: `Active credentials: ${active.error ? `none \u2014 ${active.error}` : `${active.keyId} via ${active.source}`}
+Saved profiles: ${Object.keys(cfg.profiles).join(", ") || "(none)"}${cfg.defaultProfile ? ` (default: ${cfg.defaultProfile})` : ""}
+Discovered .p8 keys: ${discovered.map((d) => d.path).join(", ") || "(none)"}`,
+        data: {
+          active,
+          profiles: cfg.profiles,
+          defaultProfile: cfg.defaultProfile,
+          configPath: ctx.config.path,
+          discoveredKeys: discovered
+        },
+        next_steps: active.error ? ["asc_auth action=configure key_id=\u2026 issuer_id=\u2026 private_key_path=\u2026"] : ["asc_auth action=test"]
+      };
+    }
+    if (args.action === "test") {
+      const client = await ctx.asc(args.profile);
+      const res = await client.list("apps", { "fields[apps]": "name,bundleId" }, 5);
+      return {
+        summary: `App Store Connect API key ${client.keyId} works. ${res.total ?? res.data.length} app record(s) visible${res.data.length ? `: ${res.data.map((a) => a.attributes?.name).join(", ")}` : ""}.${client.lastRateLimit ? ` Rate limit remaining this hour: ${client.lastRateLimit.remaining}/${client.lastRateLimit.limit}.` : ""}`,
+        data: { ok: true, apps: res.data.map(slimResource), rateLimit: client.lastRateLimit },
+        next_steps: ["distribution_checklist path=<project> target=<target>"]
+      };
+    }
+    if (!args.key_id || !args.private_key_path)
+      throw new ToolError("key_id and private_key_path are required (issuer_id too for Team keys).");
+    const keyPath = expandHome(args.private_key_path, ctx.platform.homeDir);
+    if (!await pathExists(keyPath)) throw new ToolError(`Private key not found at ${keyPath}.`);
+    const name = args.profile_name ?? "default";
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `Save App Store Connect API key ${args.key_id} as profile "${name}"`,
+        steps: [
+          { description: "Validate the key with an authenticated GET /v1/apps" },
+          {
+            description: `Write profile "${name}" to ${ctx.config.path} (mode 0600; stores the key path, not the key)`
+          }
+        ]
+      }),
+      async () => {
+        const pem = await readFile5(keyPath, "utf8");
+        const client = clientFromKey(ctx, args.key_id, args.issuer_id, pem);
+        await client.list("apps", {}, 1);
+        await ctx.config.saveProfile(
+          name,
+          { keyId: args.key_id, issuerId: args.issuer_id, privateKeyPath: keyPath, teamId: args.team_id },
+          args.make_default ?? true
+        );
+        return {
+          summary: `Validated and saved API key ${args.key_id} as profile "${name}".`,
+          data: { profile: name, configPath: ctx.config.path },
+          next_steps: [
+            "notary action=store_credentials (optional, for notarytool)",
+            "distribution_checklist"
+          ]
+        };
+      }
+    );
+  }
+});
+var ascBundleIdsTool = defineTool({
+  name: "asc_bundle_ids",
+  title: "Register bundle IDs (App IDs) and manage capabilities",
+  description: "App IDs identify your app to Apple's services. action=list (filter by identifier/platform) / get / capabilities (enabled capabilities). action=create (confirm): register an explicit bundle ID (IOS, MAC_OS or UNIVERSAL). action=enable_capability / disable_capability (confirm): e.g. PUSH_NOTIFICATIONS, ICLOUD, APP_GROUPS, ASSOCIATED_DOMAINS, APPLE_ID_AUTH (Sign in with Apple), IN_APP_PURCHASE, NETWORK_EXTENSIONS \u2014 provisioning profiles must be regenerated afterwards. action=delete (confirm, destructive).",
+  mutating: true,
+  input: {
+    action: external_exports.enum([
+      "list",
+      "get",
+      "create",
+      "delete",
+      "capabilities",
+      "enable_capability",
+      "disable_capability"
+    ]),
+    bundle_id: external_exports.string().optional().describe("Bundle identifier (com.example.app) or ASC resource id."),
+    name: external_exports.string().optional().describe("create: display name (letters, numbers, spaces)."),
+    platform: external_exports.enum(PLATFORMS).optional().describe("create/list: IOS, MAC_OS or UNIVERSAL."),
+    capability_type: external_exports.string().optional().describe("enable/disable_capability: capabilityType, e.g. PUSH_NOTIFICATIONS."),
+    capability_id: external_exports.string().optional().describe("disable_capability: bundleIdCapability id (from capabilities)."),
+    settings: external_exports.array(external_exports.record(external_exports.string(), external_exports.any())).optional().describe("enable_capability: capability settings array (e.g. iCloud version)."),
+    profile: profileArg
+  },
+  async handler(args, ctx, extra) {
+    const client = await ctx.asc(args.profile);
+    if (args.action === "list") {
+      const res = await client.list(
+        "bundleIds",
+        { "filter[identifier]": args.bundle_id, "filter[platform]": args.platform },
+        200
+      );
+      const rows = res.data.map(slimResource);
+      return {
+        summary: rows.length ? table2(rows, ["identifier", "name", "platform", "id"]) : "No bundle IDs found.",
+        data: { bundleIds: rows, total: res.total }
+      };
+    }
+    if (args.action === "create") {
+      if (!args.bundle_id || !args.name || !args.platform)
+        throw new ToolError("bundle_id, name and platform are required.");
+      if (!/^[A-Za-z0-9.-]+$/.test(args.bundle_id) || args.bundle_id.includes("*"))
+        throw new ToolError(
+          "Use an explicit reverse-DNS identifier (letters, digits, '-', '.'), e.g. com.yourcompany.yourapp."
+        );
+      const body = {
+        data: {
+          type: "bundleIds",
+          attributes: { identifier: args.bundle_id, name: args.name, platform: args.platform }
+        }
+      };
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Register bundle ID ${args.bundle_id} (${args.platform})`,
+          steps: [{ description: `POST /v1/bundleIds ${JSON.stringify(body.data.attributes)}` }],
+          notes: ["Bundle IDs are unique across all Apple developers and cannot be renamed later."]
+        }),
+        async () => {
+          const r = await client.post("bundleIds", body);
+          return {
+            summary: `Registered ${args.bundle_id} (id ${r.data.id}).`,
+            data: { bundleId: slimResource(r.data) },
+            next_steps: [
+              "asc_bundle_ids action=enable_capability (if you use iCloud, push, app groups\u2026)",
+              "asc_profiles action=create"
+            ]
+          };
+        }
+      );
+    }
+    if (!args.bundle_id && !args.capability_id) throw new ToolError("bundle_id is required.");
+    const b = args.bundle_id ? await resolveBundleIdResource(client, args.bundle_id) : void 0;
+    if (args.action === "get")
+      return {
+        summary: `${b.attributes?.identifier} \u2014 ${b.attributes?.name} (${b.attributes?.platform}, team prefix ${b.attributes?.seedId})`,
+        data: { bundleId: slimResource(b) }
+      };
+    if (args.action === "capabilities") {
+      const caps = await client.list(`bundleIds/${b.id}/bundleIdCapabilities`, {}, 100);
+      const rows = caps.data.map((c) => ({
+        id: c.id,
+        capabilityType: c.attributes?.capabilityType,
+        settings: c.attributes?.settings
+      }));
+      return {
+        summary: rows.length ? table2(rows, ["capabilityType", "id"]) : "No capabilities enabled.",
+        data: { capabilities: rows }
+      };
+    }
+    if (args.action === "enable_capability") {
+      if (!args.capability_type) throw new ToolError("capability_type is required.");
+      const body = {
+        data: {
+          type: "bundleIdCapabilities",
+          attributes: {
+            capabilityType: args.capability_type,
+            ...args.settings ? { settings: args.settings } : {}
+          },
+          relationships: { bundleId: rel("bundleIds", b.id) }
+        }
+      };
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Enable ${args.capability_type} on ${b.attributes?.identifier}`,
+          steps: [{ description: "POST /v1/bundleIdCapabilities" }],
+          notes: [
+            "Existing provisioning profiles become invalid for this capability \u2014 regenerate them (asc_profiles regenerate)."
+          ]
+        }),
+        async () => {
+          const r = await client.post("bundleIdCapabilities", body);
+          return {
+            summary: `Enabled ${args.capability_type} (id ${r.data.id}).`,
+            data: { capability: slimResource(r.data) },
+            next_steps: ["asc_profiles action=regenerate for affected profiles"]
+          };
+        }
+      );
+    }
+    if (args.action === "disable_capability") {
+      if (!args.capability_id) throw new ToolError("capability_id is required (see action=capabilities).");
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Disable capability ${args.capability_id}`,
+          steps: [{ description: `DELETE /v1/bundleIdCapabilities/${args.capability_id}` }],
+          destructive: true,
+          warnings: ["Apps relying on this capability lose it after their profiles are regenerated."]
+        }),
+        async () => {
+          await client.delete(`bundleIdCapabilities/${args.capability_id}`);
+          return { summary: "Capability disabled.", data: { ok: true } };
+        }
+      );
+    }
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `Delete bundle ID ${b.attributes?.identifier}`,
+        steps: [{ description: `DELETE /v1/bundleIds/${b.id}` }],
+        destructive: true,
+        warnings: [
+          "Bundle IDs used by an App Store app cannot be deleted; deleting may make the identifier unavailable for reuse."
+        ]
+      }),
+      async () => {
+        await client.delete(`bundleIds/${b.id}`);
+        return { summary: `Deleted ${b.attributes?.identifier}.`, data: { ok: true } };
+      }
+    );
+  }
+});
+var ascCertificatesTool = defineTool({
+  name: "asc_certificates",
+  title: "Signing certificates in the Apple Developer portal",
+  description: "action=list (filter by certificate_type) / get. action=create (confirm): submit a CSR (from keychain create_csr: pass key_name, or csr_path) for certificate_type DISTRIBUTION (Apple Distribution), DEVELOPMENT (Apple Development), MAC_INSTALLER_DISTRIBUTION, DEVELOPER_ID_APPLICATION_G2\u2026 and, if key_name is given, install the issued certificate + private key into the login keychain. Developer ID types usually require the Account Holder via the web portal \u2014 on refusal you get exact manual steps. action=download_install (confirm): fetch an existing certificate and pair it with a local key. action=revoke (confirm, destructive).",
+  mutating: true,
+  input: {
+    action: external_exports.enum(["list", "get", "create", "download_install", "revoke"]),
+    certificate_type: external_exports.enum(ASC_CERTIFICATE_TYPES).optional(),
+    certificate_id: external_exports.string().optional(),
+    key_name: external_exports.string().optional().describe(
+      "Key created by keychain create_csr (its .csr is used for create; its .key is paired on install)."
+    ),
+    csr_path: external_exports.string().optional().describe("create: explicit CSR path."),
+    install: external_exports.boolean().optional().describe("create: install into the keychain afterwards (default true when key_name is given)."),
+    profile: profileArg
+  },
+  async handler(args, ctx, extra) {
+    const client = await ctx.asc(args.profile);
+    if (args.action === "list") {
+      const res = await client.list(
+        "certificates",
+        {
+          "filter[certificateType]": args.certificate_type,
+          "fields[certificates]": "name,certificateType,displayName,serialNumber,platform,expirationDate"
+        },
+        200
+      );
+      const rows = res.data.map((c2) => ({
+        ...slimResource(c2),
+        kind: classifyAscCertificateType(String(c2.attributes?.certificateType))?.portalName
+      }));
+      return {
+        summary: rows.length ? table2(rows, ["certificateType", "displayName", "expirationDate", "id"]) : "No certificates.",
+        data: { certificates: rows }
+      };
+    }
+    if (args.action === "get") {
+      if (!args.certificate_id) throw new ToolError("certificate_id is required.");
+      const c2 = (await client.get(`certificates/${args.certificate_id}`)).data;
+      return {
+        summary: `${c2.attributes?.certificateType} ${c2.attributes?.displayName} expires ${c2.attributes?.expirationDate}`,
+        data: { certificate: slimResource(c2) }
+      };
+    }
+    const keysDir = ctx.config.keysDir;
+    if (args.action === "create") {
+      if (!args.certificate_type) throw new ToolError("certificate_type is required.");
+      const csrPath = args.csr_path ? await resolveUserPath(ctx, args.csr_path) : args.key_name ? join12(keysDir, `${args.key_name}.csr`) : void 0;
+      if (!csrPath || !await pathExists(csrPath))
+        throw new ToolError("Provide key_name (from keychain create_csr) or csr_path.");
+      const install = args.install ?? !!args.key_name;
+      const isDevId2 = args.certificate_type.startsWith("DEVELOPER_ID");
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Request a ${args.certificate_type} certificate`,
+          steps: [
+            { description: `POST /v1/certificates with ${csrPath}` },
+            ...install ? [
+              {
+                description: `Save the .cer to ${keysDir} and import it with ${args.key_name}.key into the login keychain`
+              }
+            ] : []
+          ],
+          warnings: isDevId2 ? [
+            "Developer ID certificates are usually restricted to the Account Holder; if the API refuses, follow the manual steps returned."
+          ] : [],
+          notes: ["Per-team limits apply (e.g. 3 Apple Distribution, 5 Developer ID)."]
+        }),
+        async () => {
+          const csr = await readFile5(csrPath, "utf8");
+          let created;
+          try {
+            created = (await client.post("certificates", {
+              data: {
+                type: "certificates",
+                attributes: { certificateType: args.certificate_type, csrContent: csr }
+              }
+            })).data;
+          } catch (e) {
+            if (isDevId2 && e.status === 403) {
+              throw new ToolError("Apple refused to create a Developer ID certificate with this API key.", {
+                hint: `The Account Holder must create it: developer.apple.com/account/resources/certificates/add \u2192 Developer ID Application \u2192 upload ${csrPath} \u2192 download the .cer \u2192 keychain action=import_certificate key_name=${args.key_name ?? "<key>"} certificate_path=<downloaded .cer>`
+              });
+            }
+            throw e;
+          }
+          const lines = [
+            `Created certificate ${created.attributes?.displayName ?? ""} (${created.id}), expires ${created.attributes?.expirationDate}.`
+          ];
+          const data = { certificate: slimResource(created) };
+          const content = created.attributes?.certificateContent;
+          if (content) {
+            await mkdir6(keysDir, { recursive: true, mode: 448 });
+            const cerPath = join12(keysDir, `${args.key_name ?? created.id}.cer`);
+            await writeFile6(cerPath, Buffer.from(content, "base64"));
+            data.cerPath = cerPath;
+            lines.push(`Saved ${cerPath}.`);
+            if (install && args.key_name) {
+              requireMacOS(ctx.platform, "Keychain import");
+              const res = await importKeyAndCert(
+                ctx,
+                join12(keysDir, `${args.key_name}.key`),
+                derToPem(Buffer.from(content, "base64")),
+                loginKeychain(ctx.platform.homeDir)
+              );
+              lines.push(`Installed identity "${res.identity}" into the login keychain.`);
+              data.installed = res.identity;
+            }
+          }
+          return {
+            summary: lines.join("\n"),
+            data,
+            next_steps: [
+              "signing_identities to confirm",
+              "keychain action=export_p12 to back up the identity"
+            ]
+          };
+        }
+      );
+    }
+    if (!args.certificate_id) throw new ToolError("certificate_id is required.");
+    if (args.action === "download_install") {
+      if (!args.key_name)
+        throw new ToolError("key_name is required: the private key that created this certificate's CSR.");
+      const keyPath = join12(keysDir, `${args.key_name}.key`);
+      if (!await pathExists(keyPath))
+        throw new ToolError(
+          `No private key ${keyPath}. A certificate is useless without the key that created its CSR \u2014 create a new certificate instead.`
+        );
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Download certificate ${args.certificate_id} and install it with ${args.key_name}.key`,
+          steps: [
+            { description: `GET /v1/certificates/${args.certificate_id}` },
+            { description: "Import into the login keychain" }
+          ]
+        }),
+        async () => {
+          requireMacOS(ctx.platform, "Keychain import");
+          const c2 = (await client.get(`certificates/${args.certificate_id}`)).data;
+          const pem = derToPem(Buffer.from(String(c2.attributes?.certificateContent), "base64"));
+          const res = await importKeyAndCert(ctx, keyPath, pem, loginKeychain(ctx.platform.homeDir));
+          return { summary: `Installed "${res.identity}".`, data: { identity: res.identity } };
+        }
+      );
+    }
+    const c = (await client.get(`certificates/${args.certificate_id}`)).data;
+    const isDevId = String(c.attributes?.certificateType).startsWith("DEVELOPER_ID");
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `REVOKE ${c.attributes?.certificateType} certificate "${c.attributes?.displayName}" (${c.id})`,
+        steps: [{ description: `DELETE /v1/certificates/${c.id}` }],
+        destructive: true,
+        warnings: [
+          "Revocation cannot be undone.",
+          ...isDevId ? [
+            "Revoking a Developer ID certificate makes Gatekeeper block NEW launches of software already shipped with it. Only revoke if the private key was compromised."
+          ] : [
+            "Provisioning profiles that include this certificate become invalid; builds signed with it can no longer be installed/uploaded."
+          ]
+        ]
+      }),
+      async () => {
+        await client.delete(`certificates/${c.id}`);
+        return { summary: `Revoked certificate ${c.id}.`, data: { ok: true } };
+      }
+    );
+  }
+});
+var ascDevicesTool = defineTool({
+  name: "asc_devices",
+  title: "Registered test devices",
+  description: "Devices (UDIDs) are needed for development and Ad Hoc profiles (limit: 100 per device family per membership year \u2014 disabling does not free a slot until renewal). action=list (filter platform/status). action=register (confirm): add a device (get UDIDs from the devices tool). action=disable (confirm).",
+  mutating: true,
+  input: {
+    action: external_exports.enum(["list", "register", "disable"]),
+    name: external_exports.string().optional(),
+    udid: external_exports.string().optional(),
+    platform: external_exports.enum(["IOS", "MAC_OS"]).optional(),
+    device_id: external_exports.string().optional().describe("disable: ASC device resource id."),
+    profile: profileArg
+  },
+  async handler(args, ctx, extra) {
+    const client = await ctx.asc(args.profile);
+    if (args.action === "list") {
+      const res = await client.list(
+        "devices",
+        { "filter[platform]": args.platform, "filter[udid]": args.udid },
+        200
+      );
+      const rows = res.data.map(slimResource);
+      return {
+        summary: rows.length ? table2(rows, ["name", "platform", "deviceClass", "status", "udid", "id"]) : "No devices registered.",
+        data: { devices: rows }
+      };
+    }
+    if (args.action === "register") {
+      if (!args.name || !args.udid || !args.platform)
+        throw new ToolError("name, udid and platform are required.");
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Register ${args.platform} device "${args.name}" (${args.udid})`,
+          steps: [{ description: "POST /v1/devices" }],
+          notes: ["Uses one of your yearly device slots. Regenerate development/Ad Hoc profiles afterwards."]
+        }),
+        async () => {
+          const r = await client.post("devices", {
+            data: {
+              type: "devices",
+              attributes: { name: args.name, udid: args.udid, platform: args.platform }
+            }
+          });
+          return {
+            summary: `Registered ${args.name} (id ${r.data.id}).`,
+            data: { device: slimResource(r.data) },
+            next_steps: ["asc_profiles action=regenerate for development / Ad Hoc profiles"]
+          };
+        }
+      );
+    }
+    if (!args.device_id) throw new ToolError("device_id is required.");
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `Disable device ${args.device_id}`,
+        steps: [{ description: `PATCH /v1/devices/${args.device_id} status=DISABLED` }],
+        warnings: ["Disabling does not free the slot until your membership renews."]
+      }),
+      async () => {
+        await client.patch(`devices/${args.device_id}`, {
+          data: { type: "devices", id: args.device_id, attributes: { status: "DISABLED" } }
+        });
+        return { summary: "Device disabled.", data: { ok: true } };
+      }
+    );
+  }
+});
+var ascProfilesTool = defineTool({
+  name: "asc_profiles",
+  title: "Provisioning profiles in the Apple Developer portal",
+  description: "action=list (filter profile_type, bundle_id) / get. action=create (confirm): profile_type (IOS_APP_STORE, IOS_APP_ADHOC, IOS_APP_DEVELOPMENT, MAC_APP_STORE, MAC_APP_DIRECT = Developer ID, MAC_APP_DEVELOPMENT, \u2026) for a bundle ID; certificates default to all valid certificates of the matching type and devices to all enabled devices of the platform (for development/ad hoc). Installs it for Xcode by default. action=download_install (confirm). action=regenerate (confirm): delete + recreate with the same name/type/bundle ID and current certificates/devices \u2014 needed after adding devices or capabilities. action=delete (confirm).",
+  mutating: true,
+  input: {
+    action: external_exports.enum(["list", "get", "create", "download_install", "regenerate", "delete"]),
+    profile_id: external_exports.string().optional(),
+    profile_type: external_exports.enum(PROFILE_TYPES).optional(),
+    bundle_id: external_exports.string().optional().describe("Bundle identifier or ASC bundleId resource id."),
+    name: external_exports.string().optional().describe("create: profile name (default '<bundle id> <type>')."),
+    certificate_ids: external_exports.array(external_exports.string()).optional().describe("create: certificate ids (default: all valid of the right type)."),
+    device_ids: external_exports.array(external_exports.string()).optional().describe("create: device ids (default: all enabled for the platform, dev/ad hoc only)."),
+    install: external_exports.boolean().optional().describe("create/regenerate: install for Xcode (default true on macOS)."),
+    profile: profileArg
+  },
+  async handler(args, ctx, extra) {
+    const client = await ctx.asc(args.profile);
+    const install = (args.install ?? true) && ctx.platform.isMac;
+    if (args.action === "list") {
+      const path = args.bundle_id ? `bundleIds/${(await resolveBundleIdResource(client, args.bundle_id)).id}/profiles` : "profiles";
+      const res = await client.list(
+        path,
+        {
+          "filter[profileType]": args.bundle_id ? void 0 : args.profile_type,
+          "fields[profiles]": "name,platform,profileType,profileState,uuid,createdDate,expirationDate"
+        },
+        200
+      );
+      const rows = res.data.map(slimResource).filter((r) => !args.profile_type || r.profileType === args.profile_type);
+      return {
+        summary: rows.length ? table2(rows, ["name", "profileType", "profileState", "expirationDate", "id"]) : "No profiles.",
+        data: { profiles: rows }
+      };
+    }
+    const createProfile = async (name2, type2, bundle2) => {
+      const certTypes = certTypesForProfile(type2);
+      const certIds = args.certificate_ids ?? (await client.list("certificates", { "filter[certificateType]": certTypes.join(",") }, 200)).data.filter(
+        (c) => !c.attributes?.expirationDate || Date.parse(String(c.attributes.expirationDate)) > ctx.now().getTime()
+      ).map((c) => c.id);
+      if (!certIds.length)
+        throw new ToolError(
+          `No valid ${certTypes.join("/")} certificates in the team for a ${type2} profile.`,
+          { hint: "Create one first: keychain create_csr \u2192 asc_certificates create." }
+        );
+      let deviceIds;
+      if (profileNeedsDevices(type2)) {
+        const platform = type2.startsWith("MAC") ? "MAC_OS" : "IOS";
+        deviceIds = args.device_ids ?? (await client.list("devices", { "filter[platform]": platform, "filter[status]": "ENABLED" }, 200)).data.map((d) => d.id);
+        if (!deviceIds.length)
+          throw new ToolError(`A ${type2} profile needs at least one registered ${platform} device.`, {
+            hint: "devices \u2192 asc_devices action=register"
+          });
+      }
+      const body = {
+        data: {
+          type: "profiles",
+          attributes: { name: name2, profileType: type2 },
+          relationships: {
+            bundleId: rel("bundleIds", bundle2.id),
+            certificates: relMany("certificates", certIds),
+            ...deviceIds ? { devices: relMany("devices", deviceIds) } : {}
+          }
+        }
+      };
+      const created = (await client.post("profiles", body)).data;
+      let installed;
+      if (install && created.attributes?.profileContent) {
+        installed = await installProfileBytes(
+          ctx,
+          Buffer.from(String(created.attributes.profileContent), "base64"),
+          String(created.attributes.uuid),
+          type2.startsWith("MAC")
+        );
+      }
+      return { created, installed, certIds, deviceIds };
+    };
+    if (args.action === "create") {
+      if (!args.profile_type || !args.bundle_id)
+        throw new ToolError("profile_type and bundle_id are required.");
+      const bundle2 = await resolveBundleIdResource(client, args.bundle_id);
+      const name2 = args.name ?? `${bundle2.attributes?.identifier} ${args.profile_type}`;
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Create ${args.profile_type} profile "${name2}" for ${bundle2.attributes?.identifier}`,
+          steps: [
+            {
+              description: `Certificates: ${args.certificate_ids?.join(", ") ?? `all valid ${certTypesForProfile(args.profile_type).join("/")}`}`
+            },
+            ...profileNeedsDevices(args.profile_type) ? [
+              {
+                description: `Devices: ${args.device_ids?.join(", ") ?? "all enabled devices for the platform"}`
+              }
+            ] : [],
+            { description: "POST /v1/profiles" },
+            ...install ? [{ description: "Install into Xcode's Provisioning Profiles folders" }] : []
+          ]
+        }),
+        async () => {
+          const r = await createProfile(name2, args.profile_type, bundle2);
+          return {
+            summary: `Created profile "${name2}" (${r.created.id}, UUID ${r.created.attributes?.uuid}), expires ${r.created.attributes?.expirationDate}.${r.installed ? `
+Installed: ${r.installed.join(", ")}` : ""}`,
+            data: { profile: slimResource(r.created), installed: r.installed }
+          };
+        }
+      );
+    }
+    if (!args.profile_id) throw new ToolError("profile_id is required.");
+    const existing = (await client.get(`profiles/${args.profile_id}`, { include: "bundleId" })).data;
+    if (args.action === "get")
+      return {
+        summary: `${existing.attributes?.name} \u2014 ${existing.attributes?.profileType} ${existing.attributes?.profileState}, expires ${existing.attributes?.expirationDate}`,
+        data: { profile: slimResource(existing) }
+      };
+    if (args.action === "download_install") {
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Install profile "${existing.attributes?.name}"`,
+          steps: [{ description: "Write profile into Xcode's Provisioning Profiles folders" }]
+        }),
+        async () => {
+          const content = existing.attributes?.profileContent;
+          if (!content)
+            throw new ToolError("Profile has no downloadable content (it may be invalid \u2014 regenerate it).");
+          const installed = await installProfileBytes(
+            ctx,
+            Buffer.from(content, "base64"),
+            String(existing.attributes?.uuid),
+            String(existing.attributes?.platform) === "MAC_OS"
+          );
+          return { summary: `Installed to ${installed.join(", ")}`, data: { installed } };
+        }
+      );
+    }
+    if (args.action === "delete") {
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Delete profile "${existing.attributes?.name}"`,
+          steps: [{ description: `DELETE /v1/profiles/${existing.id}` }],
+          destructive: true
+        }),
+        async () => {
+          await client.delete(`profiles/${existing.id}`);
+          return { summary: "Profile deleted.", data: { ok: true } };
+        }
+      );
+    }
+    const bundleRel = existing.relationships?.bundleId?.data;
+    if (!bundleRel) throw new ToolError("Could not determine the profile's bundle ID.");
+    const bundle = (await client.get(`bundleIds/${bundleRel.id}`)).data;
+    const type = String(existing.attributes?.profileType);
+    const name = String(existing.attributes?.name);
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `Regenerate profile "${name}" (${type})`,
+        steps: [
+          { description: `DELETE /v1/profiles/${existing.id}` },
+          {
+            description: `POST /v1/profiles with the same name/type for ${bundle.attributes?.identifier}, current certificates${profileNeedsDevices(type) ? " and devices" : ""}`
+          },
+          ...install ? [{ description: "Install the new profile for Xcode" }] : []
+        ],
+        warnings: ["Builds must be re-signed/re-exported with the new profile."]
+      }),
+      async () => {
+        await client.delete(`profiles/${existing.id}`);
+        const r = await createProfile(name, type, bundle);
+        return {
+          summary: `Regenerated "${name}" \u2192 ${r.created.id} (UUID ${r.created.attributes?.uuid}).`,
+          data: { profile: slimResource(r.created), installed: r.installed }
+        };
+      }
+    );
+  }
+});
+
+// src/tools/checklist.ts
+import { readFile as readFile7 } from "fs/promises";
+import { dirname as dirname4, extname as extname8, isAbsolute as isAbsolute2, join as join14 } from "path";
+
+// src/knowledge/sdk-requirements.ts
+var SDK_REQUIREMENTS = [
+  {
+    effective: "2024-04-29",
+    minXcode: "15.0",
+    sdks: "iOS 17 / iPadOS 17 / tvOS 17 / watchOS 10 / visionOS 1 SDKs",
+    source: "https://developer.apple.com/news/upcoming-requirements/"
+  },
+  {
+    effective: "2025-04-24",
+    minXcode: "16.0",
+    sdks: "iOS 18 / iPadOS 18 / tvOS 18 / visionOS 2 / watchOS 11 SDKs",
+    source: "https://developer.apple.com/news/upcoming-requirements/"
+  },
+  {
+    effective: "2026-04-28",
+    minXcode: "26.0",
+    sdks: "iOS 26 / iPadOS 26 / tvOS 26 / visionOS 26 / watchOS 26 SDKs",
+    source: "https://developer.apple.com/news/upcoming-requirements/"
+  }
+];
+var SDK_REQUIREMENTS_LAST_REVIEWED = "2026-06-01";
+function currentSdkRequirement(date5) {
+  const iso = date5.toISOString().slice(0, 10);
+  return [...SDK_REQUIREMENTS].reverse().find((r) => r.effective <= iso);
+}
+var NOTARIZATION_MIN_SDK = "10.9";
+
 // src/parsers/project/detect.ts
-import { readdir as readdir5, readFile as readFile4, stat as stat3 } from "fs/promises";
-import { basename as basename6, extname as extname6, join as join10, relative as relative2 } from "path";
+import { readdir as readdir6, readFile as readFile6, stat as stat3 } from "fs/promises";
+import { basename as basename8, extname as extname7, join as join13, relative as relative2 } from "path";
 var SKIP_DIRS = /* @__PURE__ */ new Set([
   "node_modules",
   "Pods",
@@ -53313,14 +54953,14 @@ async function exists(p) {
 }
 async function readJson(p) {
   try {
-    return JSON.parse(await readFile4(p, "utf8"));
+    return JSON.parse(await readFile6(p, "utf8"));
   } catch {
     return void 0;
   }
 }
 async function readText(p) {
   try {
-    return await readFile4(p, "utf8");
+    return await readFile6(p, "utf8");
   } catch {
     return void 0;
   }
@@ -53361,15 +55001,15 @@ function targetsFor(platforms) {
   return t;
 }
 async function detectXcode(dir, path, kind) {
-  const name = basename6(path).replace(/\.(xcodeproj|xcworkspace)$/, "");
+  const name = basename8(path).replace(/\.(xcodeproj|xcworkspace)$/, "");
   const c = component(kind, path, { name });
   let pbxPaths = [];
   if (kind === "xcode-project") {
-    pbxPaths = [join10(path, "project.pbxproj")];
+    pbxPaths = [join13(path, "project.pbxproj")];
   } else {
-    const contents = await readText(join10(path, "contents.xcworkspacedata"));
+    const contents = await readText(join13(path, "contents.xcworkspacedata"));
     const refs = [...(contents ?? "").matchAll(/location = "group:([^"]+\.xcodeproj)"/g)].map((m) => m[1]);
-    pbxPaths = refs.filter((r) => !r.startsWith("Pods/")).map((r) => join10(dir, r, "project.pbxproj"));
+    pbxPaths = refs.filter((r) => !r.startsWith("Pods/")).map((r) => join13(dir, r, "project.pbxproj"));
     c.signing.projects = refs;
     if (refs.some((r) => r.startsWith("Pods/")))
       c.findings.push("CocoaPods workspace: always build the .xcworkspace, not the .xcodeproj.");
@@ -53422,20 +55062,20 @@ async function detectXcode(dir, path, kind) {
   c.suggestedTargets = targetsFor(c.platforms);
   const flag = kind === "xcode-workspace" ? "-workspace" : "-project";
   c.buildCommands = [
-    `xcodebuild -list -json ${flag} ${relative2(dir, path) || basename6(path)}`,
+    `xcodebuild -list -json ${flag} ${relative2(dir, path) || basename8(path)}`,
     "Use the `xcode` tool: action=archive (automatic signing with -allowProvisioningUpdates + API key), then action=export"
   ];
   return c;
 }
 async function detectSwiftPM(dir) {
-  const pkg = await readText(join10(dir, "Package.swift"));
+  const pkg = await readText(join13(dir, "Package.swift"));
   if (!pkg) return void 0;
   const name = /name:\s*"([^"]+)"/.exec(pkg)?.[1];
   const execs = [...pkg.matchAll(/\.executableTarget\(\s*name:\s*"([^"]+)"/g)].map((m) => m[1]);
   const platforms = [];
   if (/\.macOS\(/.test(pkg)) platforms.push("macOS");
   if (/\.iOS\(/.test(pkg)) platforms.push("iOS");
-  const c = component("swiftpm", join10(dir, "Package.swift"), {
+  const c = component("swiftpm", join13(dir, "Package.swift"), {
     name,
     platforms: platforms.length ? platforms : ["macOS"],
     signing: { executableTargets: execs },
@@ -53515,13 +55155,13 @@ async function detectElectron(dir, pkg) {
     "electron-builder.json5",
     "electron-builder.config.js"
   ];
-  const builderFile = (await Promise.all(builderFiles.map(async (f) => await exists(join10(dir, f)) ? f : void 0))).find(Boolean);
-  const forgeFile = await exists(join10(dir, "forge.config.js")) ? "forge.config.js" : await exists(join10(dir, "forge.config.ts")) ? "forge.config.ts" : void 0;
+  const builderFile = (await Promise.all(builderFiles.map(async (f) => await exists(join13(dir, f)) ? f : void 0))).find(Boolean);
+  const forgeFile = await exists(join13(dir, "forge.config.js")) ? "forge.config.js" : await exists(join13(dir, "forge.config.ts")) ? "forge.config.ts" : void 0;
   const build2 = pkg.build ?? {};
-  const builderText = builderFile ? await readText(join10(dir, builderFile)) : void 0;
+  const builderText = builderFile ? await readText(join13(dir, builderFile)) : void 0;
   const appId = build2.appId ?? (builderText ? /appId:\s*["']?([\w.-]+)/.exec(builderText)?.[1] : void 0);
   const mac4 = build2.mac ?? {};
-  const c = component("electron", join10(dir, "package.json"), {
+  const c = component("electron", join13(dir, "package.json"), {
     name: pkg.productName ?? pkg.name,
     platforms: ["macOS"],
     bundleIds: appId ? [appId] : [],
@@ -53555,7 +55195,7 @@ async function detectElectron(dir, pkg) {
   return c;
 }
 async function detectTauri(dir) {
-  const confPath = ["src-tauri/tauri.conf.json", "tauri.conf.json"].map((p) => join10(dir, p));
+  const confPath = ["src-tauri/tauri.conf.json", "tauri.conf.json"].map((p) => join13(dir, p));
   let file2;
   let conf;
   for (const p of confPath) {
@@ -53566,8 +55206,8 @@ async function detectTauri(dir) {
     }
   }
   if (!conf || !file2) {
-    if (await exists(join10(dir, "src-tauri", "Tauri.toml")))
-      return component("tauri", join10(dir, "src-tauri", "Tauri.toml"), {
+    if (await exists(join13(dir, "src-tauri", "Tauri.toml")))
+      return component("tauri", join13(dir, "src-tauri", "Tauri.toml"), {
         platforms: ["macOS"],
         findings: ["Tauri.toml config detected; signing keys live under [bundle.macOS]."],
         suggestedTargets: ["mac-developer-id"]
@@ -53580,7 +55220,7 @@ async function detectTauri(dir) {
   const macOS = bundle.macOS ?? {};
   const iOS = bundle.iOS ?? {};
   const platforms = ["macOS"];
-  if (await exists(join10(dir, "src-tauri", "gen", "apple"))) platforms.push("iOS");
+  if (await exists(join13(dir, "src-tauri", "gen", "apple"))) platforms.push("iOS");
   const c = component("tauri", file2, {
     name: conf.productName ?? conf.package?.productName,
     platforms,
@@ -53636,13 +55276,13 @@ async function nativeIds(dir, sub) {
   const teamIds = [];
   let entries = [];
   try {
-    entries = await readdir5(join10(dir, sub), { withFileTypes: true });
+    entries = await readdir6(join13(dir, sub), { withFileTypes: true });
   } catch {
     return { bundleIds, teamIds };
   }
   for (const e of entries) {
     if (e.isDirectory() && e.name.endsWith(".xcodeproj")) {
-      const text = await readText(join10(dir, sub, e.name, "project.pbxproj"));
+      const text = await readText(join13(dir, sub, e.name, "project.pbxproj"));
       if (text) {
         const s = summarizePbxproj(text);
         bundleIds.push(...s.bundleIds);
@@ -53653,7 +55293,7 @@ async function nativeIds(dir, sub) {
   return { bundleIds: uniq(bundleIds), teamIds: uniq(teamIds) };
 }
 async function detectFlutter(dir) {
-  const pubspec = await readText(join10(dir, "pubspec.yaml"));
+  const pubspec = await readText(join13(dir, "pubspec.yaml"));
   if (!pubspec || !/^\s*flutter:/m.test(pubspec)) return void 0;
   const platforms = [];
   const ids = { bundleIds: [], teamIds: [] };
@@ -53661,14 +55301,14 @@ async function detectFlutter(dir) {
     ["ios", "iOS"],
     ["macos", "macOS"]
   ]) {
-    if (await exists(join10(dir, sub, "Runner.xcodeproj"))) {
+    if (await exists(join13(dir, sub, "Runner.xcodeproj"))) {
       platforms.push(plat);
       const n = await nativeIds(dir, sub);
       ids.bundleIds.push(...n.bundleIds);
       ids.teamIds.push(...n.teamIds);
     }
   }
-  const c = component("flutter", join10(dir, "pubspec.yaml"), {
+  const c = component("flutter", join13(dir, "pubspec.yaml"), {
     name: /^name:\s*(\S+)/m.exec(pubspec)?.[1],
     platforms,
     bundleIds: uniq(ids.bundleIds),
@@ -53694,13 +55334,13 @@ async function detectReactNativeOrExpo(dir, pkg) {
   const isExpo = !!deps.expo;
   const isRN = !!deps["react-native"];
   if (!isExpo && !isRN) return void 0;
-  const hasIos = await exists(join10(dir, "ios"));
+  const hasIos = await exists(join13(dir, "ios"));
   const ids = hasIos ? await nativeIds(dir, "ios") : { bundleIds: [], teamIds: [] };
   if (isExpo) {
-    const appJson = await readJson(join10(dir, "app.json")) ?? {};
+    const appJson = await readJson(join13(dir, "app.json")) ?? {};
     const expo = appJson.expo ?? appJson;
-    const eas = await readJson(join10(dir, "eas.json"));
-    const c2 = component("expo", join10(dir, "package.json"), {
+    const eas = await readJson(join13(dir, "eas.json"));
+    const c2 = component("expo", join13(dir, "package.json"), {
       name: expo.name ?? pkg.name,
       platforms: ["iOS"],
       bundleIds: uniq([expo.ios?.bundleIdentifier, ...ids.bundleIds]),
@@ -53711,7 +55351,7 @@ async function detectReactNativeOrExpo(dir, pkg) {
         version: expo.version,
         easBuildProfiles: eas?.build ? Object.keys(eas.build) : void 0,
         easSubmitIos: eas?.submit?.production?.ios,
-        appConfigDynamic: await exists(join10(dir, "app.config.js")) || await exists(join10(dir, "app.config.ts"))
+        appConfigDynamic: await exists(join13(dir, "app.config.js")) || await exists(join13(dir, "app.config.ts"))
       },
       suggestedTargets: ["testflight-ios", "ios-app-store"]
     });
@@ -53745,7 +55385,7 @@ async function detectReactNativeOrExpo(dir, pkg) {
     c2.buildCommands = ["eas build -p ios --profile production", "eas submit -p ios --latest"];
     return c2;
   }
-  const c = component("react-native", join10(dir, "package.json"), {
+  const c = component("react-native", join13(dir, "package.json"), {
     name: pkg.name,
     platforms: hasIos ? ["iOS"] : [],
     bundleIds: ids.bundleIds,
@@ -53762,28 +55402,28 @@ async function detectReactNativeOrExpo(dir, pkg) {
   return c;
 }
 async function readBundleInfo(appPath) {
-  for (const p of [join10(appPath, "Contents", "Info.plist"), join10(appPath, "Info.plist")]) {
+  for (const p of [join13(appPath, "Contents", "Info.plist"), join13(appPath, "Info.plist")]) {
     try {
-      return parsePlistDict(new Uint8Array(await readFile4(p)));
+      return parsePlistDict(new Uint8Array(await readFile6(p)));
     } catch {
     }
   }
   return void 0;
 }
 async function detectArtifact(path) {
-  const ext = extname6(path).toLowerCase();
+  const ext = extname7(path).toLowerCase();
   if (ext === ".app") {
     const info = await readBundleInfo(path);
-    const isMac = await exists(join10(path, "Contents"));
+    const isMac = await exists(join13(path, "Contents"));
     const c = component("app-bundle", path, {
-      name: info?.CFBundleName ?? basename6(path, ".app"),
+      name: info?.CFBundleName ?? basename8(path, ".app"),
       platforms: [isMac ? "macOS" : "iOS"],
       bundleIds: info?.CFBundleIdentifier ? [String(info.CFBundleIdentifier)] : [],
       signing: {
         version: info?.CFBundleShortVersionString,
         build: info?.CFBundleVersion,
         minimumSystemVersion: info?.LSMinimumSystemVersion ?? info?.MinimumOSVersion,
-        embeddedProfile: await exists(join10(path, "Contents", "embedded.provisionprofile")) ? "Contents/embedded.provisionprofile" : await exists(join10(path, "embedded.mobileprovision")) ? "embedded.mobileprovision" : void 0
+        embeddedProfile: await exists(join13(path, "Contents", "embedded.provisionprofile")) ? "Contents/embedded.provisionprofile" : await exists(join13(path, "embedded.mobileprovision")) ? "embedded.mobileprovision" : void 0
       },
       suggestedTargets: isMac ? ["mac-developer-id"] : ["ios-ad-hoc"]
     });
@@ -53795,14 +55435,14 @@ async function detectArtifact(path) {
   if (ext === ".xcarchive") {
     let info;
     try {
-      info = parsePlistDict(new Uint8Array(await readFile4(join10(path, "Info.plist"))));
+      info = parsePlistDict(new Uint8Array(await readFile6(join13(path, "Info.plist"))));
     } catch {
     }
     const props = info?.ApplicationProperties ?? {};
     const appPath = String(props.ApplicationPath ?? "");
     return component("xcarchive", path, {
-      name: String(info?.Name ?? basename6(path, ".xcarchive")),
-      platforms: appPath.includes("Applications/") && await exists(join10(path, "Products", appPath, "Contents")) ? ["macOS"] : ["iOS"],
+      name: String(info?.Name ?? basename8(path, ".xcarchive")),
+      platforms: appPath.includes("Applications/") && await exists(join13(path, "Products", appPath, "Contents")) ? ["macOS"] : ["iOS"],
       bundleIds: props.CFBundleIdentifier ? [String(props.CFBundleIdentifier)] : [],
       teamIds: props.Team ? [String(props.Team)] : [],
       signing: {
@@ -53844,7 +55484,7 @@ async function detectArtifact(path) {
   if (simple[ext]) {
     const [kind, platforms, targets, note] = simple[ext];
     return component(kind, path, {
-      name: basename6(path),
+      name: basename8(path),
       platforms,
       suggestedTargets: targets,
       findings: [note]
@@ -53861,7 +55501,7 @@ async function detectProject(root, maxDepth = 2) {
       root,
       components: [
         component("binary", root, {
-          name: basename6(root),
+          name: basename8(root),
           platforms: ["macOS"],
           suggestedTargets: ["mac-developer-id"]
         })
@@ -53871,32 +55511,32 @@ async function detectProject(root, maxDepth = 2) {
   const components = [];
   const claimed = /* @__PURE__ */ new Set();
   async function scanDir(dir, depth) {
-    const pkg = await readJson(join10(dir, "package.json"));
+    const pkg = await readJson(join13(dir, "package.json"));
     if (pkg) {
       const deps = { ...pkg.dependencies, ...pkg.devDependencies };
       if (deps.electron) components.push(await detectElectron(dir, pkg));
       const rn = await detectReactNativeOrExpo(dir, pkg);
       if (rn) {
         components.push(rn);
-        claimed.add(join10(dir, "ios"));
+        claimed.add(join13(dir, "ios"));
       }
     }
     const tauri = await detectTauri(dir);
     if (tauri) {
       components.push(tauri);
-      claimed.add(join10(dir, "src-tauri"));
+      claimed.add(join13(dir, "src-tauri"));
     }
     const flutter = await detectFlutter(dir);
     if (flutter) {
       components.push(flutter);
-      claimed.add(join10(dir, "ios"));
-      claimed.add(join10(dir, "macos"));
+      claimed.add(join13(dir, "ios"));
+      claimed.add(join13(dir, "macos"));
     }
     const spm = await detectSwiftPM(dir);
     if (spm) components.push(spm);
     let entries = [];
     try {
-      entries = await readdir5(dir, { withFileTypes: true });
+      entries = await readdir6(dir, { withFileTypes: true });
     } catch {
       return;
     }
@@ -53904,19 +55544,19 @@ async function detectProject(root, maxDepth = 2) {
     const projects = entries.filter((e) => e.isDirectory() && e.name.endsWith(".xcodeproj"));
     if (!claimed.has(dir)) {
       for (const w of workspaces)
-        components.push(await detectXcode(dir, join10(dir, w.name), "xcode-workspace"));
+        components.push(await detectXcode(dir, join13(dir, w.name), "xcode-workspace"));
       if (!workspaces.length)
-        for (const p of projects) components.push(await detectXcode(dir, join10(dir, p.name), "xcode-project"));
+        for (const p of projects) components.push(await detectXcode(dir, join13(dir, p.name), "xcode-project"));
     } else if (workspaces.length || projects.length) {
       const owner = components.find((c) => ["flutter", "react-native", "expo"].includes(c.kind));
       if (owner)
         owner.signing.nativeProjects = [...workspaces, ...projects].map(
-          (e) => relative2(root, join10(dir, e.name))
+          (e) => relative2(root, join13(dir, e.name))
         );
     }
     for (const e of entries) {
       if (e.isDirectory() && /\.(app|xcarchive)$/.test(e.name) && depth === 0) {
-        const a = await detectArtifact(join10(dir, e.name));
+        const a = await detectArtifact(join13(dir, e.name));
         if (a) components.push(a);
       }
     }
@@ -53924,12 +55564,455 @@ async function detectProject(root, maxDepth = 2) {
     for (const e of entries) {
       if (!e.isDirectory() || SKIP_DIRS.has(e.name) || e.name.startsWith(".")) continue;
       if (/\.(xcodeproj|xcworkspace|app|xcarchive|framework|bundle|lproj|xcassets)$/.test(e.name)) continue;
-      await scanDir(join10(dir, e.name), depth + 1);
+      await scanDir(join13(dir, e.name), depth + 1);
     }
   }
   await scanDir(root, 0);
   return { root, components };
 }
+
+// src/tools/checklist.ts
+var ICON = { ok: "\u2713", missing: "\u2717", warn: "\u26A0", unknown: "?", manual: "\u2610" };
+async function readEntitlementsFiles(component2) {
+  if (!component2) return {};
+  const base = dirname4(component2.path);
+  const files = [];
+  const s = component2.signing;
+  for (const f of s.entitlementsFiles ?? []) if (!f.includes("$(")) files.push(f);
+  if (s.mac?.entitlements) files.push(s.mac.entitlements);
+  if (s.macOS?.entitlements) files.push(s.macOS.entitlements);
+  const out = {};
+  for (const f of files) {
+    for (const candidate of [isAbsolute2(f) ? f : join14(base, f), join14(base, "..", f)]) {
+      try {
+        Object.assign(out, parsePlistDict(new Uint8Array(await readFile7(candidate))));
+        break;
+      } catch {
+      }
+    }
+  }
+  return out;
+}
+function pickComponent(components, target) {
+  const platform = TARGETS[target].platform;
+  return components.find((c) => c.platforms.includes(platform) && c.bundleIds.length) ?? components.find((c) => c.platforms.includes(platform)) ?? components[0];
+}
+async function buildChecklist(ctx, opts) {
+  const t = TARGETS[opts.target];
+  const items = [];
+  const add = (i) => items.push(i);
+  const isStore = t.ascAppRecord;
+  let component2;
+  let artifactEntitlements = {};
+  let infoPlist;
+  if (opts.path) {
+    try {
+      const path = await resolveUserPath(ctx, opts.path);
+      const report = await detectProject(path);
+      component2 = pickComponent(report.components, opts.target);
+      if (component2) {
+        add({
+          id: "project",
+          title: "Project detected",
+          status: "ok",
+          detail: `${component2.kind}${component2.name ? ` "${component2.name}"` : ""} (${component2.platforms.join(", ") || "?"})`
+        });
+        for (const f of component2.findings.filter((x) => /false|not set|not YES|No appId/.test(x)))
+          add({ id: "project-config", title: "Project signing config", status: "warn", detail: f });
+        artifactEntitlements = await readEntitlementsFiles(component2);
+        if (await isDirectory(path) && extname8(path) === ".app") infoPlist = await readBundleInfo(path);
+      } else
+        add({
+          id: "project",
+          title: "Project detected",
+          status: "unknown",
+          detail: "No recognizable project at path.",
+          fix: "detect_project to investigate"
+        });
+    } catch (e) {
+      add({ id: "project", title: "Project detected", status: "unknown", detail: e.message });
+    }
+  }
+  const bundleId = opts.bundleId ?? component2?.bundleIds.find((b) => !/Tests?$|\$\(/.test(b)) ?? component2?.bundleIds[0];
+  if (!bundleId && (isStore || t.profile?.required === "always"))
+    add({
+      id: "bundle-id",
+      title: "Bundle identifier",
+      status: "missing",
+      detail: "No bundle ID known.",
+      fix: "Pass bundle_id or set PRODUCT_BUNDLE_IDENTIFIER / appId / identifier in the project."
+    });
+  if (ctx.platform.isMac) {
+    const xc = await xcodeInfo(ctx.runner);
+    const req = currentSdkRequirement(ctx.now());
+    if (isStore || t.platform === "iOS") {
+      if (!xc.xcodeVersion)
+        add({
+          id: "xcode",
+          title: "Xcode",
+          status: "missing",
+          detail: "Full Xcode is required for archives and App Store uploads.",
+          fix: "Install Xcode from the Mac App Store and select it with xcode-select."
+        });
+      else if (req && compareVersions(xc.xcodeVersion, req.minXcode) < 0)
+        add({
+          id: "xcode",
+          title: "Xcode",
+          status: "missing",
+          detail: `Xcode ${xc.xcodeVersion} < required ${req.minXcode} for App Store uploads (since ${req.effective}).`,
+          fix: "Update Xcode."
+        });
+      else add({ id: "xcode", title: "Xcode", status: "ok", detail: `Xcode ${xc.xcodeVersion}` });
+    } else
+      add({
+        id: "xcode",
+        title: "Developer tools",
+        status: xc.developerDir ? "ok" : "missing",
+        detail: xc.developerDir ? `${xc.xcodeVersion ? `Xcode ${xc.xcodeVersion}` : "Command Line Tools"} at ${xc.developerDir}` : "No developer tools.",
+        fix: xc.developerDir ? void 0 : "xcode-select --install (or install Xcode)"
+      });
+  } else
+    add({
+      id: "xcode",
+      title: "Developer tools",
+      status: "unknown",
+      detail: `Running on ${ctx.platform.os}; local checks need macOS.`
+    });
+  let client;
+  try {
+    client = await ctx.asc(opts.profile);
+    await client.list("apps", {}, 1);
+    add({
+      id: "api-key",
+      title: "App Store Connect API key",
+      status: "ok",
+      detail: `Key ${client.keyId} authenticated (this also confirms an active developer membership).`
+    });
+  } catch (e) {
+    client = void 0;
+    add({
+      id: "api-key",
+      title: "App Store Connect API key",
+      status: "missing",
+      detail: e.message,
+      fix: "Requires a paid Apple Developer Program membership (developer.apple.com/programs/enroll). Then App Store Connect \u2192 Users and Access \u2192 Integrations \u2192 Team Keys \u2192 Generate (Admin or App Manager), download the .p8 and run asc_auth action=configure."
+    });
+  }
+  if (opts.target === "mac-developer-id") {
+    const kp = await ctx.config.notaryProfile(void 0, opts.profile).catch(() => void 0);
+    add(
+      kp ? {
+        id: "notary",
+        title: "Notarization credentials",
+        status: "ok",
+        detail: `notarytool keychain profile "${kp}"`
+      } : client ? {
+        id: "notary",
+        title: "Notarization credentials",
+        status: "ok",
+        detail: "Will use the API key directly.",
+        fix: "Optional: notary action=store_credentials"
+      } : {
+        id: "notary",
+        title: "Notarization credentials",
+        status: "missing",
+        detail: "No API key or notarytool profile.",
+        fix: "asc_auth action=configure, then notary action=store_credentials"
+      }
+    );
+  }
+  let identities = [];
+  let portalCerts = [];
+  if (ctx.platform.isMac) {
+    try {
+      identities = await listIdentities(ctx);
+    } catch {
+    }
+  }
+  if (client) {
+    try {
+      portalCerts = (await client.list("certificates", {}, 200)).data;
+    } catch {
+    }
+  }
+  const teamId = component2?.teamIds[0];
+  for (const role of t.certificates) {
+    const pick2 = pickIdentity(identities, role.alternatives, teamId);
+    const typeNames = role.alternatives.map((a) => certType(a).portalName).join(" / ");
+    if (pick2) {
+      add({
+        id: `cert-${role.alternatives[0]}`,
+        title: `Certificate: ${typeNames}`,
+        status: "ok",
+        detail: `"${pick2.name}"${pick2.certificate ? `, expires ${pick2.certificate.validTo.slice(0, 10)}` : ""}`
+      });
+      continue;
+    }
+    const ascTypes = role.alternatives.flatMap((a) => certType(a).ascTypes);
+    const inPortal = portalCerts.filter((c) => ascTypes.includes(String(c.attributes?.certificateType)));
+    const isDevId = role.alternatives[0].startsWith("developer-id");
+    const status = role.when ? "warn" : ctx.platform.isMac ? "missing" : "unknown";
+    add({
+      id: `cert-${role.alternatives[0]}`,
+      title: `Certificate: ${typeNames}${role.when ? ` (${role.when})` : ""}`,
+      status,
+      detail: inPortal.length ? `${inPortal.length} exist in the portal but none is usable in this keychain (the private key lives on the Mac that created it).` : "None in this keychain.",
+      fix: inPortal.length ? "Import the .p12 from the Mac/person that created it (keychain import_p12), or create a new one (keychain create_csr \u2192 asc_certificates create)." : isDevId ? "Account Holder: keychain create_csr, then developer.apple.com \u2192 Certificates \u2192 + \u2192 " + typeNames + " \u2192 upload CSR \u2192 keychain import_certificate." : `keychain create_csr \u2192 asc_certificates action=create certificate_type=${ascTypes[0]} key_name=<name> (or let Xcode create it: xcode archive with allow_provisioning_updates).`
+    });
+  }
+  if (ctx.platform.isMac && identities.length) {
+    try {
+      const inter = await intermediateStatus(ctx);
+      const missing = inter.filter((i) => !i.found && !i.name.includes("G1"));
+      if (missing.length)
+        add({
+          id: "intermediates",
+          title: "Apple intermediate certificates",
+          status: "warn",
+          detail: `Not found: ${missing.map((m) => m.name).join(", ")}`,
+          fix: "keychain action=install_intermediates (only needed if codesign reports chain errors)"
+        });
+    } catch {
+    }
+  }
+  const restricted = Object.keys(artifactEntitlements).filter((k) => entitlementInfo(k)?.requiresProfile);
+  if (opts.target === "mac-app-store" || opts.target === "testflight-mac") {
+    const sandboxed = artifactEntitlements["com.apple.security.app-sandbox"] === true || component2?.signing?.mas !== void 0;
+    add(
+      sandboxed ? { id: "sandbox", title: "App Sandbox", status: "ok", detail: "Sandbox entitlement present." } : {
+        id: "sandbox",
+        title: "App Sandbox",
+        status: component2 ? "missing" : "unknown",
+        detail: "Mac App Store apps must be sandboxed.",
+        fix: "entitlements action=generate preset=sandbox-basic (Electron: electron-mas + electron-mas-inherit)"
+      }
+    );
+  }
+  if (artifactEntitlements["com.apple.security.get-task-allow"] === true && opts.target !== "mac-development")
+    add({
+      id: "get-task-allow",
+      title: "Debug entitlement",
+      status: "missing",
+      detail: "get-task-allow is in the entitlements file.",
+      fix: "Remove it; build the Release configuration."
+    });
+  const profileNeeded = t.profile && (t.profile.required === "always" || restricted.length > 0);
+  let bundleRes;
+  if (bundleId && client && (isStore || profileNeeded)) {
+    try {
+      const res = await client.list("bundleIds", { "filter[identifier]": bundleId }, 20);
+      bundleRes = res.data.find((b) => b.attributes?.identifier === bundleId);
+      add(
+        bundleRes ? {
+          id: "bundle-id",
+          title: `Bundle ID ${bundleId} registered`,
+          status: "ok",
+          detail: `${bundleRes.attributes?.platform} (id ${bundleRes.id})`
+        } : {
+          id: "bundle-id",
+          title: `Bundle ID ${bundleId} registered`,
+          status: "missing",
+          detail: "Not registered in the developer portal.",
+          fix: `asc_bundle_ids action=create bundle_id=${bundleId} name=<name> platform=${t.platform === "iOS" ? "IOS" : "MAC_OS"}`
+        }
+      );
+      if (bundleRes && restricted.length) {
+        const caps = (await client.list(`bundleIds/${bundleRes.id}/bundleIdCapabilities`, {}, 100)).data.map(
+          (c) => String(c.attributes?.capabilityType)
+        );
+        const needed = [
+          ...new Set(
+            restricted.map((k) => entitlementInfo(k)?.ascCapability).filter((x) => !!x)
+          )
+        ];
+        const missingCaps = needed.filter((c) => !caps.includes(c));
+        add(
+          missingCaps.length ? {
+            id: "capabilities",
+            title: "Capabilities on the App ID",
+            status: "missing",
+            detail: `Entitlements need ${missingCaps.join(", ")}.`,
+            fix: missingCaps.map(
+              (c) => `asc_bundle_ids action=enable_capability bundle_id=${bundleId} capability_type=${c}`
+            ).join("; ")
+          } : {
+            id: "capabilities",
+            title: "Capabilities on the App ID",
+            status: "ok",
+            detail: needed.length ? needed.join(", ") : "No capability-backed entitlements."
+          }
+        );
+      }
+    } catch (e) {
+      add({
+        id: "bundle-id",
+        title: `Bundle ID ${bundleId}`,
+        status: "unknown",
+        detail: e.message
+      });
+    }
+  }
+  if (t.profile && bundleId) {
+    if (!profileNeeded) {
+      add({
+        id: "profile",
+        title: `Provisioning profile (${t.profile.ascType})`,
+        status: "ok",
+        detail: "Not needed: no restricted entitlements detected."
+      });
+    } else {
+      let local = [];
+      if (ctx.platform.isMac) local = await listInstalledProfiles(ctx).catch(() => []);
+      const kindMatch = (k) => k.startsWith(t.profile.ascType);
+      const matching = local.filter(
+        (p) => (p.bundleId === bundleId || p.bundleId === "*" || p.bundleId?.endsWith("*") && bundleId.startsWith(p.bundleId.slice(0, -1))) && !p.expired && kindMatch(p.kind)
+      );
+      if (matching.length)
+        add({
+          id: "profile",
+          title: `Provisioning profile (${t.profile.ascType})`,
+          status: "ok",
+          detail: `Installed: "${matching[0].name}", expires ${matching[0].expires?.slice(0, 10)}`
+        });
+      else {
+        let portal = [];
+        if (client && bundleRes)
+          portal = (await client.list(`bundleIds/${bundleRes.id}/profiles`, {}, 50).catch(() => ({ data: [] }))).data.filter(
+            (p) => p.attributes?.profileType === t.profile.ascType && p.attributes?.profileState === "ACTIVE"
+          );
+        add({
+          id: "profile",
+          title: `Provisioning profile (${t.profile.ascType})`,
+          status: "missing",
+          detail: portal.length ? `Active in the portal ("${portal[0].attributes?.name}") but not installed here.` : "None installed or in the portal.",
+          fix: portal.length ? `asc_profiles action=download_install profile_id=${portal[0].id}` : `asc_profiles action=create profile_type=${t.profile.ascType} bundle_id=${bundleId} (or Xcode automatic signing: xcode archive allow_provisioning_updates=true)`
+        });
+      }
+    }
+  }
+  if (isStore && bundleId) {
+    if (!client)
+      add({
+        id: "app-record",
+        title: "App Store Connect app record",
+        status: "unknown",
+        detail: "Needs a working API key to check."
+      });
+    else {
+      try {
+        const apps = await client.list("apps", { "filter[bundleId]": bundleId }, 5);
+        const app = apps.data.find((a) => a.attributes?.bundleId === bundleId);
+        if (!app)
+          add({
+            id: "app-record",
+            title: "App Store Connect app record",
+            status: "missing",
+            detail: `No app record for ${bundleId}.`,
+            fix: `asc_apps action=create_instructions bundle_id=${bundleId} (manual, ~2 minutes in the web UI)`
+          });
+        else {
+          add({
+            id: "app-record",
+            title: "App Store Connect app record",
+            status: "ok",
+            detail: `"${app.attributes?.name}" (app id ${app.id})`
+          });
+          const builds = await client.list(
+            "builds",
+            { "filter[app]": app.id, sort: "-uploadedDate", "fields[builds]": "version,processingState" },
+            1
+          ).catch(() => void 0);
+          const latest = builds?.data[0]?.attributes?.version;
+          const projectBuild = component2?.signing?.buildNumber?.find((b) => !b.includes("$("));
+          if (latest)
+            add({
+              id: "build-number",
+              title: "Build number",
+              status: projectBuild && compareVersions(projectBuild, latest) <= 0 ? "missing" : "ok",
+              detail: `Latest uploaded build: ${latest}${projectBuild ? `; project: ${projectBuild}` : ""}`,
+              fix: projectBuild && compareVersions(projectBuild, latest) <= 0 ? `Bump CFBundleVersion / CURRENT_PROJECT_VERSION above ${latest}` : void 0
+            });
+        }
+      } catch (e) {
+        add({
+          id: "app-record",
+          title: "App Store Connect app record",
+          status: "unknown",
+          detail: e.message
+        });
+      }
+    }
+  }
+  if (infoPlist) {
+    if (isStore && infoPlist.ITSAppUsesNonExemptEncryption === void 0)
+      add({
+        id: "export-compliance",
+        title: "Export compliance key",
+        status: "warn",
+        detail: "ITSAppUsesNonExemptEncryption not set \u2014 every build will wait for a compliance answer.",
+        fix: "Add ITSAppUsesNonExemptEncryption=NO if you only use HTTPS / OS crypto."
+      });
+    if ((opts.target === "mac-app-store" || opts.target === "testflight-mac") && !infoPlist.LSApplicationCategoryType)
+      add({
+        id: "category",
+        title: "App category",
+        status: "missing",
+        detail: "LSApplicationCategoryType is required for the Mac App Store.",
+        fix: "Set INFOPLIST_KEY_LSApplicationCategoryType (e.g. public.app-category.productivity)."
+      });
+  }
+  for (const h of t.humanSteps) add({ id: "human", title: "Manual step", status: "manual", detail: h });
+  return { items, bundleId, component: component2 };
+}
+var distributionChecklistTool = defineTool({
+  name: "distribution_checklist",
+  title: "What is missing to ship this app to a target?",
+  description: "The zero-context entry point. For a project/artifact path and a target (mac-developer-id, mac-app-store, testflight-mac, ios-app-store, testflight-ios, ios-ad-hoc, ios-development, mac-development, enterprise) it checks: developer tools / Xcode version, App Store Connect API key (and therefore membership), notarization credentials, required certificates in the keychain (and in the portal), Apple intermediates, sandbox / debug entitlements, bundle ID registration + capabilities, provisioning profiles (local and portal), the App Store Connect app record and build numbers, export compliance and category keys, plus the human-only steps. Each item has a status and the exact tool call or manual step that fixes it, in order. Read-only.",
+  input: {
+    target: external_exports.enum(TARGET_IDS),
+    path: external_exports.string().optional().describe("Project directory or built artifact."),
+    bundle_id: external_exports.string().optional().describe("Override the detected bundle identifier."),
+    profile: profileArg
+  },
+  async handler(args, ctx) {
+    const t = TARGETS[args.target];
+    const { items, bundleId } = await buildChecklist(ctx, {
+      path: args.path,
+      target: args.target,
+      bundleId: args.bundle_id,
+      profile: args.profile
+    });
+    const blocking = items.filter((i) => i.status === "missing");
+    const lines = [
+      `${t.title}`,
+      t.summary,
+      "",
+      ...items.map(
+        (i) => `${ICON[i.status]} ${i.title}: ${i.detail}${i.fix && i.status !== "ok" ? `
+    \u2192 ${i.fix}` : ""}`
+      ),
+      "",
+      blocking.length ? `${blocking.length} blocking item(s). Fix them in order, then re-run this checklist.` : "Nothing blocking. Proceed with the steps below.",
+      "",
+      "Steps for this target:",
+      ...t.steps.map((s, i) => `${i + 1}. ${s}`)
+    ];
+    return {
+      summary: lines.join("\n"),
+      data: {
+        target: args.target,
+        bundleId,
+        items,
+        steps: t.steps,
+        ready: blocking.length === 0,
+        certificateTypes: CERTIFICATE_TYPES.filter(
+          (c) => t.certificates.some((r) => r.alternatives.includes(c.id))
+        ).map((c) => ({ type: c.portalName, createdBy: c.createdBy }))
+      },
+      next_steps: blocking.length ? blocking.slice(0, 3).map((b) => b.fix ?? b.title) : t.steps.slice(0, 2)
+    };
+  }
+});
 
 // src/parsers/xcodebuild.ts
 function parseXcodeList(text) {
@@ -54013,8 +56096,8 @@ var detectProjectTool = defineTool({
 });
 
 // src/tools/diagnostics.ts
-import { readdir as readdir6, readFile as readFile5, stat as stat4, unlink } from "fs/promises";
-import { basename as basename7, join as join11 } from "path";
+import { readdir as readdir7, readFile as readFile8, stat as stat4, unlink as unlink2 } from "fs/promises";
+import { basename as basename9, join as join15 } from "path";
 
 // src/knowledge/privacy-keys.ts
 var PRIVACY_RESOURCES = [
@@ -54376,7 +56459,7 @@ function parseOtoolL(text) {
   }
   return libs;
 }
-var PLATFORMS = {
+var PLATFORMS2 = {
   "1": "macOS",
   "2": "iOS",
   "3": "tvOS",
@@ -54407,7 +56490,7 @@ function parseOtoolLoadCommands(text) {
       case "LC_BUILD_VERSION": {
         const platform = /^\s*platform (\S+)/m.exec(block)?.[1] ?? "?";
         info.buildVersions.push({
-          platform: PLATFORMS[platform] ?? platform,
+          platform: PLATFORMS2[platform] ?? platform,
           minos: /^\s*minos (\S+)/m.exec(block)?.[1],
           sdk: /^\s*sdk (\S+)/m.exec(block)?.[1]
         });
@@ -54645,17 +56728,17 @@ var crashReportsTool = defineTool({
   },
   async handler(args, ctx) {
     const dirs = [
-      join11(ctx.platform.homeDir, "Library", "Logs", "DiagnosticReports"),
+      join15(ctx.platform.homeDir, "Library", "Logs", "DiagnosticReports"),
       "/Library/Logs/DiagnosticReports"
     ];
     const files = [];
     for (const d of dirs) {
       try {
-        for (const f of await readdir6(d)) {
+        for (const f of await readdir7(d)) {
           if (!/\.(ips|crash)$/.test(f)) continue;
           if (args.process && !f.toLowerCase().includes(args.process.toLowerCase().split(".").pop()))
             continue;
-          const p = join11(d, f);
+          const p = join15(d, f);
           files.push({ path: p, mtime: (await stat4(p)).mtimeMs });
         }
       } catch {
@@ -54665,8 +56748,8 @@ var crashReportsTool = defineTool({
     const reports = [];
     for (const f of files.slice(0, args.limit ?? 10)) {
       try {
-        const s = parseCrashReport(await readFile5(f.path, "utf8"));
-        if (args.process && ![s.process, s.bundleId, basename7(f.path)].some(
+        const s = parseCrashReport(await readFile8(f.path, "utf8"));
+        if (args.process && ![s.process, s.bundleId, basename9(f.path)].some(
           (x) => x?.toLowerCase().includes(args.process.toLowerCase())
         ))
           continue;
@@ -54689,14 +56772,14 @@ var crashReportsTool = defineTool({
   }
 });
 async function scanRequiredReasonApis(binary) {
-  const buf = await readFile5(binary);
+  const buf = await readFile8(binary);
   return REQUIRED_REASON_APIS.filter(
     (c) => c.markers.some((m) => buf.includes(Buffer.from(m, "latin1")))
   ).map((c) => c.category);
 }
 async function mainExecutable(app, info) {
   const exe = info?.CFBundleExecutable;
-  for (const p of [exe && join11(app, "Contents", "MacOS", exe), exe && join11(app, exe)])
+  for (const p of [exe && join15(app, "Contents", "MacOS", exe), exe && join15(app, exe)])
     if (p && await pathExists(p)) return p;
   return void 0;
 }
@@ -54740,7 +56823,7 @@ var privacyTool = defineTool({
     const app = await resolveUserPath(ctx, args.path);
     if (!await isDirectory(app)) throw new ToolError("audit expects an .app bundle.");
     const info = await readBundleInfo(app) ?? {};
-    const isMac = await pathExists(join11(app, "Contents"));
+    const isMac = await pathExists(join15(app, "Contents"));
     const platform = isMac ? "macOS" : "iOS";
     const exe = await mainExecutable(app, info);
     const findings = [];
@@ -54792,14 +56875,14 @@ var privacyTool = defineTool({
         findings.push(finding("info", `${res.title}: ${res.notes}`));
     }
     const manifestPath = [
-      join11(app, "PrivacyInfo.xcprivacy"),
-      join11(app, "Contents", "Resources", "PrivacyInfo.xcprivacy")
+      join15(app, "PrivacyInfo.xcprivacy"),
+      join15(app, "Contents", "Resources", "PrivacyInfo.xcprivacy")
     ];
     let manifest;
     for (const p of manifestPath) {
       if (await pathExists(p)) {
         try {
-          manifest = parsePlistDict(new Uint8Array(await readFile5(p)));
+          manifest = parsePlistDict(new Uint8Array(await readFile8(p)));
         } catch {
           findings.push(finding("error", `PrivacyInfo.xcprivacy at ${p} is not a valid plist.`));
         }
@@ -54838,7 +56921,7 @@ var privacyTool = defineTool({
         findings.push(finding("error", `${k} requires ${e.usageDescriptionKey} in Info.plist.`));
     }
     return {
-      summary: `Privacy audit of ${basename7(app)} (${platform}): ${findings.filter((f) => f.severity !== "info").length} issue(s).
+      summary: `Privacy audit of ${basename9(app)} (${platform}): ${findings.filter((f) => f.severity !== "info").length} issue(s).
 ${formatFindings(findings) || "No issues found."}
 Note: screen recording, accessibility and input monitoring have no Info.plist key \u2014 users grant them in System Settings \u2192 Privacy & Security.`,
       data: {
@@ -54881,13 +56964,13 @@ var devicesTool = defineTool({
       } catch {
       }
     }
-    const tmp = join11(await scratchDir("devicectl"), "devices.json");
+    const tmp = join15(await scratchDir("devicectl"), "devices.json");
     const dc = await ctx.runner.run("xcrun", ["devicectl", "list", "devices", "--json-output", tmp], {
       timeoutMs: 6e4
     });
     if (ok(dc)) {
       try {
-        const j = JSON.parse(await readFile5(tmp, "utf8"));
+        const j = JSON.parse(await readFile8(tmp, "utf8"));
         data.connected = (j.result?.devices ?? []).map((d) => ({
           name: d.deviceProperties?.name,
           udid: d.hardwareProperties?.udid,
@@ -54900,7 +56983,7 @@ var devicesTool = defineTool({
       } catch {
         data.connected = [];
       } finally {
-        await unlink(tmp).catch(() => {
+        await unlink2(tmp).catch(() => {
         });
       }
     } else data.connectedError = output2(dc).slice(0, 300);
@@ -54996,34 +57079,6 @@ ${resultSummary}` : ""}`,
     );
   }
 });
-
-// src/knowledge/sdk-requirements.ts
-var SDK_REQUIREMENTS = [
-  {
-    effective: "2024-04-29",
-    minXcode: "15.0",
-    sdks: "iOS 17 / iPadOS 17 / tvOS 17 / watchOS 10 / visionOS 1 SDKs",
-    source: "https://developer.apple.com/news/upcoming-requirements/"
-  },
-  {
-    effective: "2025-04-24",
-    minXcode: "16.0",
-    sdks: "iOS 18 / iPadOS 18 / tvOS 18 / visionOS 2 / watchOS 11 SDKs",
-    source: "https://developer.apple.com/news/upcoming-requirements/"
-  },
-  {
-    effective: "2026-04-28",
-    minXcode: "26.0",
-    sdks: "iOS 26 / iPadOS 26 / tvOS 26 / visionOS 26 / watchOS 26 SDKs",
-    source: "https://developer.apple.com/news/upcoming-requirements/"
-  }
-];
-var SDK_REQUIREMENTS_LAST_REVIEWED = "2026-06-01";
-function currentSdkRequirement(date5) {
-  const iso = date5.toISOString().slice(0, 10);
-  return [...SDK_REQUIREMENTS].reverse().find((r) => r.effective <= iso);
-}
-var NOTARIZATION_MIN_SDK = "10.9";
 
 // src/tools/doctor.ts
 var TOOLS = [
@@ -55258,16 +57313,16 @@ ${formatFindings(findings)}`,
 });
 
 // src/tools/entitlements.ts
-import { readFile as readFile6, writeFile as writeFile4 } from "fs/promises";
-import { extname as extname7, join as join12 } from "path";
+import { readFile as readFile9, writeFile as writeFile7 } from "fs/promises";
+import { extname as extname9, join as join16 } from "path";
 async function loadEntitlements(ctx, path) {
-  const ext = extname7(path).toLowerCase();
+  const ext = extname9(path).toLowerCase();
   if (ext === ".mobileprovision" || ext === ".provisionprofile") {
     const profile = await decodeProvisioningProfile(ctx.runner, path, ctx.platform.isMac);
     return { source: "profile", entitlements: asDict(profile.Entitlements) ?? {}, profile };
   }
   if (ext === ".entitlements" || ext === ".plist" || ext === ".xcent") {
-    return { source: "file", entitlements: parsePlistDict(new Uint8Array(await readFile6(path))) };
+    return { source: "file", entitlements: parsePlistDict(new Uint8Array(await readFile9(path))) };
   }
   if (!ctx.platform.isMac)
     throw new ToolError("Reading entitlements from a signed binary requires macOS (codesign).");
@@ -55474,7 +57529,7 @@ ${formatFindings(findings2)}` : ""}`,
           notes: [xml]
         }),
         async () => {
-          await writeFile4(out, xml);
+          await writeFile7(out, xml);
           return {
             ...result,
             summary: `Wrote ${out}.
@@ -55503,11 +57558,11 @@ ${ann.length ? ann.map((a) => `\u2022 ${a.key} = ${JSON.stringify(a.value)}${a.t
       profileEnt = asDict(prof.Entitlements);
       profileSource = pp;
     } else if (await isDirectory(path)) {
-      for (const rel of ["Contents/embedded.provisionprofile", "embedded.mobileprovision"]) {
-        if (await pathExists(join12(path, rel))) {
-          const prof = await decodeProvisioningProfile(ctx.runner, join12(path, rel), ctx.platform.isMac);
+      for (const rel2 of ["Contents/embedded.provisionprofile", "embedded.mobileprovision"]) {
+        if (await pathExists(join16(path, rel2))) {
+          const prof = await decodeProvisioningProfile(ctx.runner, join16(path, rel2), ctx.platform.isMac);
           profileEnt = asDict(prof.Entitlements);
-          profileSource = `${rel} (embedded)`;
+          profileSource = `${rel2} (embedded)`;
         }
       }
     }
@@ -55528,8 +57583,8 @@ ${formatFindings(findings) || "All good."}`,
 });
 
 // src/tools/inspect.ts
-import { readdir as readdir7 } from "fs/promises";
-import { extname as extname8, join as join13 } from "path";
+import { readdir as readdir8 } from "fs/promises";
+import { extname as extname10, join as join17 } from "path";
 var signingIdentitiesTool = defineTool({
   name: "signing_identities",
   title: "List keychain signing identities and certificates",
@@ -55596,7 +57651,7 @@ var inspectCodeSignatureTool = defineTool({
   async handler(args, ctx) {
     requireMacOS(ctx.platform, "inspect_code_signature");
     let path = await resolveUserPath(ctx, args.path);
-    if (extname8(path).toLowerCase() === ".ipa") path = await extractIpa(ctx, path);
+    if (extname10(path).toLowerCase() === ".ipa") path = await extractIpa(ctx, path);
     const r = await inspectSignature(ctx, path, { target: args.target, deep: args.deep });
     const d = r.display;
     const head = r.pkg ? `Package ${path}
@@ -55715,11 +57770,11 @@ ${formatFindings(findings)}` : ""}`,
   }
 });
 async function mainExecutables(bundle) {
-  for (const dir of [join13(bundle, "Contents", "MacOS"), bundle]) {
+  for (const dir of [join17(bundle, "Contents", "MacOS"), bundle]) {
     try {
-      const files = await readdir7(dir);
+      const files = await readdir8(dir);
       const out = [];
-      for (const f of files) if (await isMachO(join13(dir, f))) out.push(join13(dir, f));
+      for (const f of files) if (await isMachO(join17(dir, f))) out.push(join17(dir, f));
       if (out.length) return out;
     } catch {
     }
@@ -55727,553 +57782,9 @@ async function mainExecutables(bundle) {
   return [];
 }
 
-// src/tools/keychain.ts
-import { randomBytes as randomBytes3 } from "crypto";
-import { chmod as chmod3, mkdir as mkdir4, readFile as readFile7, unlink as unlink2, writeFile as writeFile5 } from "fs/promises";
-import { basename as basename8, join as join14 } from "path";
-function loginKeychain(home) {
-  return join14(home, "Library", "Keychains", "login.keychain-db");
-}
-var TRUSTED_APPS = [
-  "/usr/bin/codesign",
-  "/usr/bin/productsign",
-  "/usr/bin/productbuild",
-  "/usr/bin/pkgbuild",
-  "/usr/bin/security"
-];
-var P12_COMPAT = ["-keypbe", "PBE-SHA1-3DES", "-certpbe", "PBE-SHA1-3DES", "-macalg", "sha1"];
-function readSecretEnv(name) {
-  if (!name) return void 0;
-  const v = process.env[name];
-  if (!v) throw new ToolError(`Environment variable ${name} is not set in the MCP server's environment.`);
-  return v;
-}
-async function certToPem(path) {
-  const buf = await readFile7(path);
-  const text = buf.toString("latin1");
-  return text.includes("-----BEGIN CERTIFICATE-----") ? text : derToPem(new Uint8Array(buf));
-}
-async function importKeyAndCert(ctx, keyPath, certPem, keychain) {
-  const dir = await scratchDir("p12");
-  const certPath = join14(dir, "cert.pem");
-  const p12 = join14(dir, "identity.p12");
-  const pass = randomBytes3(18).toString("base64url");
-  await writeFile5(certPath, certPem, { mode: 384 });
-  try {
-    const exp = await ctx.runner.run(
-      "openssl",
-      [
-        "pkcs12",
-        "-export",
-        "-inkey",
-        keyPath,
-        "-in",
-        certPath,
-        "-out",
-        p12,
-        "-passout",
-        "env:NOTARIZE_P12_PASS",
-        ...P12_COMPAT
-      ],
-      { env: { NOTARIZE_P12_PASS: pass }, timeoutMs: 3e4, secrets: [pass] }
-    );
-    if (!ok(exp)) throw new ToolError(`openssl pkcs12 failed: ${output2(exp)}`);
-    const imp = await ctx.runner.run(
-      "security",
-      ["import", p12, "-k", keychain, "-f", "pkcs12", "-P", pass, ...TRUSTED_APPS.flatMap((a) => ["-T", a])],
-      { timeoutMs: 6e4, secrets: [pass], logName: "security-import" }
-    );
-    if (!ok(imp) && !/already exists/i.test(output2(imp)))
-      throw new ToolError(`security import failed: ${output2(imp)}`);
-    let identity;
-    try {
-      identity = describeCertificate(certPem).commonName;
-    } catch {
-    }
-    return { identity, logPath: imp.logPath };
-  } finally {
-    await unlink2(p12).catch(() => {
-    });
-    await unlink2(certPath).catch(() => {
-    });
-  }
-}
-var keychainTool = defineTool({
-  name: "keychain",
-  title: "Create CSRs and manage signing identities in the keychain",
-  description: "action=create_csr (confirm): generate an RSA-2048 private key (stored 0600 in ~/.config/notarize-mcp/keys) and a Certificate Signing Request to upload to Apple (asc_certificates create, or the developer portal for Developer ID). action=import_certificate (confirm): pair a downloaded .cer with that private key and import the identity into the login keychain, pre-authorizing codesign/productsign. action=import_p12 (confirm): import an existing .p12 (password via password_env). action=install_intermediates (confirm): download and import Apple's WWDR G3 and Developer ID G2 intermediate certificates (fixes 'unable to build chain' / errSecInternalComponent). action=export_p12 (confirm): export a key generated here + its certificate as a .p12 (+ base64) for CI secrets.",
-  mutating: true,
-  input: {
-    action: external_exports.enum(["create_csr", "import_certificate", "import_p12", "install_intermediates", "export_p12"]),
-    key_name: external_exports.string().regex(/^[A-Za-z0-9_.-]+$/).optional().describe("Name for the generated key/CSR (create_csr/import_certificate/export_p12)."),
-    common_name: external_exports.string().optional().describe("create_csr: your name or company (Apple replaces it with your team name)."),
-    email: external_exports.string().optional().describe("create_csr: your Apple Developer account email."),
-    country: external_exports.string().length(2).optional().describe("create_csr: 2-letter country code (default US)."),
-    certificate_path: external_exports.string().optional().describe("import_certificate/export_p12: .cer (DER) or .pem certificate from Apple."),
-    p12_path: external_exports.string().optional().describe("import_p12: the .p12 file."),
-    password_env: external_exports.string().optional().describe(
-      "Name of an environment variable (in the MCP server's env) holding the .p12 password \u2014 keeps secrets out of the conversation."
-    ),
-    keychain: external_exports.string().optional().describe("Target keychain (default login keychain)."),
-    output_path: external_exports.string().optional().describe("export_p12: where to write the .p12.")
-  },
-  async handler(args, ctx, extra) {
-    const keysDir = ctx.config.keysDir;
-    const keychain = args.keychain ? await resolveUserPath(ctx, args.keychain, false) : loginKeychain(ctx.platform.homeDir);
-    if (args.action === "create_csr") {
-      const name = args.key_name ?? `signing-${ctx.now().toISOString().slice(0, 10)}`;
-      const keyPath2 = join14(keysDir, `${name}.key`);
-      const csrPath = join14(keysDir, `${name}.csr`);
-      if (await pathExists(keyPath2))
-        throw new ToolError(`A key named ${name} already exists at ${keyPath2}. Choose another key_name.`);
-      const subjParts = [
-        args.email && `emailAddress=${args.email}`,
-        `CN=${args.common_name ?? "Apple Developer"}`,
-        `C=${args.country ?? "US"}`
-      ].filter(Boolean);
-      const subj = `/${subjParts.map((p) => p.replace(/\//g, "\\/")).join("/")}`;
-      const cmd = [
-        "req",
-        "-new",
-        "-newkey",
-        "rsa:2048",
-        "-nodes",
-        "-keyout",
-        keyPath2,
-        "-out",
-        csrPath,
-        "-subj",
-        subj
-      ];
-      return withConfirmation(
-        ctx,
-        extra,
-        args,
-        () => ({
-          title: "Create a private key and Certificate Signing Request",
-          steps: [
-            cmdStep("Generate RSA-2048 key + CSR", "openssl", cmd),
-            { description: `Restrict ${keyPath2} to mode 0600` }
-          ],
-          notes: [
-            "The private key never leaves this Mac. Back it up (export_p12) once the certificate is issued \u2014 Apple cannot re-issue it."
-          ]
-        }),
-        async () => {
-          await mkdir4(keysDir, { recursive: true, mode: 448 });
-          const r = await ctx.runner.run("openssl", cmd, { timeoutMs: 6e4 });
-          if (!ok(r)) throw new ToolError(`openssl req failed: ${output2(r)}`);
-          await chmod3(keyPath2, 384).catch(() => {
-          });
-          const csr = await readFile7(csrPath, "utf8");
-          return {
-            summary: `Created key ${keyPath2} and CSR ${csrPath}.`,
-            data: { keyName: name, keyPath: keyPath2, csrPath, csrPem: csr },
-            next_steps: [
-              `asc_certificates action=create certificate_type=<DISTRIBUTION|DEVELOPMENT|MAC_INSTALLER_DISTRIBUTION|DEVELOPER_ID_APPLICATION_G2> csr_path=${csrPath} key_name=${name}`,
-              "Developer ID certificates usually require the Account Holder in the web portal: developer.apple.com/account/resources/certificates/add \u2192 upload this .csr \u2192 download the .cer \u2192 keychain action=import_certificate"
-            ]
-          };
-        }
-      );
-    }
-    if (args.action === "import_certificate") {
-      requireMacOS(ctx.platform, "Keychain import");
-      if (!args.certificate_path || !args.key_name)
-        throw new ToolError("certificate_path and key_name are required.");
-      const certPath2 = await resolveUserPath(ctx, args.certificate_path);
-      const keyPath2 = join14(keysDir, `${args.key_name}.key`);
-      if (!await pathExists(keyPath2))
-        throw new ToolError(
-          `No key ${keyPath2}. It must be the key used to create the CSR for this certificate.`
-        );
-      const pem = await certToPem(certPath2);
-      const cert = describeCertificate(pem, ctx.now());
-      return withConfirmation(
-        ctx,
-        extra,
-        args,
-        () => ({
-          title: `Import "${cert.commonName}" into ${basename8(keychain)}`,
-          steps: [
-            {
-              description: `Bundle ${basename8(keyPath2)} + ${basename8(certPath2)} into a temporary .p12 (openssl)`
-            },
-            { description: `security import \u2192 ${keychain}, trusting ${TRUSTED_APPS.join(", ")}` },
-            { description: "Delete the temporary .p12" }
-          ],
-          notes: [
-            `Certificate: ${cert.commonName} (team ${cert.teamId ?? "?"}), expires ${cert.validTo.slice(0, 10)}`
-          ]
-        }),
-        async () => {
-          const res = await importKeyAndCert(ctx, keyPath2, pem, keychain);
-          return {
-            summary: `Imported identity "${res.identity ?? cert.commonName}" into ${keychain}.`,
-            data: { identity: res.identity, sha1: cert.sha1, keychain },
-            next_steps: [
-              "signing_identities to confirm it is valid",
-              "keychain action=export_p12 to back it up / use in CI"
-            ]
-          };
-        }
-      );
-    }
-    if (args.action === "import_p12") {
-      requireMacOS(ctx.platform, "Keychain import");
-      if (!args.p12_path) throw new ToolError("p12_path is required.");
-      const p12 = await resolveUserPath(ctx, args.p12_path);
-      const password = readSecretEnv(args.password_env) ?? "";
-      const cmd = [
-        "import",
-        p12,
-        "-k",
-        keychain,
-        "-f",
-        "pkcs12",
-        "-P",
-        password,
-        ...TRUSTED_APPS.flatMap((a) => ["-T", a])
-      ];
-      return withConfirmation(
-        ctx,
-        extra,
-        args,
-        () => ({
-          title: `Import ${basename8(p12)} into ${basename8(keychain)}`,
-          steps: [cmdStep("security import", "security", cmd, [password])]
-        }),
-        async () => {
-          const r = await ctx.runner.run("security", cmd, { timeoutMs: 6e4, secrets: [password] });
-          if (!ok(r) && !/already exists/i.test(output2(r)))
-            throw new ToolError(`security import failed: ${output2(r)}`);
-          return {
-            summary: `Imported ${basename8(p12)}.`,
-            data: { keychain },
-            next_steps: ["signing_identities"]
-          };
-        }
-      );
-    }
-    if (args.action === "install_intermediates") {
-      requireMacOS(ctx.platform, "Keychain import");
-      return withConfirmation(
-        ctx,
-        extra,
-        args,
-        () => ({
-          title: "Install Apple intermediate certificates",
-          steps: APPLE_INTERMEDIATES.map((i) => ({
-            description: `Download ${i.url} and import into ${basename8(keychain)}`
-          }))
-        }),
-        async () => {
-          const dir = await scratchDir("intermediates");
-          const results = [];
-          for (const im of APPLE_INTERMEDIATES) {
-            const res = await ctx.fetch(im.url);
-            if (!res.ok) {
-              results.push({ name: im.name, ok: false, error: `HTTP ${res.status}` });
-              continue;
-            }
-            const file2 = join14(dir, basename8(im.url));
-            await writeFile5(file2, new Uint8Array(await res.arrayBuffer()));
-            const r = await ctx.runner.run("security", ["import", file2, "-k", keychain], {
-              timeoutMs: 3e4
-            });
-            results.push({
-              name: im.name,
-              ok: ok(r) || /already exists/i.test(output2(r)),
-              detail: output2(r).slice(0, 200)
-            });
-          }
-          return {
-            summary: results.map((r) => `${r.ok ? "\u2713" : "\u2717"} ${r.name}`).join("\n"),
-            data: { results }
-          };
-        }
-      );
-    }
-    if (!args.key_name || !args.certificate_path || !args.output_path)
-      throw new ToolError("key_name, certificate_path and output_path are required.");
-    const keyPath = join14(keysDir, `${args.key_name}.key`);
-    if (!await pathExists(keyPath)) throw new ToolError(`No key ${keyPath}.`);
-    const certPath = await resolveUserPath(ctx, args.certificate_path);
-    const out = await resolveUserPath(ctx, args.output_path, false);
-    const steps = [
-      { description: `openssl pkcs12 -export ${basename8(keyPath)} + ${basename8(certPath)} \u2192 ${out}` },
-      { description: `Write base64 copy to ${out}.base64 (for CI secrets)` }
-    ];
-    if (!args.password_env)
-      steps.push({ description: `Generate a random password and save it to ${out}.password (0600)` });
-    return withConfirmation(
-      ctx,
-      extra,
-      args,
-      () => ({
-        title: `Export ${args.key_name} as .p12`,
-        steps,
-        warnings: [
-          "The .p12 contains your private key \u2014 store it as a CI secret and delete local copies you don't need."
-        ]
-      }),
-      async () => {
-        const password = readSecretEnv(args.password_env) ?? randomBytes3(18).toString("base64url");
-        const pemPath = join14(await scratchDir("export"), "cert.pem");
-        await writeFile5(pemPath, await certToPem(certPath), { mode: 384 });
-        const r = await ctx.runner.run(
-          "openssl",
-          [
-            "pkcs12",
-            "-export",
-            "-inkey",
-            keyPath,
-            "-in",
-            pemPath,
-            "-out",
-            out,
-            "-passout",
-            "env:NOTARIZE_P12_PASS",
-            ...P12_COMPAT
-          ],
-          { env: { NOTARIZE_P12_PASS: password }, timeoutMs: 3e4, secrets: [password] }
-        );
-        await unlink2(pemPath).catch(() => {
-        });
-        if (!ok(r)) throw new ToolError(`openssl pkcs12 failed: ${output2(r)}`);
-        await chmod3(out, 384).catch(() => {
-        });
-        await writeFile5(`${out}.base64`, (await readFile7(out)).toString("base64"), { mode: 384 });
-        if (!args.password_env) await writeFile5(`${out}.password`, password, { mode: 384 });
-        return {
-          summary: `Exported ${out} (+ ${out}.base64${args.password_env ? "" : `, password in ${out}.password`}).`,
-          data: {
-            p12: out,
-            base64: `${out}.base64`,
-            passwordFile: args.password_env ? void 0 : `${out}.password`
-          },
-          next_steps: ["ci_config to generate a workflow that imports it from secrets"]
-        };
-      }
-    );
-  }
-});
-
-// src/tools/provisioning.ts
-import { copyFile, mkdir as mkdir5, readdir as readdir8, writeFile as writeFile6 } from "fs/promises";
-import { basename as basename9, extname as extname9, join as join15 } from "path";
-function profileDirs(home) {
-  return [
-    join15(home, "Library", "Developer", "Xcode", "UserData", "Provisioning Profiles"),
-    join15(home, "Library", "MobileDevice", "Provisioning Profiles")
-  ];
-}
-function summarizeProfile(pl, now, path) {
-  const ent = asDict(pl.Entitlements) ?? {};
-  const appId = ent["application-identifier"] ?? ent["com.apple.application-identifier"];
-  const teamId = asArray(pl.TeamIdentifier)[0];
-  const exp = pl.ExpirationDate instanceof Date ? pl.ExpirationDate : void 0;
-  const certs = asArray(pl.DeveloperCertificates).filter((c) => c instanceof Uint8Array).map((der) => {
-    try {
-      const d = describeCertificate(der, now);
-      return { commonName: d.commonName, sha1: d.sha1, expires: d.validTo, expired: d.expired };
-    } catch {
-      return { sha1: "?", expires: "?", expired: false };
-    }
-  });
-  return {
-    path,
-    name: pl.Name,
-    uuid: pl.UUID,
-    appIdName: pl.AppIDName,
-    applicationIdentifier: appId,
-    bundleId: appId && teamId && appId.startsWith(`${teamId}.`) ? appId.slice(teamId.length + 1) : appId,
-    teamId,
-    teamName: pl.TeamName,
-    platforms: asArray(pl.Platform).map(String),
-    kind: profileKind(pl),
-    created: pl.CreationDate instanceof Date ? pl.CreationDate.toISOString() : void 0,
-    expires: exp?.toISOString(),
-    expired: exp ? exp.getTime() < now.getTime() : false,
-    daysUntilExpiry: exp ? Math.floor((exp.getTime() - now.getTime()) / 864e5) : void 0,
-    deviceCount: asArray(pl.ProvisionedDevices).length,
-    provisionsAllDevices: pl.ProvisionsAllDevices === true,
-    certificates: certs,
-    entitlements: ent
-  };
-}
-async function listInstalledProfiles(ctx) {
-  const out = [];
-  const seen = /* @__PURE__ */ new Set();
-  for (const dir of profileDirs(ctx.platform.homeDir)) {
-    let files = [];
-    try {
-      files = await readdir8(dir);
-    } catch {
-      continue;
-    }
-    for (const f of files.filter((x) => /\.(mobileprovision|provisionprofile)$/.test(x))) {
-      try {
-        const s = summarizeProfile(
-          await decodeProvisioningProfile(ctx.runner, join15(dir, f), ctx.platform.isMac),
-          ctx.now(),
-          join15(dir, f)
-        );
-        if (s.uuid && seen.has(s.uuid)) continue;
-        if (s.uuid) seen.add(s.uuid);
-        out.push(s);
-      } catch {
-      }
-    }
-  }
-  return out;
-}
-async function installProfileBytes(ctx, bytes, uuid3, isMac) {
-  const ext = isMac ? "provisionprofile" : "mobileprovision";
-  const written = [];
-  for (const dir of profileDirs(ctx.platform.homeDir)) {
-    await mkdir5(dir, { recursive: true });
-    const p = join15(dir, `${uuid3}.${ext}`);
-    await writeFile6(p, bytes);
-    written.push(p);
-  }
-  return written;
-}
-function profileText(s) {
-  return [
-    `${s.name ?? "(unnamed)"} \u2014 ${s.kind}`,
-    `  App ID: ${s.applicationIdentifier ?? "?"}  Team: ${s.teamId ?? "?"}${s.teamName ? ` (${s.teamName})` : ""}`,
-    `  UUID: ${s.uuid ?? "?"}  Platforms: ${s.platforms.join(", ") || "?"}`,
-    `  Expires: ${s.expires?.slice(0, 10) ?? "?"}${s.expired ? " (EXPIRED)" : ""}  Devices: ${s.provisionsAllDevices ? "all" : s.deviceCount}`,
-    `  Certificates: ${s.certificates.map((c) => `${c.commonName ?? "?"}${c.inKeychain === false ? " [not in keychain]" : c.inKeychain ? " [in keychain]" : ""}`).join("; ")}`
-  ].join("\n");
-}
-var provisioningProfilesTool = defineTool({
-  name: "provisioning_profiles",
-  title: "List, inspect, install or embed provisioning profiles",
-  description: "action=list_installed: profiles installed for Xcode (both ~/Library/Developer/Xcode/UserData/Provisioning Profiles and the legacy MobileDevice folder) with expiry and type, optionally filtered by bundle_id. action=inspect: decode a .mobileprovision/.provisionprofile (app ID, team, type, devices, entitlements, embedded certificates and whether their private keys are in this keychain). action=install (confirm): copy a profile into Xcode's folders. action=embed (confirm): copy a profile into an app bundle (Contents/embedded.provisionprofile or embedded.mobileprovision) \u2014 re-sign afterwards.",
-  mutating: true,
-  input: {
-    action: external_exports.enum(["list_installed", "inspect", "install", "embed"]),
-    path: external_exports.string().optional().describe("inspect/install/embed: the profile file."),
-    bundle_id: external_exports.string().optional().describe("list_installed: filter by bundle ID (wildcard profiles also match)."),
-    app_path: external_exports.string().optional().describe("embed: the .app bundle to embed into.")
-  },
-  async handler(args, ctx, extra) {
-    if (args.action === "list_installed") {
-      let list = await listInstalledProfiles(ctx);
-      if (args.bundle_id) {
-        list = list.filter((p) => {
-          const id = p.bundleId ?? "";
-          return id === args.bundle_id || id === "*" || id.endsWith("*") && args.bundle_id.startsWith(id.slice(0, -1));
-        });
-      }
-      list.sort((a, b) => (b.expires ?? "").localeCompare(a.expires ?? ""));
-      return {
-        summary: list.length ? `${list.length} installed profile(s):
-${list.map(profileText).join("\n")}` : "No matching provisioning profiles installed.",
-        data: { profiles: list.map((p) => ({ ...p, entitlements: Object.keys(p.entitlements) })) },
-        next_steps: list.length ? [] : ["asc_profiles action=list / create / download_install"]
-      };
-    }
-    if (!args.path) throw new ToolError("path (profile file) is required.");
-    const path = await resolveUserPath(ctx, args.path);
-    const pl = await decodeProvisioningProfile(ctx.runner, path, ctx.platform.isMac);
-    const summary = summarizeProfile(pl, ctx.now(), path);
-    const isMac = summary.platforms.some((p) => p === "OSX" || p === "macOS") || extname9(path) === ".provisionprofile";
-    if (args.action === "inspect") {
-      const findings = [];
-      if (ctx.platform.isMac) {
-        try {
-          const ids = await listIdentities(ctx);
-          const have = new Set(ids.map((i) => i.sha1));
-          for (const c of summary.certificates) c.inKeychain = have.has(c.sha1);
-          if (!summary.certificates.some((c) => c.inKeychain))
-            findings.push(
-              finding(
-                "error",
-                "None of the profile's certificates has a private key in this keychain \u2014 signing with this profile will fail.",
-                "Import the matching .p12, or regenerate the profile with a certificate you own (asc_profiles regenerate)."
-              )
-            );
-        } catch {
-        }
-      }
-      if (summary.expired)
-        findings.push(finding("error", "Profile has expired.", "asc_profiles action=regenerate"));
-      else if ((summary.daysUntilExpiry ?? 999) < 30)
-        findings.push(finding("warning", `Profile expires in ${summary.daysUntilExpiry} days.`));
-      if (summary.certificates.every((c) => c.expired))
-        findings.push(finding("error", "All certificates in the profile are expired."));
-      return {
-        summary: `${profileText(summary)}
-  Entitlements: ${Object.keys(summary.entitlements).join(", ")}${findings.length ? `
-
-${formatFindings(findings)}` : ""}`,
-        data: { profile: summary, findings }
-      };
-    }
-    if (args.action === "install") {
-      if (!summary.uuid) throw new ToolError("Profile has no UUID.");
-      const dests = profileDirs(ctx.platform.homeDir).map(
-        (d) => join15(d, `${summary.uuid}.${isMac ? "provisionprofile" : "mobileprovision"}`)
-      );
-      return withConfirmation(
-        ctx,
-        extra,
-        args,
-        () => ({
-          title: `Install profile "${summary.name}" (${summary.kind})`,
-          steps: dests.map((d) => ({ description: `Copy ${basename9(path)} \u2192 ${d}` }))
-        }),
-        async () => {
-          const { readFile: readFile8 } = await import("fs/promises");
-          const written = await installProfileBytes(
-            ctx,
-            new Uint8Array(await readFile8(path)),
-            summary.uuid,
-            isMac
-          );
-          return {
-            summary: `Installed "${summary.name}" to:
-${written.join("\n")}`,
-            data: { installed: written, profile: { ...summary, entitlements: void 0 } }
-          };
-        }
-      );
-    }
-    if (!args.app_path) throw new ToolError("app_path is required for embed.");
-    const app = await resolveUserPath(ctx, args.app_path);
-    if (!await isDirectory(app)) throw new ToolError(`${app} is not a bundle directory.`);
-    const isMacBundle = await pathExists(join15(app, "Contents"));
-    const dest = isMacBundle ? join15(app, "Contents", "embedded.provisionprofile") : join15(app, "embedded.mobileprovision");
-    const replacing = await pathExists(dest);
-    return withConfirmation(
-      ctx,
-      extra,
-      args,
-      () => ({
-        title: `Embed "${summary.name}" into ${basename9(app)}`,
-        steps: [{ description: `${replacing ? "Replace" : "Create"} ${dest}` }],
-        warnings: [
-          "This invalidates the bundle's current signature \u2014 re-sign the bundle afterwards (sign tool)."
-        ]
-      }),
-      async () => {
-        await copyFile(path, dest);
-        return {
-          summary: `Embedded profile at ${dest}. Re-sign the bundle now.`,
-          data: { embedded: dest },
-          next_steps: ["sign path=<app> (with entitlements matching the profile)"]
-        };
-      }
-    );
-  }
-});
-
 // src/tools/signing.ts
-import { copyFile as copyFile2, readdir as readdir9, writeFile as writeFile7 } from "fs/promises";
-import { basename as basename10, dirname as dirname4, extname as extname10, join as join16 } from "path";
+import { copyFile as copyFile2, readdir as readdir9, writeFile as writeFile8 } from "fs/promises";
+import { basename as basename10, dirname as dirname5, extname as extname11, join as join18 } from "path";
 var ENTITLED_KINDS = /* @__PURE__ */ new Set(["app", "xpc", "appex", "executable", "systemextension"]);
 function codesignArgs(item, s, isRoot) {
   const adhoc = s.identity === "-";
@@ -56292,7 +57803,7 @@ function codesignArgs(item, s, isRoot) {
   return args;
 }
 async function buildSignSteps(root, s) {
-  const ext = extname10(root).toLowerCase();
+  const ext = extname11(root).toLowerCase();
   if (ext === ".dmg") {
     return [
       {
@@ -56375,7 +57886,7 @@ var signTool = defineTool({
   async handler(args, ctx, extra) {
     requireMacOS(ctx.platform, "Code signing");
     const path = await resolveUserPath(ctx, args.path);
-    if (extname10(path).toLowerCase() === ".pkg")
+    if (extname11(path).toLowerCase() === ".pkg")
       throw new ToolError("Installer packages are signed with productsign \u2014 use package action=sign_pkg.");
     const resolve2 = async (p) => p ? resolveUserPath(ctx, p) : void 0;
     const identity = await resolveIdentity(ctx, args.identity, args.target, args.team_id);
@@ -56401,7 +57912,7 @@ var signTool = defineTool({
     const isBundle = await isDirectory(path);
     const pre = [];
     const profile = await resolve2(args.embed_profile);
-    const profileDest = profile && isBundle ? await pathExists(join16(path, "Contents")) ? join16(path, "Contents", "embedded.provisionprofile") : join16(path, "embedded.mobileprovision") : void 0;
+    const profileDest = profile && isBundle ? await pathExists(join18(path, "Contents")) ? join18(path, "Contents", "embedded.provisionprofile") : join18(path, "embedded.mobileprovision") : void 0;
     if (profileDest) pre.push({ description: `Embed ${basename10(profile)} at ${profileDest}` });
     if (args.clear_xattrs !== false && isBundle)
       pre.push(cmdStep("Remove extended attributes (avoids 'detritus' errors)", "xattr", ["-cr", path]));
@@ -56513,11 +58024,11 @@ var resignTool = defineTool({
   async handler(args, ctx, extra) {
     requireMacOS(ctx.platform, "Re-signing");
     const src = await resolveUserPath(ctx, args.path);
-    const ext = extname10(src).toLowerCase();
+    const ext = extname11(src).toLowerCase();
     if (ext === ".xcarchive")
       throw new ToolError("For .xcarchive use xcode action=export with the export method you need.");
     if (ext !== ".app" && ext !== ".ipa") throw new ToolError("resign supports .app and .ipa.");
-    const out = args.output_path ? await resolveUserPath(ctx, args.output_path, false) : join16(dirname4(src), `${basename10(src, ext)}-resigned${ext}`);
+    const out = args.output_path ? await resolveUserPath(ctx, args.output_path, false) : join18(dirname5(src), `${basename10(src, ext)}-resigned${ext}`);
     const identity = await resolveIdentity(ctx, args.identity, args.target);
     const profile = args.profile ? await resolveUserPath(ctx, args.profile) : void 0;
     const isDist = !args.target || !["ios-development", "mac-development"].includes(args.target);
@@ -56553,31 +58064,31 @@ var resignTool = defineTool({
             if (ext === ".ipa") {
               const x = await ctx.runner.run("ditto", ["-x", "-k", src, work], { timeoutMs: 6e5 });
               if (!ok(x)) throw new ToolError(`Extract failed: ${output2(x)}`);
-              const apps = (await readdir9(join16(work, "Payload"))).filter((f) => f.endsWith(".app"));
+              const apps = (await readdir9(join18(work, "Payload"))).filter((f) => f.endsWith(".app"));
               if (!apps[0]) throw new ToolError("No app in Payload/.");
-              app = join16(work, "Payload", apps[0]);
+              app = join18(work, "Payload", apps[0]);
             } else {
               const c = await ctx.runner.run("ditto", [src, out], { timeoutMs: 6e5 });
               if (!ok(c)) throw new ToolError(`Copy failed: ${output2(c)}`);
               app = out;
             }
-            const isMacApp = await pathExists(join16(app, "Contents"));
-            const profilePath = isMacApp ? join16(app, "Contents", "embedded.provisionprofile") : join16(app, "embedded.mobileprovision");
+            const isMacApp = await pathExists(join18(app, "Contents"));
+            const profilePath = isMacApp ? join18(app, "Contents", "embedded.provisionprofile") : join18(app, "embedded.mobileprovision");
             const entDir = await scratchDir("resign-ent");
             const nestedEnt = {};
-            for (const [rel, prof] of Object.entries(args.extension_profiles ?? {})) {
-              const appex = join16(app, rel);
+            for (const [rel2, prof] of Object.entries(args.extension_profiles ?? {})) {
+              const appex = join18(app, rel2);
               const pp = await resolveUserPath(ctx, prof);
-              const dest = isMacApp ? join16(appex, "Contents", "embedded.provisionprofile") : join16(appex, "embedded.mobileprovision");
+              const dest = isMacApp ? join18(appex, "Contents", "embedded.provisionprofile") : join18(appex, "embedded.mobileprovision");
               await copyFile2(pp, dest);
               const pl = await decodeProvisioningProfile(ctx.runner, pp, true);
               const existing = await readSignedEntitlements(ctx, appex);
-              const f = join16(entDir, `${basename10(rel)}.plist`);
-              await writeFile7(
+              const f = join18(entDir, `${basename10(rel2)}.plist`);
+              await writeFile8(
                 f,
                 buildPlist(entitlementsFromProfile(pl, existing, args.target))
               );
-              nestedEnt[rel] = f;
+              nestedEnt[rel2] = f;
             }
             let mainEnt = args.entitlements ? await resolveUserPath(ctx, args.entitlements) : void 0;
             if (!mainEnt) {
@@ -56596,8 +58107,8 @@ var resignTool = defineTool({
                 delete derived2["com.apple.security.get-task-allow"];
               }
               if (derived2) {
-                mainEnt = join16(entDir, "main.plist");
-                await writeFile7(mainEnt, buildPlist(derived2));
+                mainEnt = join18(entDir, "main.plist");
+                await writeFile8(mainEnt, buildPlist(derived2));
               }
             } else if (profile) await copyFile2(profile, profilePath);
             await ctx.runner.run("xattr", ["-cr", app], { timeoutMs: 12e4 });
@@ -56624,7 +58135,7 @@ ${formatMatches(known)}`,
             if (ext === ".ipa") {
               const z1 = await ctx.runner.run(
                 "ditto",
-                ["-c", "-k", "--sequesterRsrc", "--keepParent", join16(work, "Payload"), out],
+                ["-c", "-k", "--sequesterRsrc", "--keepParent", join18(work, "Payload"), out],
                 { timeoutMs: 6e5 }
               );
               if (!ok(z1)) throw new ToolError(`Zip failed: ${output2(z1)}`);
@@ -56649,6 +58160,7 @@ var allTools = [
   // discovery & diagnostics
   doctorTool,
   detectProjectTool,
+  distributionChecklistTool,
   signingIdentitiesTool,
   inspectCodeSignatureTool,
   inspectBinaryTool,
@@ -56668,7 +58180,16 @@ var allTools = [
   packageTool,
   notaryTool,
   stapleTool,
-  notarizeAndStapleTool
+  notarizeAndStapleTool,
+  // App Store Connect / developer portal
+  ascAuthTool,
+  ascBundleIdsTool,
+  ascCertificatesTool,
+  ascDevicesTool,
+  ascProfilesTool,
+  ascAppsTool,
+  ascBuildsTool,
+  ascApiTool
 ];
 
 // src/server.ts
