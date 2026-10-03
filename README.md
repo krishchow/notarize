@@ -10,20 +10,36 @@ A local **stdio MCP server** plus a **core skill** that take any macOS or iOS ap
 
 ## Install
 
-### Claude Code (plugin: skill + MCP server)
+### One command (Node ≥ 20, on your Mac)
+```bash
+npx -y notarize-mcp install
+```
+This registers the MCP server with **Claude Code, Claude Desktop and/or Cursor** (whichever it finds) and installs the skill into `~/.claude/skills/apple-distribution`. It then prints the remaining steps.
+
+| Option | Effect |
+|---|---|
+| `--client claude-code\|claude-desktop\|cursor\|all` | choose clients instead of auto-detecting |
+| `--scope project` | install into the current repo instead of your user profile |
+| `--pin` | pin this exact version instead of `@latest` |
+| `--dry-run` | show what would change, change nothing |
+| `--no-skill`, `--force` | skip the skill / replace existing entries |
+
+Undo everything with `npx -y notarize-mcp uninstall`. Maintainers: see [docs/releasing.md](docs/releasing.md).
+
+### Claude Code plugin (alternative: skill + MCP server)
 ```
 /plugin marketplace add krishchow/notarize
 /plugin install notarize@notarize
 ```
 The plugin runs the committed single-file bundle `dist/notarize-mcp.js` with Node ≥ 20 — no `npm install` needed. For local development: `claude --plugin-dir /path/to/notarize` (the repo intentionally has no root `.mcp.json`; the server is defined in `.claude-plugin/plugin.json`).
 
-### Any MCP client (Claude Desktop, Cursor, …)
+### Any other MCP client (manual config)
 ```json
 {
   "mcpServers": {
     "notarize": {
-      "command": "node",
-      "args": ["/absolute/path/to/notarize/dist/notarize-mcp.js"],
+      "command": "npx",
+      "args": ["-y", "notarize-mcp@latest"],
       "env": { "ASC_PROFILE": "default" }
     }
   }

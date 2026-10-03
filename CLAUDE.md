@@ -10,13 +10,16 @@ UPDATE_DOCS=1 npx vitest run test/docs.test.ts   # regenerate docs/tools.md, doc
 npm run test:recorded         # parsers vs real macOS output in test/fixtures/recorded (skips missing files)
 npm run test:live             # real Apple account, opt-in — see docs/testing.md
 bash scripts/smoke-macos.sh   # real end-to-end on a Mac (no Apple credentials)
+bash scripts/release.sh X.Y.Z # local release: bump, build, check, commit + tag; then `npm publish`
+# GitHub: Actions → Release (manual; NPM_TOKEN secret) does bump → check → tag → npm publish (docs/releasing.md)
 ```
-GitHub Actions CI is **manual only** (`workflow_dispatch`) — the account has no spare minutes. Run the checks locally.
+GitHub Actions are **manual only** (`workflow_dispatch`) — the account has no spare minutes. Run the checks locally. `ci.yml` = optional macOS/live verification; `release.yml` = publish to npm. Version bumps go through `scripts/bump-version.mjs` (keeps package.json and plugin.json in sync).
 
 ## Layout
 | Path | What |
 |---|---|
-| `src/index.ts` | CLI entry: MCP over stdio, `watch-job`, `watch-notarization`, `--list-tools` |
+| `src/index.ts` | CLI entry: MCP over stdio, `install`/`uninstall`, `watch-job`, `watch-notarization`, `--list-tools` |
+| `src/cli/install.ts` | one-command installer for Claude Code / Claude Desktop / Cursor + skill copy |
 | `src/server.ts` | registers tools / resources / prompts; converts `ToolOutput` → MCP result |
 | `src/core/` | `exec.ts` (CommandRunner), `confirm.ts` (tokens + auto-confirm policy), `jobs.ts` (background jobs + state files), `monitor.ts`, `config.ts` (credentials), `redact.ts`, `plist.ts`, `result.ts`, `fake-runner.ts` |
 | `src/knowledge/` | data: targets, certificate types, entitlements, privacy keys, error catalog, SDK minimums |

@@ -3,6 +3,7 @@ name: CI
 # Manual only: the account has no spare GitHub Actions minutes, so nothing runs on push / PR.
 # Trigger from the Actions tab (or `gh workflow run ci.yml`) when you want a real macOS run.
 # The same checks run locally: `npm run check`, `bash scripts/smoke-macos.sh`, `bash scripts/record-fixtures.sh`.
+# Publishing to npm is the separate manual workflow release.yml (docs/releasing.md).
 on:
   workflow_dispatch:
     inputs:
