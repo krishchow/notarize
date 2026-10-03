@@ -89,6 +89,7 @@ Monitor({ command: <monitor.command>, description: <monitor.description>, timeou
 - **Don't re-submit the same build while a submission is pending.** Check `notary action=history` if unsure. Don't sleep-loop in Bash, and don't call `jobs status` in a tight loop.
 - If the server restarted (job lost) or you only have a submission ID: `Monitor({ command: "<notarize-mcp> watch-notarization <submission-id>", … })`. It polls Apple every 30 seconds, then exits 0 on Accepted and 1 on Invalid, printing the top issues.
 - Clients without a Monitor tool: call `jobs action=status job_id=… wait_seconds=600` (or `notary action=wait submission_id=…`) repeatedly, telling the user between calls.
+- **New session or restarted server?** Run `jobs action=list` first. Jobs from earlier sessions are listed; a **LOST** notarization still has its Apple `submission_id`. Follow its next steps (`notary action=status`, `watch-notarization`, then `staple`) instead of re-submitting. `notary submit` and `notarize_and_staple` refuse duplicates while a live job is notarizing the same artifact.
 - In **CI**, `xcrun notarytool submit … --wait` is fine because blocking a CI job is harmless (see `ci_config`).
 
 ## 4. Plan + confirm protocol
@@ -98,6 +99,12 @@ Every tool that changes something returns a **PREVIEW** first and changes nothin
 2. Only after they agree, call the **same tool with identical arguments** plus `confirm_token`. If arguments change you get a new preview, which is intended.
 3. `destructive: true` previews need explicit approval: revoking certificates, deleting profiles or bundle IDs, uploads, submitting for review, releasing. **Revoking a Developer ID certificate breaks already-shipped apps for new users**, so only do it if the key leaked.
 4. Never fabricate a token. Tokens expire after 10 minutes.
+5. **Unattended runs** (CI, scheduled agents): the operator may set `NOTARIZE_MCP_AUTO_CONFIRM`.
+   - `safe` auto-runs non-destructive actions.
+   - A list such as `sign,package,notary:submit,staple` auto-runs only those.
+   - Auto-run results carry `auto_confirmed: true`.
+   - Destructive actions still return a preview unless explicitly listed. Never try to work around a preview.
+6. If `sign` fails with a **keychain access prompt** message, someone must click "Always Allow" on the Mac or unlock the keychain. Tell the user rather than retrying in a loop. `doctor` also flags locked keychains, SSH sessions and unaccepted Xcode licenses.
 
 ## 5. Golden rules
 

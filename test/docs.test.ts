@@ -1,6 +1,7 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { claudeSettingsExample, toolsMarkdown } from "../src/docs/tool-docs";
 import { errorCatalogMarkdown, findSkillDir, guideTopics } from "../src/resources/index";
 import { allTools } from "../src/tools/index";
 import { connect, makeCtx } from "./helpers";
@@ -44,6 +45,21 @@ describe("skill + docs", () => {
     expect(skill).toMatch(/Long-running operations/);
     expect(skill).toMatch(/Monitor\(\{ command: <monitor\.command>/);
     expect(skill).toMatch(/watch-notarization/);
+  });
+
+  it("keeps docs/tools.md and docs/claude-settings.example.json in sync with the tools", () => {
+    const root = join(__dirname, "..");
+    for (const [file, content] of [
+      ["docs/tools.md", toolsMarkdown(allTools)],
+      ["docs/claude-settings.example.json", claudeSettingsExample(allTools)],
+    ] as const) {
+      const path = join(root, file);
+      if (process.env.UPDATE_DOCS === "1") {
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(path, content);
+      }
+      expect(readFileSync(path, "utf8"), file).toBe(content);
+    }
   });
 
   it("keeps references/error-catalog.md in sync with the catalog", () => {
