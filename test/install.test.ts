@@ -162,4 +162,29 @@ describe("package", () => {
     );
     expect(files.some((f: string) => f.startsWith("src/") || f.startsWith("test/"))).toBe(false);
   });
+
+  it("bump-version sets both versions without reformatting, and rejects non-semver", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "bump-"));
+    await mkdir(join(dir, ".claude-plugin"));
+    const plugin = readFileSync(join(ROOT, ".claude-plugin", "plugin.json"), "utf8");
+    await writeFile(join(dir, "package.json"), readFileSync(join(ROOT, "package.json"), "utf8"));
+    await writeFile(join(dir, ".claude-plugin", "plugin.json"), plugin);
+    const script = join(ROOT, "scripts", "bump-version.mjs");
+    execFileSync("node", [script, "1.4.0-beta.2", dir]);
+    expect(JSON.parse(await readFile(join(dir, "package.json"), "utf8")).version).toBe("1.4.0-beta.2");
+    const bumped = await readFile(join(dir, ".claude-plugin", "plugin.json"), "utf8");
+    expect(bumped).toBe(plugin.replace(/"version": "[^"]*"/, '"version": "1.4.0-beta.2"'));
+    expect(() => execFileSync("node", [script, "1.4", dir], { stdio: "pipe" })).toThrow();
+  });
+
+  it("release workflow is manual-only and publishes only after the checks pass", () => {
+    const wf = readFileSync(join(ROOT, ".github", "workflows", "release.yml"), "utf8");
+    expect(wf).toMatch(/^on:\n {2}workflow_dispatch:/m);
+    expect(wf).not.toMatch(/^\s+(push|pull_request|schedule):/m);
+    expect(wf).toContain("secrets.NPM_TOKEN");
+    expect(wf).toContain("scripts/bump-version.mjs");
+    expect(wf.indexOf("npm run check")).toBeGreaterThan(0);
+    expect(wf.indexOf("npm run check")).toBeLessThan(wf.indexOf('npm publish "'));
+    expect(wf.indexOf("git push --atomic")).toBeLessThan(wf.indexOf('npm publish "'));
+  });
 });

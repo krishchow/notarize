@@ -1,0 +1,134 @@
+name: Release
+
+# Manual only (Actions → Release → Run workflow, or `gh workflow run release.yml -f version=0.2.1`).
+# Bumps package.json + plugin.json, rebuilds dist/, runs the checks, pushes "Release vX" + tag vX
+# to main, publishes notarize-mcp to npm and creates a GitHub Release. One short Linux job.
+#
+# Auth: the NPM_TOKEN secret (npm granular access token with publish rights; "bypass 2FA" on).
+# Leave NPM_TOKEN unset to use npm trusted publishing (OIDC) instead — see docs/releasing.md.
+# Re-running with the same version after a failed publish is safe: the bump/tag steps are skipped.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.2.1 (use the current package.json version to publish it without a bump)"
+        required: true
+        type: string
+      npm_tag:
+        description: "npm dist-tag"
+        type: choice
+        options: [latest, next]
+        default: latest
+      dry_run:
+        description: "Dry run: build + check + npm publish --dry-run; push and publish nothing"
+        type: boolean
+        default: false
+
+concurrency: release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: npm
+    permissions:
+      contents: write # push the release commit + tag, create the GitHub Release
+      id-token: write # npm provenance / trusted publishing
+    env:
+      VERSION: ${{ inputs.version }}
+      NPM_DIST_TAG: ${{ inputs.npm_tag }}
+      DRY_RUN: ${{ inputs.dry_run }}
+      PACKAGE: notarize-mcp
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Guards
+        run: |
+          set -euo pipefail
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::version must be semver like 0.2.1 (got '$VERSION')"; exit 1
+          fi
+          if [[ "$DRY_RUN" != "true" && "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "::error::Real releases run from main (this run is on $GITHUB_REF). Use dry_run on other branches."; exit 1
+          fi
+          if npm view "$PACKAGE@$VERSION" version >/dev/null 2>&1; then
+            echo "::error::$PACKAGE@$VERSION is already on npm. Pick a new version."; exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            if [[ "$(git rev-list -n1 "v$VERSION")" != "$(git rev-parse HEAD)" ]]; then
+              echo "::error::Tag v$VERSION exists on another commit. Pick a new version or delete the tag."; exit 1
+            fi
+            echo "Tag v$VERSION already points at HEAD — re-running the publish."
+          fi
+          echo "CURRENT=$(node -p 'require("./package.json").version')" >> "$GITHUB_ENV"
+
+      - name: Install
+        run: |
+          npm install -g npm@^11.5.1  # trusted publishing needs npm >= 11.5.1
+          npm ci
+
+      - name: Bump version
+        if: env.CURRENT != inputs.version
+        run: |
+          node scripts/bump-version.mjs "$VERSION"
+          npm install --package-lock-only --ignore-scripts
+
+      - name: Build and check
+        run: |
+          npm run build
+          npm run check
+          {
+            echo "### $PACKAGE@$VERSION"
+            echo '```'
+            npm pack --dry-run --ignore-scripts 2>&1 | grep -E "name:|version:|package size|unpacked size|total files"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit and tag
+        if: inputs.dry_run == false
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json .claude-plugin/plugin.json dist
+          if ! git diff --cached --quiet; then git commit -m "Release v$VERSION"; fi
+          git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null || git tag "v$VERSION"
+          git push --atomic origin HEAD:main "v$VERSION"
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PROVENANCE: ${{ github.event.repository.private && 'false' || 'true' }}
+        run: |
+          set -euo pipefail
+          args=(--access public --tag "$NPM_DIST_TAG" --ignore-scripts)  # checks already ran above
+          if [[ "$PROVENANCE" == "true" ]]; then args+=(--provenance); fi
+          if [[ "$DRY_RUN" == "true" ]]; then args+=(--dry-run); fi
+          if [[ -z "$NODE_AUTH_TOKEN" ]]; then
+            echo "NPM_TOKEN not set — using npm trusted publishing (OIDC)."
+            unset NODE_AUTH_TOKEN
+          fi
+          npm publish "${args[@]}"
+
+      - name: GitHub Release
+        if: inputs.dry_run == false
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "v$VERSION" >/dev/null 2>&1 \
+            || gh release create "v$VERSION" --verify-tag --generate-notes --title "v$VERSION" \
+                 $([[ "$NPM_DIST_TAG" == "next" ]] && echo --prerelease)
+          {
+            echo
+            echo "Published: https://www.npmjs.com/package/$PACKAGE/v/$VERSION"
+            echo
+            echo 'Install: `npx -y notarize-mcp install`'
+          } >> "$GITHUB_STEP_SUMMARY"

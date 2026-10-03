@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Prepare a release locally (no CI minutes needed): bump versions, check, build, commit, tag.
-# Publishing stays a manual step because it needs your npm login / 2FA code.
+# Alternative to the GitHub "Release" workflow (.github/workflows/release.yml); here publishing
+# stays a manual step because it needs your npm login / 2FA code.
 # Usage: bash scripts/release.sh 0.2.1
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -11,14 +12,7 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
-# Bump package.json and the Claude Code plugin manifest together.
-node -e '
-const fs = require("fs");
-for (const f of ["package.json", ".claude-plugin/plugin.json"]) {
-  const j = JSON.parse(fs.readFileSync(f, "utf8"));
-  j.version = process.argv[1];
-  fs.writeFileSync(f, JSON.stringify(j, null, 2) + "\n");
-}' "$VERSION"
+node scripts/bump-version.mjs "$VERSION"
 npm install --package-lock-only --silent
 
 npm run build
