@@ -14,9 +14,8 @@ Both bump `package.json` and `.claude-plugin/plugin.json` together using `script
    - Permissions: Packages and scopes → **Read and write**, **All packages**. The package doesn't exist until the first publish, so you can't select it yet.
    - Tick **Bypass two-factor authentication**. CI can't type an OTP.
    - Choose an expiry; 90 days is the maximum.
-2. **Store it in GitHub.** Go to the repo → **Settings → Environments → New environment `npm`** → **Add environment secret `NPM_TOKEN`**.
-   - A repository secret with the same name also works.
-   - Optional: add yourself under **Required reviewers**, so every run waits for your click before it can touch npm.
+2. **Store it in GitHub.** Go to the repo → **Settings → Secrets and variables → Actions → New repository secret `NPM_TOKEN`**.
+   - Optional approval gate: create an environment (for example `npm`) with yourself under **Required reviewers**, move the secret into it, and add `environment: npm` to the `release` job. Every run then waits for your click before it can touch npm.
 3. **If `main` is branch-protected,** let `github-actions[bot]` bypass it. The workflow pushes the `Release vX` commit and tag to `main`.
 
 The workflow appears under the **Actions** tab once `release.yml` is on `main`, the default branch.
@@ -43,7 +42,7 @@ After the first publish, on npmjs.com go to package **notarize-mcp → Settings 
 - owner `krishchow`;
 - repository `notarize`;
 - workflow `release.yml`;
-- environment `npm`.
+- environment: leave empty, unless you added one to the job.
 
 Then delete the `NPM_TOKEN` secret. When the secret is empty, the workflow authenticates with GitHub's OIDC token instead.
 
