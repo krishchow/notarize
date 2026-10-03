@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ok } from "../core/exec";
+import { ok, output } from "../core/exec";
 import { compareVersions, macOSVersion, xcodeInfo } from "../core/platform";
 import { currentSdkRequirement, SDK_REQUIREMENTS_LAST_REVIEWED } from "../knowledge/sdk-requirements";
 import {
@@ -127,6 +127,51 @@ export const doctorTool = defineTool({
         finding("info", `Xcode ${xc.xcodeVersion} (${xc.buildVersion ?? "?"}) at ${xc.developerDir}.`),
       );
     }
+
+    // ---- Things that block unattended runs (GUI prompts nobody can answer)
+    if (xc.xcodeVersion) {
+      const lic = await ctx.runner.run("xcodebuild", ["-license", "check"], { timeoutMs: 30000 });
+      if (!ok(lic) && !lic.spawnError)
+        findings.push(
+          finding(
+            "error",
+            "The Xcode license has not been accepted — xcodebuild and some xcrun tools refuse to run.",
+            "sudo xcodebuild -license accept",
+          ),
+        );
+      const fl = await ctx.runner.run("xcodebuild", ["-checkFirstLaunchStatus"], { timeoutMs: 30000 });
+      if (!ok(fl) && !fl.spawnError)
+        findings.push(
+          finding(
+            "error",
+            "Xcode's first-launch setup has not run (additional components missing).",
+            "sudo xcodebuild -runFirstLaunch",
+          ),
+        );
+    }
+    const loginKc = `${ctx.platform.homeDir}/Library/Keychains/login.keychain-db`;
+    const kc = await ctx.runner.run("security", ["show-keychain-info", loginKc], { timeoutMs: 15000 });
+    const kcText = output(kc);
+    data.loginKeychain = {
+      path: loginKc,
+      locked: !ok(kc) && /locked|User interaction is not allowed|interaction/i.test(kcText),
+    };
+    if (!ok(kc) && /locked|User interaction is not allowed|interaction/i.test(kcText))
+      findings.push(
+        finding(
+          "error",
+          "The login keychain is locked — signing will fail or wait on a password prompt nobody can answer.",
+          "security unlock-keychain ~/Library/Keychains/login.keychain-db",
+        ),
+      );
+    if (process.env.SSH_CONNECTION || process.env.SSH_TTY)
+      findings.push(
+        finding(
+          "warning",
+          "Running over SSH: keychain access dialogs can't be answered here.",
+          "Unlock the keychain first and pre-authorize codesign: security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k <password> ~/Library/Keychains/login.keychain-db",
+        ),
+      );
 
     // ---- CLIs
     const tools: Record<string, string | null> = {};

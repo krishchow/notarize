@@ -1,6 +1,6 @@
 {
   "name": "notarize-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local stdio MCP server + skill for Apple code signing, notarization, certificates, provisioning, entitlements, Gatekeeper debugging, TestFlight and App Store Connect.",
   "type": "module",
   "license": "MIT",
@@ -24,7 +24,9 @@
     "format": "biome check --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run lint && npm run typecheck && npm test"
+    "check": "npm run lint && npm run typecheck && npm test",
+    "test:recorded": "vitest run test/recorded.test.ts",
+    "test:live": "vitest run --config vitest.live.config.ts"
   },
   "keywords": [
     "mcp",

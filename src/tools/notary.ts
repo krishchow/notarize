@@ -4,7 +4,7 @@ import { z } from "zod";
 import { cmdStep, type PlanStep } from "../core/confirm";
 import { ok, output } from "../core/exec";
 import type { JobHandle } from "../core/jobs";
-import { notarizationMonitor } from "../core/monitor";
+import { jobMonitor, notarizationMonitor } from "../core/monitor";
 import { requireMacOS } from "../core/platform";
 import { ToolError, type ToolOutput } from "../core/result";
 import { formatMatches, matchKnownErrors } from "../knowledge/error-catalog";
@@ -158,6 +158,36 @@ function submissionSummary(s: NotarySubmission & { log?: ReturnType<typeof parse
   return `Notarization ${s.status?.toUpperCase()} (submission ${s.id}).${s.log ? `\n${explainLog(s.log)}` : ""}`;
 }
 
+/**
+ * Agents sometimes re-submit while a notarization is still pending (e.g. after a
+ * restart). Refuse when a live job — in this process or another — is already
+ * notarizing the same artifact.
+ */
+export function refuseDuplicate(ctx: ToolContext, path: string): void {
+  const live = ctx.jobs.list().find((j) => j.status === "running" && j.meta.path === path);
+  const other = ctx.jobs.persisted().find((j) => j.status === "running" && !j.lost && j.meta?.path === path);
+  const hit = live
+    ? { id: live.id, sub: live.meta.submissionId as string | undefined }
+    : other
+      ? { id: other.id, sub: other.meta?.submissionId as string | undefined }
+      : undefined;
+  if (!hit) return;
+  const monitor = jobMonitor({
+    jobId: hit.id,
+    description: `Notarization of ${basename(path)}`,
+    stateDir: ctx.jobs.stateDir,
+    submissionId: hit.sub,
+  });
+  throw new ToolError(
+    `${basename(path)} is already being notarized by job ${hit.id}${hit.sub ? ` (submission ${hit.sub})` : ""}. Not submitting it again.`,
+    {
+      hint: "Wait for that job instead (or pass force=true if you really changed the artifact).",
+      next_steps: [`Monitor: ${monitor.command}`, `jobs action=status job_id=${hit.id}`],
+      data: { job_id: hit.id, submission_id: hit.sub, monitor },
+    },
+  );
+}
+
 /** Zip an .app for upload if needed; returns the file to submit. */
 async function uploadable(ctx: ToolContext, path: string): Promise<{ file: string; zipped: boolean }> {
   if ((await isDirectory(path)) && extname(path) === ".app") {
@@ -306,6 +336,7 @@ export const notaryTool = defineTool({
     if (args.action === "submit") {
       if (!args.path) throw new ToolError("path is required.");
       const path = await resolveUserPath(ctx, args.path);
+      if (!args.force) refuseDuplicate(ctx, path);
       const problems = args.force ? [] : await preflight(ctx, path);
       if (problems.length)
         throw new ToolError(`Preflight found problems that Apple will reject:\n- ${problems.join("\n- ")}`, {
@@ -349,6 +380,7 @@ export const notaryTool = defineTool({
               `Notarize ${basename(path)}`,
               (args.max_wait_seconds ?? NOTARY_FOREGROUND_SECONDS) * 1000,
               async (j) => {
+                j.setMeta("path", path);
                 const up = await uploadable(ctx, path);
                 try {
                   const s = await submitAndWait(ctx, up.file, auth, j, args.wait_minutes ?? 60);
@@ -547,6 +579,7 @@ export const notarizeAndStapleTool = defineTool({
     requireMacOS(ctx.platform, "Notarization");
     const path = await resolveUserPath(ctx, args.path);
     const ext = extname(path).toLowerCase();
+    if (!args.force) refuseDuplicate(ctx, path);
     const problems = args.force ? [] : await preflight(ctx, path);
     if (problems.length)
       throw new ToolError(`Preflight found problems Apple will reject:\n- ${problems.join("\n- ")}`, {
@@ -590,6 +623,7 @@ export const notarizeAndStapleTool = defineTool({
             `Notarize ${basename(path)}`,
             (args.max_wait_seconds ?? NOTARY_FOREGROUND_SECONDS) * 1000,
             async (j) => {
+              j.setMeta("path", path);
               const up = await uploadable(ctx, path);
               let s: Awaited<ReturnType<typeof submitAndWait>>;
               try {

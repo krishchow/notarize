@@ -6,6 +6,8 @@ export interface FakeResponse {
   stderr?: string;
   stdoutBytes?: Uint8Array;
   spawnError?: string;
+  /** Simulate the runner killing the process at its timeout. */
+  timedOut?: boolean;
 }
 
 export type FakeMatcher = (cmd: string, args: string[]) => boolean;
@@ -65,13 +67,13 @@ export class FakeRunner implements CommandRunner {
     const result: RunResult = {
       command: cmd,
       args,
-      code: res.spawnError ? null : (res.code ?? 0),
-      signal: null,
+      code: res.spawnError || res.timedOut ? null : (res.code ?? 0),
+      signal: res.timedOut ? "SIGTERM" : null,
       stdout: res.stdout ?? "",
       stderr: res.spawnError ? `${res.stderr ?? ""}${res.spawnError}` : (res.stderr ?? ""),
       stdoutBytes: res.stdoutBytes,
       durationMs: 1,
-      timedOut: false,
+      timedOut: !!res.timedOut,
       spawnError: res.spawnError,
     };
     return { result: Promise.resolve(result), kill: () => {} };

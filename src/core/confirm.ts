@@ -32,6 +32,53 @@ export type ConfirmCheck =
 
 export const CONFIRM_TOKEN_ARG = "confirm_token";
 
+/**
+ * Unattended-run policy from NOTARIZE_MCP_AUTO_CONFIRM:
+ * - unset / "0" / "false" → always preview (default)
+ * - "1" / "true" / "safe"  → auto-execute non-destructive actions only
+ * - "all"                  → auto-execute everything, including destructive actions
+ * - "sign,package,notary:submit,…" → auto-execute only the listed tools / tool:action pairs
+ *   (listed entries run even when destructive — listing them is the explicit opt-in)
+ */
+export type AutoConfirmPolicy =
+  | { mode: "off" }
+  | { mode: "safe" }
+  | { mode: "all" }
+  | { mode: "list"; entries: string[] };
+
+export function parseAutoConfirm(value: string | undefined): AutoConfirmPolicy {
+  const v = (value ?? "").trim();
+  if (!v || v === "0" || v.toLowerCase() === "false" || v.toLowerCase() === "off") return { mode: "off" };
+  const lower = v.toLowerCase();
+  if (lower === "1" || lower === "true" || lower === "safe") return { mode: "safe" };
+  if (lower === "all") return { mode: "all" };
+  return {
+    mode: "list",
+    entries: v
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  };
+}
+
+export function policyAllows(
+  policy: AutoConfirmPolicy,
+  tool: string,
+  action: string | undefined,
+  destructive: boolean,
+): boolean {
+  switch (policy.mode) {
+    case "off":
+      return false;
+    case "all":
+      return true;
+    case "safe":
+      return !destructive;
+    case "list":
+      return policy.entries.includes(tool) || (!!action && policy.entries.includes(`${tool}:${action}`));
+  }
+}
+
 export class ConfirmManager {
   private readonly secret: Buffer;
 
@@ -39,27 +86,41 @@ export class ConfirmManager {
     opts: {
       secret?: Buffer;
       ttlMs?: number;
+      /** Boolean shorthand: true = "all" (tests / smoke), false = "off". */
       autoConfirm?: boolean;
+      policy?: AutoConfirmPolicy;
       now?: () => number;
     } = {},
   ) {
     this.secret = opts.secret ?? randomBytes(32);
     this.ttlMs = opts.ttlMs ?? 10 * 60 * 1000;
-    this.autoConfirm = opts.autoConfirm ?? process.env.NOTARIZE_MCP_AUTO_CONFIRM === "1";
+    this.policy =
+      opts.policy ??
+      (opts.autoConfirm === undefined
+        ? parseAutoConfirm(process.env.NOTARIZE_MCP_AUTO_CONFIRM)
+        : opts.autoConfirm
+          ? { mode: "all" }
+          : { mode: "off" });
     this.now = opts.now ?? Date.now;
   }
 
   readonly ttlMs: number;
-  readonly autoConfirm: boolean;
+  readonly policy: AutoConfirmPolicy;
   private readonly now: () => number;
+
+  /** Would the policy auto-execute this call without a token? */
+  autoAllows(tool: string, args: Record<string, unknown>, destructive: boolean): boolean {
+    const action = typeof args.action === "string" ? args.action : undefined;
+    return policyAllows(this.policy, tool, action, destructive);
+  }
 
   issue(tool: string, args: Record<string, unknown>): string {
     const expiry = this.now() + this.ttlMs;
     return `${expiry.toString(36)}.${this.sign(tool, args, expiry)}`;
   }
 
+  /** Token verification only (policy is applied by withConfirmation, which knows the plan). */
   check(tool: string, args: Record<string, unknown>): ConfirmCheck {
-    if (this.autoConfirm) return { status: "execute" };
     const token = args[CONFIRM_TOKEN_ARG];
     if (token === undefined || token === null || token === "") return { status: "preview" };
     if (typeof token !== "string" || !token.includes(".")) {

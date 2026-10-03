@@ -63,6 +63,16 @@ export async function withConfirmation(
   const check = ctx.confirm.check(extra.toolName, args);
   if (check.status === "execute") return execute();
   const plan = await buildPlan();
+  // Unattended policy (NOTARIZE_MCP_AUTO_CONFIRM): decided after building the plan so that
+  // destructive actions are never auto-run under the "safe" policy.
+  if (check.status === "preview" && ctx.confirm.autoAllows(extra.toolName, args, !!plan.destructive)) {
+    const out = await execute();
+    return {
+      ...out,
+      summary: `[auto-confirmed by NOTARIZE_MCP_AUTO_CONFIRM: ${plan.title}]\n${out.summary}`,
+      data: { ...out.data, auto_confirmed: true },
+    };
+  }
   const token = ctx.confirm.issue(extra.toolName, args);
   const data = previewData(plan, token, ctx.confirm.ttlMs);
   const lines = [

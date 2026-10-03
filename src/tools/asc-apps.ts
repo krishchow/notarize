@@ -290,7 +290,7 @@ export const ascApiTool = defineTool({
             command: args.body ? JSON.stringify(args.body).slice(0, 2000) : undefined,
           },
         ],
-        destructive: args.method === "DELETE",
+        destructive: true,
         warnings: ["Raw API calls change your App Store Connect account directly."],
       }),
       async () => {

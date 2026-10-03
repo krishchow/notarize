@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "notarize": {
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/notarize-mcp.js"]
-    }
-  }
-}

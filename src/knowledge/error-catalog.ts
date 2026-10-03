@@ -28,6 +28,20 @@ export interface KnownError {
 export const ERROR_CATALOG: KnownError[] = [
   // ---------------- keychain / codesign ----------------
   {
+    id: "keychain-prompt-timeout",
+    source: "keychain",
+    pattern: /timed out waiting for keychain access|User interaction is not allowed/,
+    title: "Waiting on a keychain access prompt / locked keychain",
+    explanation:
+      "codesign needs the private key but macOS is waiting for someone to approve access (a GUI dialog) or the keychain is locked. Unattended agent runs, SSH sessions and CI cannot answer the dialog.",
+    fix: [
+      "On the Mac's screen click 'Always Allow' for codesign",
+      "Unlock: security unlock-keychain ~/Library/Keychains/login.keychain-db",
+      "Pre-authorize codesign: security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k <password> <keychain>",
+    ],
+    tool: "doctor",
+  },
+  {
     id: "errSecInternalComponent",
     source: "keychain",
     pattern: /errSecInternalComponent/,

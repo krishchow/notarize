@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ConfigStore } from "../src/core/config";
-import { ConfirmManager, canonicalJson } from "../src/core/confirm";
+import { ConfirmManager, canonicalJson, parseAutoConfirm, policyAllows } from "../src/core/confirm";
 import { SpawnRunner } from "../src/core/exec";
 import { FakeRunner } from "../src/core/fake-runner";
 import { JobManager } from "../src/core/jobs";
@@ -42,9 +42,31 @@ describe("confirm tokens", () => {
     expect(canonicalJson({ b: 1, a: [{ d: 1, c: 2 }] })).toBe('{"a":[{"c":2,"d":1}],"b":1}');
   });
 
-  it("auto-confirm executes immediately", () => {
-    const cm = new ConfirmManager({ autoConfirm: true });
-    expect(cm.check("x", {}).status).toBe("execute");
+  it("parses the NOTARIZE_MCP_AUTO_CONFIRM policy", () => {
+    expect(parseAutoConfirm(undefined)).toEqual({ mode: "off" });
+    expect(parseAutoConfirm("0")).toEqual({ mode: "off" });
+    expect(parseAutoConfirm("1")).toEqual({ mode: "safe" });
+    expect(parseAutoConfirm("safe")).toEqual({ mode: "safe" });
+    expect(parseAutoConfirm("ALL")).toEqual({ mode: "all" });
+    expect(parseAutoConfirm("sign, notary:submit ,")).toEqual({
+      mode: "list",
+      entries: ["sign", "notary:submit"],
+    });
+  });
+
+  it("safe never auto-runs destructive actions; lists are explicit opt-ins", () => {
+    const safe = parseAutoConfirm("safe");
+    expect(policyAllows(safe, "package", "zip", false)).toBe(true);
+    expect(policyAllows(safe, "asc_certificates", "revoke", true)).toBe(false);
+    const list = parseAutoConfirm("sign,notary:submit,asc_certificates:revoke");
+    expect(policyAllows(list, "sign", undefined, false)).toBe(true);
+    expect(policyAllows(list, "notary", "submit", false)).toBe(true);
+    expect(policyAllows(list, "notary", "store_credentials", false)).toBe(false);
+    expect(policyAllows(list, "asc_certificates", "revoke", true)).toBe(true);
+    expect(policyAllows({ mode: "all" }, "x", undefined, true)).toBe(true);
+    const cm = new ConfirmManager({ policy: safe });
+    expect(cm.autoAllows("package", { action: "zip" }, false)).toBe(true);
+    expect(cm.check("package", { action: "zip" }).status).toBe("preview");
   });
 });
 

@@ -149,6 +149,7 @@ export const testflightTool = defineTool({
         args,
         () => ({
           title: `Remove ${args.testers!.length} tester(s) from group ${args.group_id}`,
+          destructive: true,
           steps: args.testers!.map((t) => ({ description: `Remove ${t.email}` })),
         }),
         async () => {

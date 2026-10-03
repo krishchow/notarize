@@ -3,8 +3,9 @@ import { basename, join } from "node:path";
 import { z } from "zod";
 import { cmdStep } from "../core/confirm";
 import { ok, output } from "../core/exec";
+import type { PersistedJob } from "../core/jobs";
 import { tail } from "../core/logs";
-import { jobMonitor } from "../core/monitor";
+import { jobMonitor, notarizationMonitor } from "../core/monitor";
 import { requireMacOS } from "../core/platform";
 import { asArray, asDict, type PlistDict, parsePlistDict } from "../core/plist";
 import { ToolError } from "../core/result";
@@ -24,7 +25,7 @@ import {
   resolveUserPath,
   scratchDir,
 } from "./shared";
-import { defineTool, withConfirmation } from "./types";
+import { defineTool, type ToolContext, withConfirmation } from "./types";
 
 // ------------------------------------------------------------------ system_logs
 
@@ -472,6 +473,38 @@ export const devicesTool = defineTool({
 
 // ------------------------------------------------------------------ jobs
 
+/** Report on a job owned by a previous (or other) server process. */
+function persistedJobOutput(ctx: ToolContext, j: PersistedJob, action: string) {
+  const sub = j.meta?.submissionId as string | undefined;
+  if (action === "cancel")
+    throw new ToolError(
+      j.foreign
+        ? `Job ${j.id} belongs to another running server process (pid ${j.pid}); cancel it there.`
+        : `Job ${j.id} is from a previous session and is no longer running here.`,
+    );
+  if (action === "tail")
+    return {
+      summary: `Output of ${j.id} is not available (previous session). Last progress: ${j.progress ?? "n/a"}`,
+      data: { ...j },
+    };
+  const status = j.lost ? "LOST — the server that ran it stopped" : j.status;
+  const next: string[] = [];
+  if (j.lost && sub) {
+    next.push(`notary action=status submission_id=${sub} (Apple keeps processing the submission)`);
+    next.push(`Monitor: ${notarizationMonitor(sub, `Notarization submission ${sub}`).command}`);
+    next.push("When Accepted, staple the artifact (staple action=staple).");
+  } else if (j.lost) next.push("Re-run the original tool call; the work did not finish.");
+  else if (j.status === "running" && j.foreign)
+    next.push(
+      `Monitor: ${jobMonitor({ jobId: j.id, description: j.description, stateDir: ctx.jobs.stateDir, submissionId: sub }).command}`,
+    );
+  return {
+    summary: `${j.id} ${j.name} (previous session): ${status}${sub ? `\nApple submission: ${sub}` : ""}${j.summary ? `\n\n${j.summary}` : j.progress ? `\nLast progress: ${j.progress}` : ""}${j.error ? `\nError: ${j.error}` : ""}`,
+    data: { ...j },
+    next_steps: next,
+  };
+}
+
 export const jobsTool = defineTool({
   name: "jobs",
   title: "Status of long-running background jobs",
@@ -493,18 +526,29 @@ export const jobsTool = defineTool({
   async handler(args, ctx, extra) {
     if (args.action === "list") {
       const list = ctx.jobs.list().map(({ lines: _l, result: _r, ...j }) => j);
+      const earlier = ctx.jobs.persisted().slice(0, 20);
+      const lines = [
+        ...list.map((j) => `• ${j.id} ${j.name} — ${j.status}${j.progress ? ` (${j.progress})` : ""}`),
+        ...earlier.map(
+          (j) =>
+            `• ${j.id} ${j.name} — ${j.lost ? "LOST (server stopped)" : j.status}${j.foreign ? " [other server process]" : " [previous session]"}${j.meta?.submissionId ? ` submission ${j.meta.submissionId}` : ""}`,
+        ),
+      ];
       return {
-        summary: list.length
-          ? list
-              .map((j) => `• ${j.id} ${j.name} — ${j.status}${j.progress ? ` (${j.progress})` : ""}`)
-              .join("\n")
-          : "No jobs.",
-        data: { jobs: list },
+        summary: lines.length ? lines.join("\n") : "No jobs.",
+        data: { jobs: list, previous: earlier },
       };
     }
     if (!args.job_id) throw new ToolError("job_id is required.");
     let job = ctx.jobs.get(args.job_id);
-    if (!job) throw new ToolError(`Unknown job ${args.job_id} (jobs do not survive a server restart).`);
+    if (!job) {
+      const disk = ctx.jobs.persisted().find((j) => j.id === args.job_id);
+      if (!disk)
+        throw new ToolError(`Unknown job ${args.job_id}.`, {
+          hint: "jobs action=list shows current and previous-session jobs.",
+        });
+      return persistedJobOutput(ctx, disk, args.action);
+    }
     if (args.action === "status") {
       if (args.wait_seconds && job.status === "running")
         job = (await ctx.jobs.wait(args.job_id, args.wait_seconds * 1000)) ?? job;

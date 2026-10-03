@@ -5,7 +5,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createContext } from "../src/context";
 import { ConfigStore } from "../src/core/config";
-import { ConfirmManager } from "../src/core/confirm";
+import { type AutoConfirmPolicy, ConfirmManager } from "../src/core/confirm";
 import { FakeRunner } from "../src/core/fake-runner";
 import { createServer } from "../src/server";
 import type { ToolContext } from "../src/tools/types";
@@ -26,6 +26,7 @@ export async function makeCtx(
     env?: NodeJS.ProcessEnv;
     fetch?: typeof fetch;
     now?: Date;
+    policy?: AutoConfirmPolicy;
   } = {},
 ): Promise<{ ctx: ToolContext; runner: FakeRunner; home: string }> {
   const home = await mkdtemp(join(tmpdir(), "notarize-home-"));
@@ -35,7 +36,7 @@ export async function makeCtx(
     runner,
     platform: { os: isMac ? "darwin" : "linux", isMac, homeDir: home },
     config: new ConfigStore(home, opts.env ?? {}, join(home, ".config", "notarize-mcp")),
-    confirm: new ConfirmManager({ autoConfirm: false }),
+    confirm: new ConfirmManager(opts.policy ? { policy: opts.policy } : { autoConfirm: false }),
     fetch: opts.fetch,
     now: opts.now ? () => opts.now! : undefined,
   });

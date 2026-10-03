@@ -109,11 +109,26 @@ export async function runSignSteps(
   let n = 0;
   for (const step of steps) {
     onProgress?.(`codesign ${step.relativePath} (${n + 1}/${steps.length})`);
-    const r = await ctx.runner.run("codesign", step.args, { timeoutMs: 300000, logName: "codesign" });
+    // The first signature is where macOS shows a keychain access dialog if the key
+    // isn't pre-authorized for codesign; nobody can click it in unattended runs, so
+    // fail fast instead of hanging for minutes per item.
+    const timeoutMs = n === 0 && step.args[2] !== "-" ? codesignPromptTimeoutMs() : 300000;
+    const r = await ctx.runner.run("codesign", step.args, { timeoutMs, logName: "codesign" });
+    if (r.timedOut && n === 0) {
+      return { signed: 0, failed: { step, output: KEYCHAIN_PROMPT_MESSAGE } };
+    }
     if (!ok(r)) return { signed: n, failed: { step, output: output(r) } };
     n++;
   }
   return { signed: n };
+}
+
+export const KEYCHAIN_PROMPT_MESSAGE =
+  "codesign timed out waiting for keychain access (keychain access prompt). macOS is probably showing a dialog asking to allow codesign to use the private key, or the keychain is locked. Fix: click 'Always Allow' on the Mac's screen; or unlock it (security unlock-keychain ~/Library/Keychains/login.keychain-db); or pre-authorize codesign once: security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k <keychain password> ~/Library/Keychains/login.keychain-db. Over SSH or in CI nobody can answer the dialog — unlock the keychain first.";
+
+export function codesignPromptTimeoutMs(): number {
+  const s = Number(process.env.NOTARIZE_MCP_CODESIGN_PROMPT_TIMEOUT);
+  return Number.isFinite(s) && s > 0 ? s * 1000 : 45000;
 }
 
 /** Resolve "auto"/name/SHA-1 into an identity string, defaulting by target. */

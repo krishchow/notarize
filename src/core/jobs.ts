@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -197,6 +197,11 @@ export class JobManager {
     }
   }
 
+  /** State files from earlier/other server processes (not in this process's memory). */
+  persisted(opts: { maxAgeDays?: number; now?: number } = {}): PersistedJob[] {
+    return readPersistedJobs(this.stateDir, { ...opts, exclude: new Set(this.jobs.keys()) });
+  }
+
   get(id: string): JobRecord | undefined {
     const j = this.jobs.get(id);
     if (!j) return undefined;
@@ -228,6 +233,67 @@ export class JobManager {
     if (timer) clearTimeout(timer);
     return this.get(id);
   }
+}
+
+export type PersistedJob = JobStateFile & {
+  /** "running" jobs whose owning process died or stopped heart-beating. */
+  lost: boolean;
+  /** Owned by another live server process (cannot be cancelled from here). */
+  foreign: boolean;
+};
+
+function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    // EPERM means the process exists but belongs to someone else.
+    return (e as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+/** Classify a state file written by any server process. */
+export function classifyJobState(s: JobStateFile, now = Date.now(), selfPid = process.pid): PersistedJob {
+  const running = s.status === "running";
+  const stale = now - Date.parse(s.updatedAt) > HEARTBEAT_MS * 4;
+  const dead = s.pid !== selfPid && !pidAlive(s.pid);
+  return { ...s, lost: running && (dead || stale), foreign: s.pid !== selfPid && !dead };
+}
+
+/**
+ * Jobs persisted by previous (or other) server processes, newest first.
+ * Prunes state files older than `maxAgeDays`.
+ */
+export function readPersistedJobs(
+  stateDir: string | undefined,
+  opts: { exclude?: Set<string>; maxAgeDays?: number; now?: number } = {},
+): PersistedJob[] {
+  if (!stateDir) return [];
+  const now = opts.now ?? Date.now();
+  const maxAge = (opts.maxAgeDays ?? 30) * 86_400_000;
+  let files: string[];
+  try {
+    files = readdirSync(stateDir).filter((f) => f.endsWith(".json"));
+  } catch {
+    return [];
+  }
+  const out: PersistedJob[] = [];
+  for (const f of files) {
+    const path = join(stateDir, f);
+    const s = readJobState(path);
+    if (!s) continue;
+    if (now - Date.parse(s.updatedAt) > maxAge) {
+      try {
+        unlinkSync(path);
+      } catch {
+        /* ignore */
+      }
+      continue;
+    }
+    if (opts.exclude?.has(s.id)) continue;
+    out.push(classifyJobState(s, now));
+  }
+  return out.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
 }
 
 /** Read a persisted job state file (used by the watch-job CLI). */

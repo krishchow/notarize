@@ -541,6 +541,7 @@ export const ascDevicesTool = defineTool({
         args,
         () => ({
           title: `Register ${args.platform} device "${args.name}" (${args.udid})`,
+          destructive: true,
           steps: [{ description: "POST /v1/devices" }],
           notes: ["Uses one of your yearly device slots. Regenerate development/Ad Hoc profiles afterwards."],
         }),
@@ -566,6 +567,7 @@ export const ascDevicesTool = defineTool({
       args,
       () => ({
         title: `Disable device ${args.device_id}`,
+        destructive: true,
         steps: [{ description: `PATCH /v1/devices/${args.device_id} status=DISABLED` }],
         warnings: ["Disabling does not free the slot until your membership renews."],
       }),
@@ -782,6 +784,7 @@ export const ascProfilesTool = defineTool({
       args,
       () => ({
         title: `Regenerate profile "${name}" (${type})`,
+        destructive: true,
         steps: [
           { description: `DELETE /v1/profiles/${existing.id}` },
           {

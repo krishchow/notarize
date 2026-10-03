@@ -39177,7 +39177,7 @@ import { join as join9 } from "path";
 
 // src/core/jobs.ts
 import { randomBytes } from "crypto";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
+import { mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
 var MAX_LINES = 2e3;
 var HEARTBEAT_MS = 3e4;
@@ -39299,6 +39299,10 @@ var JobManager = class {
       if (timer) clearTimeout(timer);
     }
   }
+  /** State files from earlier/other server processes (not in this process's memory). */
+  persisted(opts = {}) {
+    return readPersistedJobs(this.stateDir, { ...opts, exclude: new Set(this.jobs.keys()) });
+  }
   get(id) {
     const j = this.jobs.get(id);
     if (!j) return void 0;
@@ -39328,6 +39332,47 @@ var JobManager = class {
     return this.get(id);
   }
 };
+function pidAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e.code === "EPERM";
+  }
+}
+function classifyJobState(s, now = Date.now(), selfPid = process.pid) {
+  const running = s.status === "running";
+  const stale = now - Date.parse(s.updatedAt) > HEARTBEAT_MS * 4;
+  const dead = s.pid !== selfPid && !pidAlive(s.pid);
+  return { ...s, lost: running && (dead || stale), foreign: s.pid !== selfPid && !dead };
+}
+function readPersistedJobs(stateDir, opts = {}) {
+  if (!stateDir) return [];
+  const now = opts.now ?? Date.now();
+  const maxAge = (opts.maxAgeDays ?? 30) * 864e5;
+  let files;
+  try {
+    files = readdirSync(stateDir).filter((f) => f.endsWith(".json"));
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const f of files) {
+    const path = join(stateDir, f);
+    const s = readJobState(path);
+    if (!s) continue;
+    if (now - Date.parse(s.updatedAt) > maxAge) {
+      try {
+        unlinkSync(path);
+      } catch {
+      }
+      continue;
+    }
+    if (opts.exclude?.has(s.id)) continue;
+    out.push(classifyJobState(s, now));
+  }
+  return out.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+}
 function readJobState(path) {
   try {
     return JSON.parse(readFileSync(path, "utf8"));
@@ -39439,6 +39484,19 @@ function jsonReplacer(_key, value) {
 // src/knowledge/error-catalog.ts
 var ERROR_CATALOG = [
   // ---------------- keychain / codesign ----------------
+  {
+    id: "keychain-prompt-timeout",
+    source: "keychain",
+    pattern: /timed out waiting for keychain access|User interaction is not allowed/,
+    title: "Waiting on a keychain access prompt / locked keychain",
+    explanation: "codesign needs the private key but macOS is waiting for someone to approve access (a GUI dialog) or the keychain is locked. Unattended agent runs, SSH sessions and CI cannot answer the dialog.",
+    fix: [
+      "On the Mac's screen click 'Always Allow' for codesign",
+      "Unlock: security unlock-keychain ~/Library/Keychains/login.keychain-db",
+      "Pre-authorize codesign: security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k <password> <keychain>"
+    ],
+    tool: "doctor"
+  },
   {
     id: "errSecInternalComponent",
     source: "keychain",
@@ -40237,23 +40295,51 @@ function redactDeep(value, secrets = []) {
 
 // src/core/confirm.ts
 var CONFIRM_TOKEN_ARG = "confirm_token";
+function parseAutoConfirm(value) {
+  const v = (value ?? "").trim();
+  if (!v || v === "0" || v.toLowerCase() === "false" || v.toLowerCase() === "off") return { mode: "off" };
+  const lower = v.toLowerCase();
+  if (lower === "1" || lower === "true" || lower === "safe") return { mode: "safe" };
+  if (lower === "all") return { mode: "all" };
+  return {
+    mode: "list",
+    entries: v.split(",").map((s) => s.trim()).filter(Boolean)
+  };
+}
+function policyAllows(policy, tool, action, destructive) {
+  switch (policy.mode) {
+    case "off":
+      return false;
+    case "all":
+      return true;
+    case "safe":
+      return !destructive;
+    case "list":
+      return policy.entries.includes(tool) || !!action && policy.entries.includes(`${tool}:${action}`);
+  }
+}
 var ConfirmManager = class {
   secret;
   constructor(opts = {}) {
     this.secret = opts.secret ?? randomBytes2(32);
     this.ttlMs = opts.ttlMs ?? 10 * 60 * 1e3;
-    this.autoConfirm = opts.autoConfirm ?? process.env.NOTARIZE_MCP_AUTO_CONFIRM === "1";
+    this.policy = opts.policy ?? (opts.autoConfirm === void 0 ? parseAutoConfirm(process.env.NOTARIZE_MCP_AUTO_CONFIRM) : opts.autoConfirm ? { mode: "all" } : { mode: "off" });
     this.now = opts.now ?? Date.now;
   }
   ttlMs;
-  autoConfirm;
+  policy;
   now;
+  /** Would the policy auto-execute this call without a token? */
+  autoAllows(tool, args, destructive) {
+    const action = typeof args.action === "string" ? args.action : void 0;
+    return policyAllows(this.policy, tool, action, destructive);
+  }
   issue(tool, args) {
     const expiry = this.now() + this.ttlMs;
     return `${expiry.toString(36)}.${this.sign(tool, args, expiry)}`;
   }
+  /** Token verification only (policy is applied by withConfirmation, which knows the plan). */
   check(tool, args) {
-    if (this.autoConfirm) return { status: "execute" };
     const token = args[CONFIRM_TOKEN_ARG];
     if (token === void 0 || token === null || token === "") return { status: "preview" };
     if (typeof token !== "string" || !token.includes(".")) {
@@ -42854,6 +42940,15 @@ async function withConfirmation(ctx, extra, args, buildPlan, execute) {
   const check2 = ctx.confirm.check(extra.toolName, args);
   if (check2.status === "execute") return execute();
   const plan = await buildPlan();
+  if (check2.status === "preview" && ctx.confirm.autoAllows(extra.toolName, args, !!plan.destructive)) {
+    const out = await execute();
+    return {
+      ...out,
+      summary: `[auto-confirmed by NOTARIZE_MCP_AUTO_CONFIRM: ${plan.title}]
+${out.summary}`,
+      data: { ...out.data, auto_confirmed: true }
+    };
+  }
   const token = ctx.confirm.issue(extra.toolName, args);
   const data = previewData(plan, token, ctx.confirm.ttlMs);
   const lines = [
@@ -43724,6 +43819,26 @@ function submissionSummary(s) {
   return `Notarization ${s.status?.toUpperCase()} (submission ${s.id}).${s.log ? `
 ${explainLog(s.log)}` : ""}`;
 }
+function refuseDuplicate(ctx, path) {
+  const live = ctx.jobs.list().find((j) => j.status === "running" && j.meta.path === path);
+  const other = ctx.jobs.persisted().find((j) => j.status === "running" && !j.lost && j.meta?.path === path);
+  const hit = live ? { id: live.id, sub: live.meta.submissionId } : other ? { id: other.id, sub: other.meta?.submissionId } : void 0;
+  if (!hit) return;
+  const monitor = jobMonitor({
+    jobId: hit.id,
+    description: `Notarization of ${basename5(path)}`,
+    stateDir: ctx.jobs.stateDir,
+    submissionId: hit.sub
+  });
+  throw new ToolError(
+    `${basename5(path)} is already being notarized by job ${hit.id}${hit.sub ? ` (submission ${hit.sub})` : ""}. Not submitting it again.`,
+    {
+      hint: "Wait for that job instead (or pass force=true if you really changed the artifact).",
+      next_steps: [`Monitor: ${monitor.command}`, `jobs action=status job_id=${hit.id}`],
+      data: { job_id: hit.id, submission_id: hit.sub, monitor }
+    }
+  );
+}
 async function uploadable(ctx, path) {
   if (await isDirectory(path) && extname5(path) === ".app") {
     const out = join8(await scratchDir("notarize"), `${basename5(path, ".app")}.zip`);
@@ -43843,6 +43958,7 @@ var notaryTool = defineTool({
     if (args.action === "submit") {
       if (!args.path) throw new ToolError("path is required.");
       const path = await resolveUserPath(ctx, args.path);
+      if (!args.force) refuseDuplicate(ctx, path);
       const problems = args.force ? [] : await preflight(ctx, path);
       if (problems.length)
         throw new ToolError(`Preflight found problems that Apple will reject:
@@ -43887,6 +44003,7 @@ var notaryTool = defineTool({
               `Notarize ${basename5(path)}`,
               (args.max_wait_seconds ?? NOTARY_FOREGROUND_SECONDS) * 1e3,
               async (j) => {
+                j.setMeta("path", path);
                 const up = await uploadable(ctx, path);
                 try {
                   const s = await submitAndWait(ctx, up.file, auth2, j, args.wait_minutes ?? 60);
@@ -44046,6 +44163,7 @@ var notarizeAndStapleTool = defineTool({
     requireMacOS(ctx.platform, "Notarization");
     const path = await resolveUserPath(ctx, args.path);
     const ext = extname5(path).toLowerCase();
+    if (!args.force) refuseDuplicate(ctx, path);
     const problems = args.force ? [] : await preflight(ctx, path);
     if (problems.length)
       throw new ToolError(`Preflight found problems Apple will reject:
@@ -44086,6 +44204,7 @@ var notarizeAndStapleTool = defineTool({
             `Notarize ${basename5(path)}`,
             (args.max_wait_seconds ?? NOTARY_FOREGROUND_SECONDS) * 1e3,
             async (j) => {
+              j.setMeta("path", path);
               const up = await uploadable(ctx, path);
               let s;
               try {
@@ -53257,7 +53376,7 @@ var EMPTY_COMPLETION_RESULT = {
 // package.json
 var package_default = {
   name: "notarize-mcp",
-  version: "0.1.0",
+  version: "0.2.0",
   description: "Local stdio MCP server + skill for Apple code signing, notarization, certificates, provisioning, entitlements, Gatekeeper debugging, TestFlight and App Store Connect.",
   type: "module",
   license: "MIT",
@@ -53281,7 +53400,9 @@ var package_default = {
     format: "biome check --write .",
     test: "vitest run",
     "test:watch": "vitest",
-    check: "npm run lint && npm run typecheck && npm test"
+    check: "npm run lint && npm run typecheck && npm test",
+    "test:recorded": "vitest run test/recorded.test.ts",
+    "test:live": "vitest run --config vitest.live.config.ts"
   },
   keywords: [
     "mcp",
@@ -53382,7 +53503,7 @@ function registerPrompts(server) {
 }
 
 // src/resources/index.ts
-import { existsSync, readdirSync, readFileSync as readFileSync2, statSync } from "fs";
+import { existsSync, readdirSync as readdirSync2, readFileSync as readFileSync2, statSync } from "fs";
 import { join as join10, relative as relative2 } from "path";
 import { fileURLToPath } from "url";
 
@@ -53712,7 +53833,7 @@ function findSkillDir() {
 }
 function walk(dir) {
   const out = [];
-  for (const e of readdirSync(dir)) {
+  for (const e of readdirSync2(dir)) {
     const p = join10(dir, e);
     if (statSync(p).isDirectory()) out.push(...walk(p));
     else if (e.endsWith(".md")) out.push(p);
@@ -54071,7 +54192,7 @@ var ascApiTool = defineTool({
             command: args.body ? JSON.stringify(args.body).slice(0, 2e3) : void 0
           }
         ],
-        destructive: args.method === "DELETE",
+        destructive: true,
         warnings: ["Raw API calls change your App Store Connect account directly."]
       }),
       async () => {
@@ -55106,6 +55227,7 @@ var ascDevicesTool = defineTool({
         args,
         () => ({
           title: `Register ${args.platform} device "${args.name}" (${args.udid})`,
+          destructive: true,
           steps: [{ description: "POST /v1/devices" }],
           notes: ["Uses one of your yearly device slots. Regenerate development/Ad Hoc profiles afterwards."]
         }),
@@ -55131,6 +55253,7 @@ var ascDevicesTool = defineTool({
       args,
       () => ({
         title: `Disable device ${args.device_id}`,
+        destructive: true,
         steps: [{ description: `PATCH /v1/devices/${args.device_id} status=DISABLED` }],
         warnings: ["Disabling does not free the slot until your membership renews."]
       }),
@@ -55311,6 +55434,7 @@ Installed: ${r.installed.join(", ")}` : ""}`,
       args,
       () => ({
         title: `Regenerate profile "${name}" (${type})`,
+        destructive: true,
         steps: [
           { description: `DELETE /v1/profiles/${existing.id}` },
           {
@@ -57525,6 +57649,39 @@ var devicesTool = defineTool({
     };
   }
 });
+function persistedJobOutput(ctx, j, action) {
+  const sub = j.meta?.submissionId;
+  if (action === "cancel")
+    throw new ToolError(
+      j.foreign ? `Job ${j.id} belongs to another running server process (pid ${j.pid}); cancel it there.` : `Job ${j.id} is from a previous session and is no longer running here.`
+    );
+  if (action === "tail")
+    return {
+      summary: `Output of ${j.id} is not available (previous session). Last progress: ${j.progress ?? "n/a"}`,
+      data: { ...j }
+    };
+  const status = j.lost ? "LOST \u2014 the server that ran it stopped" : j.status;
+  const next = [];
+  if (j.lost && sub) {
+    next.push(`notary action=status submission_id=${sub} (Apple keeps processing the submission)`);
+    next.push(`Monitor: ${notarizationMonitor(sub, `Notarization submission ${sub}`).command}`);
+    next.push("When Accepted, staple the artifact (staple action=staple).");
+  } else if (j.lost) next.push("Re-run the original tool call; the work did not finish.");
+  else if (j.status === "running" && j.foreign)
+    next.push(
+      `Monitor: ${jobMonitor({ jobId: j.id, description: j.description, stateDir: ctx.jobs.stateDir, submissionId: sub }).command}`
+    );
+  return {
+    summary: `${j.id} ${j.name} (previous session): ${status}${sub ? `
+Apple submission: ${sub}` : ""}${j.summary ? `
+
+${j.summary}` : j.progress ? `
+Last progress: ${j.progress}` : ""}${j.error ? `
+Error: ${j.error}` : ""}`,
+    data: { ...j },
+    next_steps: next
+  };
+}
 var jobsTool = defineTool({
   name: "jobs",
   title: "Status of long-running background jobs",
@@ -57539,14 +57696,28 @@ var jobsTool = defineTool({
   async handler(args, ctx, extra) {
     if (args.action === "list") {
       const list = ctx.jobs.list().map(({ lines: _l, result: _r, ...j }) => j);
+      const earlier = ctx.jobs.persisted().slice(0, 20);
+      const lines = [
+        ...list.map((j) => `\u2022 ${j.id} ${j.name} \u2014 ${j.status}${j.progress ? ` (${j.progress})` : ""}`),
+        ...earlier.map(
+          (j) => `\u2022 ${j.id} ${j.name} \u2014 ${j.lost ? "LOST (server stopped)" : j.status}${j.foreign ? " [other server process]" : " [previous session]"}${j.meta?.submissionId ? ` submission ${j.meta.submissionId}` : ""}`
+        )
+      ];
       return {
-        summary: list.length ? list.map((j) => `\u2022 ${j.id} ${j.name} \u2014 ${j.status}${j.progress ? ` (${j.progress})` : ""}`).join("\n") : "No jobs.",
-        data: { jobs: list }
+        summary: lines.length ? lines.join("\n") : "No jobs.",
+        data: { jobs: list, previous: earlier }
       };
     }
     if (!args.job_id) throw new ToolError("job_id is required.");
     let job = ctx.jobs.get(args.job_id);
-    if (!job) throw new ToolError(`Unknown job ${args.job_id} (jobs do not survive a server restart).`);
+    if (!job) {
+      const disk = ctx.jobs.persisted().find((j) => j.id === args.job_id);
+      if (!disk)
+        throw new ToolError(`Unknown job ${args.job_id}.`, {
+          hint: "jobs action=list shows current and previous-session jobs."
+        });
+      return persistedJobOutput(ctx, disk, args.action);
+    }
     if (args.action === "status") {
       if (args.wait_seconds && job.status === "running")
         job = await ctx.jobs.wait(args.job_id, args.wait_seconds * 1e3) ?? job;
@@ -57693,6 +57864,49 @@ ${formatFindings(findings)}`,
         finding("info", `Xcode ${xc.xcodeVersion} (${xc.buildVersion ?? "?"}) at ${xc.developerDir}.`)
       );
     }
+    if (xc.xcodeVersion) {
+      const lic = await ctx.runner.run("xcodebuild", ["-license", "check"], { timeoutMs: 3e4 });
+      if (!ok(lic) && !lic.spawnError)
+        findings.push(
+          finding(
+            "error",
+            "The Xcode license has not been accepted \u2014 xcodebuild and some xcrun tools refuse to run.",
+            "sudo xcodebuild -license accept"
+          )
+        );
+      const fl = await ctx.runner.run("xcodebuild", ["-checkFirstLaunchStatus"], { timeoutMs: 3e4 });
+      if (!ok(fl) && !fl.spawnError)
+        findings.push(
+          finding(
+            "error",
+            "Xcode's first-launch setup has not run (additional components missing).",
+            "sudo xcodebuild -runFirstLaunch"
+          )
+        );
+    }
+    const loginKc = `${ctx.platform.homeDir}/Library/Keychains/login.keychain-db`;
+    const kc = await ctx.runner.run("security", ["show-keychain-info", loginKc], { timeoutMs: 15e3 });
+    const kcText = output2(kc);
+    data.loginKeychain = {
+      path: loginKc,
+      locked: !ok(kc) && /locked|User interaction is not allowed|interaction/i.test(kcText)
+    };
+    if (!ok(kc) && /locked|User interaction is not allowed|interaction/i.test(kcText))
+      findings.push(
+        finding(
+          "error",
+          "The login keychain is locked \u2014 signing will fail or wait on a password prompt nobody can answer.",
+          "security unlock-keychain ~/Library/Keychains/login.keychain-db"
+        )
+      );
+    if (process.env.SSH_CONNECTION || process.env.SSH_TTY)
+      findings.push(
+        finding(
+          "warning",
+          "Running over SSH: keychain access dialogs can't be answered here.",
+          "Unlock the keychain first and pre-authorize codesign: security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k <password> ~/Library/Keychains/login.keychain-db"
+        )
+      );
     const tools = {};
     for (const t of TOOLS) {
       const r = await ctx.runner.run("xcrun", ["--find", t], { timeoutMs: 15e3 });
@@ -58332,11 +58546,20 @@ async function runSignSteps(ctx, steps, onProgress) {
   let n = 0;
   for (const step of steps) {
     onProgress?.(`codesign ${step.relativePath} (${n + 1}/${steps.length})`);
-    const r = await ctx.runner.run("codesign", step.args, { timeoutMs: 3e5, logName: "codesign" });
+    const timeoutMs = n === 0 && step.args[2] !== "-" ? codesignPromptTimeoutMs() : 3e5;
+    const r = await ctx.runner.run("codesign", step.args, { timeoutMs, logName: "codesign" });
+    if (r.timedOut && n === 0) {
+      return { signed: 0, failed: { step, output: KEYCHAIN_PROMPT_MESSAGE } };
+    }
     if (!ok(r)) return { signed: n, failed: { step, output: output2(r) } };
     n++;
   }
   return { signed: n };
+}
+var KEYCHAIN_PROMPT_MESSAGE = "codesign timed out waiting for keychain access (keychain access prompt). macOS is probably showing a dialog asking to allow codesign to use the private key, or the keychain is locked. Fix: click 'Always Allow' on the Mac's screen; or unlock it (security unlock-keychain ~/Library/Keychains/login.keychain-db); or pre-authorize codesign once: security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k <keychain password> ~/Library/Keychains/login.keychain-db. Over SSH or in CI nobody can answer the dialog \u2014 unlock the keychain first.";
+function codesignPromptTimeoutMs() {
+  const s = Number(process.env.NOTARIZE_MCP_CODESIGN_PROMPT_TIMEOUT);
+  return Number.isFinite(s) && s > 0 ? s * 1e3 : 45e3;
 }
 async function resolveIdentity(ctx, identity, target, teamId) {
   if (identity && identity !== "auto") return identity;
@@ -58798,6 +59021,7 @@ var testflightTool = defineTool({
         args,
         () => ({
           title: `Remove ${args.testers.length} tester(s) from group ${args.group_id}`,
+          destructive: true,
           steps: args.testers.map((t) => ({ description: `Remove ${t.email}` }))
         }),
         async () => {
