@@ -2982,7 +2982,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve.call(this, root, ref);
+      let _sch = resolve2.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a3 = root.localRefs) === null || _a3 === void 0 ? void 0 : _a3[ref];
         const { schemaId } = this.opts;
@@ -3009,7 +3009,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve(root, ref) {
+    function resolve2(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -3189,8 +3189,8 @@ var require_utils = __commonJS({
       }
       if (bestLength < 2) return hextets.join(":");
       const head = hextets.slice(0, bestStart).join(":");
-      const tail = hextets.slice(bestStart + bestLength).join(":");
-      return head + "::" + tail;
+      const tail2 = hextets.slice(bestStart + bestLength).join(":");
+      return head + "::" + tail2;
     }
     function normalizeIPv6Address(input2) {
       const compression = input2.indexOf("::");
@@ -3262,7 +3262,7 @@ var require_utils = __commonJS({
     }
     function removeDotSegments(path) {
       let input2 = path;
-      const output2 = [];
+      const output3 = [];
       let nextSlash = -1;
       let len = 0;
       while (len = input2.length) {
@@ -3270,10 +3270,10 @@ var require_utils = __commonJS({
           if (input2 === ".") {
             break;
           } else if (input2 === "/") {
-            output2.push("/");
+            output3.push("/");
             break;
           } else {
-            output2.push(input2);
+            output3.push(input2);
             break;
           }
         } else if (len === 2) {
@@ -3286,16 +3286,16 @@ var require_utils = __commonJS({
             }
           } else if (input2[0] === "/") {
             if (input2[1] === "." || input2[1] === "/") {
-              output2.push("/");
+              output3.push("/");
               break;
             }
           }
         } else if (len === 3) {
           if (input2 === "/..") {
-            if (output2.length !== 0) {
-              output2.pop();
+            if (output3.length !== 0) {
+              output3.pop();
             }
-            output2.push("/");
+            output3.push("/");
             break;
           }
         }
@@ -3317,8 +3317,8 @@ var require_utils = __commonJS({
             } else if (input2[2] === ".") {
               if (input2[3] === "/") {
                 input2 = input2.slice(3);
-                if (output2.length !== 0) {
-                  output2.pop();
+                if (output3.length !== 0) {
+                  output3.pop();
                 }
                 continue;
               }
@@ -3326,14 +3326,14 @@ var require_utils = __commonJS({
           }
         }
         if ((nextSlash = input2.indexOf("/", 1)) === -1) {
-          output2.push(input2);
+          output3.push(input2);
           break;
         } else {
-          output2.push(input2.slice(0, nextSlash));
+          output3.push(input2.slice(0, nextSlash));
           input2 = input2.slice(nextSlash);
         }
       }
-      return output2.join("");
+      return output3.join("");
     }
     var HOST_DELIMS = { "@": "%40", "/": "%2F", "?": "%3F", "#": "%23", ":": "%3A" };
     var HOST_DELIM_RE = /[@/?#:]/g;
@@ -3347,7 +3347,7 @@ var require_utils = __commonJS({
       if (input2.indexOf("%") === -1) {
         return input2;
       }
-      let output2 = "";
+      let output3 = "";
       for (let i = 0; i < input2.length; i++) {
         if (input2[i] === "%" && i + 2 < input2.length) {
           const hex3 = input2.slice(i + 1, i + 3);
@@ -3355,20 +3355,20 @@ var require_utils = __commonJS({
             const normalizedHex = hex3.toUpperCase();
             const decoded = String.fromCharCode(parseInt(normalizedHex, 16));
             if (decodeUnreserved && isUnreserved(decoded)) {
-              output2 += decoded;
+              output3 += decoded;
             } else {
-              output2 += "%" + normalizedHex;
+              output3 += "%" + normalizedHex;
             }
             i += 2;
             continue;
           }
         }
-        output2 += input2[i];
+        output3 += input2[i];
       }
-      return output2;
+      return output3;
     }
     function normalizePathEncoding(input2) {
-      let output2 = "";
+      let output3 = "";
       for (let i = 0; i < input2.length; i++) {
         const ch = input2[i];
         if (ch === "%" && i + 2 < input2.length) {
@@ -3377,46 +3377,46 @@ var require_utils = __commonJS({
             const normalizedHex = hex3.toUpperCase();
             const decoded = String.fromCharCode(parseInt(normalizedHex, 16));
             if (decoded !== "." && isUnreserved(decoded)) {
-              output2 += decoded;
+              output3 += decoded;
             } else {
-              output2 += "%" + normalizedHex;
+              output3 += "%" + normalizedHex;
             }
             i += 2;
             continue;
           }
         }
         if (isPathCharacter(ch)) {
-          output2 += ch;
+          output3 += ch;
         } else {
           const code = input2.charCodeAt(i);
           if (code < 128) {
-            output2 += isEscapeSafe(code) ? ch : BYTE_HEX[code];
+            output3 += isEscapeSafe(code) ? ch : BYTE_HEX[code];
           } else if (code < 55296 || code > 57343) {
-            output2 += percentEncodeNonAscii(code);
+            output3 += percentEncodeNonAscii(code);
           } else if (code <= 56319 && i + 1 < input2.length) {
             const low = input2.charCodeAt(i + 1);
             if (low >= 56320 && low <= 57343) {
-              output2 += percentEncodeNonAscii(65536 + (code - 55296 << 10) + (low - 56320));
+              output3 += percentEncodeNonAscii(65536 + (code - 55296 << 10) + (low - 56320));
               i++;
             } else {
-              output2 += percentEncodeNonAscii(65533);
+              output3 += percentEncodeNonAscii(65533);
             }
           } else {
-            output2 += percentEncodeNonAscii(65533);
+            output3 += percentEncodeNonAscii(65533);
           }
         }
       }
-      return output2;
+      return output3;
     }
     function serializePathEncoding(input2, pathNoScheme = false) {
-      let output2 = "";
+      let output3 = "";
       let firstSegment = pathNoScheme && input2[0] !== "/";
       for (let i = 0; i < input2.length; i++) {
         const ch = input2[i];
         if (ch === "%" && i + 2 < input2.length) {
           const hex3 = input2.slice(i + 1, i + 3);
           if (isHexPair(hex3)) {
-            output2 += "%" + hex3.toUpperCase();
+            output3 += "%" + hex3.toUpperCase();
             i += 2;
             continue;
           }
@@ -3425,62 +3425,62 @@ var require_utils = __commonJS({
           firstSegment = false;
         }
         if (isPathCharacter(ch) && (ch !== ":" || !firstSegment)) {
-          output2 += ch;
+          output3 += ch;
         } else {
           const code = input2.charCodeAt(i);
           if (code < 128) {
-            output2 += BYTE_HEX[code];
+            output3 += BYTE_HEX[code];
           } else if (code < 55296 || code > 57343) {
-            output2 += percentEncodeNonAscii(code);
+            output3 += percentEncodeNonAscii(code);
           } else if (code <= 56319 && i + 1 < input2.length) {
             const low = input2.charCodeAt(i + 1);
             if (low >= 56320 && low <= 57343) {
-              output2 += percentEncodeNonAscii(65536 + (code - 55296 << 10) + (low - 56320));
+              output3 += percentEncodeNonAscii(65536 + (code - 55296 << 10) + (low - 56320));
               i++;
             } else {
-              output2 += percentEncodeNonAscii(65533);
+              output3 += percentEncodeNonAscii(65533);
             }
           } else {
-            output2 += percentEncodeNonAscii(65533);
+            output3 += percentEncodeNonAscii(65533);
           }
         }
       }
-      return output2;
+      return output3;
     }
     function encodeComponent(input2, isAllowed) {
-      let output2 = "";
+      let output3 = "";
       for (let i = 0; i < input2.length; i++) {
         const ch = input2[i];
         if (ch === "%" && i + 2 < input2.length) {
           const hex3 = input2.slice(i + 1, i + 3);
           if (isHexPair(hex3)) {
-            output2 += "%" + hex3.toUpperCase();
+            output3 += "%" + hex3.toUpperCase();
             i += 2;
             continue;
           }
         }
         if (isAllowed(ch)) {
-          output2 += ch;
+          output3 += ch;
         } else {
           const code = input2.charCodeAt(i);
           if (code < 128) {
-            output2 += BYTE_HEX[code];
+            output3 += BYTE_HEX[code];
           } else if (code < 55296 || code > 57343) {
-            output2 += percentEncodeNonAscii(code);
+            output3 += percentEncodeNonAscii(code);
           } else if (code <= 56319 && i + 1 < input2.length) {
             const low = input2.charCodeAt(i + 1);
             if (low >= 56320 && low <= 57343) {
-              output2 += percentEncodeNonAscii(65536 + (code - 55296 << 10) + (low - 56320));
+              output3 += percentEncodeNonAscii(65536 + (code - 55296 << 10) + (low - 56320));
               i++;
             } else {
-              output2 += percentEncodeNonAscii(65533);
+              output3 += percentEncodeNonAscii(65533);
             }
           } else {
-            output2 += percentEncodeNonAscii(65533);
+            output3 += percentEncodeNonAscii(65533);
           }
         }
       }
-      return output2;
+      return output3;
     }
     function encodeUserinfo(input2) {
       return encodeComponent(input2, isUserinfoCharacter);
@@ -3495,7 +3495,7 @@ var require_utils = __commonJS({
       return cp >= 48 && cp <= 57 || cp >= 65 && cp <= 90 || cp >= 97 && cp <= 122 || cp === 42 || cp === 43 || cp === 45 || cp === 46 || cp === 47 || cp === 64 || cp === 95;
     }
     function normalizeQueryFragmentEncoding(input2) {
-      let output2 = "";
+      let output3 = "";
       for (let i = 0; i < input2.length; i++) {
         const ch = input2[i];
         if (ch === "%" && i + 2 < input2.length) {
@@ -3504,60 +3504,60 @@ var require_utils = __commonJS({
             const normalizedHex = hex3.toUpperCase();
             const decoded = String.fromCharCode(parseInt(normalizedHex, 16));
             if (isUnreserved(decoded)) {
-              output2 += decoded;
+              output3 += decoded;
             } else {
-              output2 += "%" + normalizedHex;
+              output3 += "%" + normalizedHex;
             }
             i += 2;
             continue;
           }
         }
         if (isQueryFragmentCharacter(ch)) {
-          output2 += ch;
+          output3 += ch;
         } else {
           const code = input2.charCodeAt(i);
           if (code < 128) {
-            output2 += isEscapeSafe(code) ? ch : BYTE_HEX[code];
+            output3 += isEscapeSafe(code) ? ch : BYTE_HEX[code];
           } else if (code < 55296 || code > 57343) {
-            output2 += percentEncodeNonAscii(code);
+            output3 += percentEncodeNonAscii(code);
           } else if (code <= 56319 && i + 1 < input2.length) {
             const low = input2.charCodeAt(i + 1);
             if (low >= 56320 && low <= 57343) {
-              output2 += percentEncodeNonAscii(65536 + (code - 55296 << 10) + (low - 56320));
+              output3 += percentEncodeNonAscii(65536 + (code - 55296 << 10) + (low - 56320));
               i++;
             } else {
-              output2 += percentEncodeNonAscii(65533);
+              output3 += percentEncodeNonAscii(65533);
             }
           } else {
-            output2 += percentEncodeNonAscii(65533);
+            output3 += percentEncodeNonAscii(65533);
           }
         }
       }
-      return output2;
+      return output3;
     }
     function escapePreservingEscapes(input2) {
-      let output2 = "";
+      let output3 = "";
       for (let i = 0; i < input2.length; i++) {
         if (input2[i] === "%" && i + 2 < input2.length) {
           const hex3 = input2.slice(i + 1, i + 3);
           if (isHexPair(hex3)) {
-            output2 += "%" + hex3.toUpperCase();
+            output3 += "%" + hex3.toUpperCase();
             i += 2;
             continue;
           }
         }
-        output2 += escape(input2[i]);
+        output3 += escape(input2[i]);
       }
-      return output2;
+      return output3;
     }
-    function recomposeAuthority(component) {
+    function recomposeAuthority(component2) {
       const uriTokens = [];
-      if (component.userinfo !== void 0) {
-        uriTokens.push(encodeUserinfo(component.userinfo));
+      if (component2.userinfo !== void 0) {
+        uriTokens.push(encodeUserinfo(component2.userinfo));
         uriTokens.push("@");
       }
-      if (component.host !== void 0) {
-        let host = component.host;
+      if (component2.host !== void 0) {
+        let host = component2.host;
         if (!isIPv4(host)) {
           let ipV6res = normalizeIPv6(host);
           if (ipV6res.isIPV6 !== true && ipV6res.isIPVFuture !== true) {
@@ -3572,8 +3572,8 @@ var require_utils = __commonJS({
         }
         uriTokens.push(host);
       }
-      if (typeof component.port === "number" || typeof component.port === "string") {
-        const port = String(component.port);
+      if (typeof component2.port === "number" || typeof component2.port === "string") {
+        const port = String(component2.port);
         if (!isPort(port)) {
           throw new TypeError("URI port is malformed.");
         }
@@ -3637,21 +3637,21 @@ var require_schemes = __commonJS({
         return false;
       }
     }
-    function httpParse(component) {
-      if (!component.host) {
-        component.error = component.error || "HTTP URIs must have a host.";
+    function httpParse(component2) {
+      if (!component2.host) {
+        component2.error = component2.error || "HTTP URIs must have a host.";
       }
-      return component;
+      return component2;
     }
-    function httpSerialize(component) {
-      const secure = String(component.scheme).toLowerCase() === "https";
-      if (component.port === (secure ? 443 : 80) || component.port === "") {
-        component.port = void 0;
+    function httpSerialize(component2) {
+      const secure = String(component2.scheme).toLowerCase() === "https";
+      if (component2.port === (secure ? 443 : 80) || component2.port === "") {
+        component2.port = void 0;
       }
-      if (!component.path) {
-        component.path = "/";
+      if (!component2.path) {
+        component2.path = "/";
       }
-      return component;
+      return component2;
     }
     function wsParse(wsComponent) {
       wsComponent.secure = wsIsSecure(wsComponent);
@@ -3835,11 +3835,11 @@ var require_fast_uri = __commonJS({
         normalizeString(uri, options);
       } else if (typeof uri === "object") {
         uri = /** @type {T} */
-        parse3(serialize(uri, options), options);
+        parse4(serialize(uri, options), options);
       }
       return uri;
     }
-    function resolve(baseURI, relativeURI, options) {
+    function resolve2(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const {
         parsed: baseParsed,
@@ -3872,49 +3872,49 @@ var require_fast_uri = __commonJS({
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    function resolveComponent(base, relative, options, skipNormalization) {
+    function resolveComponent(base, relative3, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
-        base = parse3(serialize(base, options), options);
-        relative = parse3(serialize(relative, options), options);
+        base = parse4(serialize(base, options), options);
+        relative3 = parse4(serialize(relative3, options), options);
       }
       options = options || {};
-      if (!options.tolerant && relative.scheme) {
-        target.scheme = relative.scheme;
-        target.userinfo = relative.userinfo;
-        target.host = relative.host;
-        target.port = relative.port;
-        target.path = removeDotSegments(relative.path || "");
-        target.query = relative.query;
+      if (!options.tolerant && relative3.scheme) {
+        target.scheme = relative3.scheme;
+        target.userinfo = relative3.userinfo;
+        target.host = relative3.host;
+        target.port = relative3.port;
+        target.path = removeDotSegments(relative3.path || "");
+        target.query = relative3.query;
       } else {
-        if (relative.userinfo !== void 0 || relative.host !== void 0 || relative.port !== void 0) {
-          target.userinfo = relative.userinfo;
-          target.host = relative.host;
-          target.port = relative.port;
-          target.path = removeDotSegments(relative.path || "");
-          target.query = relative.query;
+        if (relative3.userinfo !== void 0 || relative3.host !== void 0 || relative3.port !== void 0) {
+          target.userinfo = relative3.userinfo;
+          target.host = relative3.host;
+          target.port = relative3.port;
+          target.path = removeDotSegments(relative3.path || "");
+          target.query = relative3.query;
         } else {
-          if (!relative.path) {
+          if (!relative3.path) {
             target.path = base.path;
-            if (relative.query !== void 0) {
-              target.query = relative.query;
+            if (relative3.query !== void 0) {
+              target.query = relative3.query;
             } else {
               target.query = base.query;
             }
           } else {
-            if (relative.path[0] === "/") {
-              target.path = removeDotSegments(relative.path);
+            if (relative3.path[0] === "/") {
+              target.path = removeDotSegments(relative3.path);
             } else {
               if ((base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0) && !base.path) {
-                target.path = "/" + relative.path;
+                target.path = "/" + relative3.path;
               } else if (!base.path) {
-                target.path = relative.path;
+                target.path = relative3.path;
               } else {
-                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative.path;
+                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative3.path;
               }
               target.path = removeDotSegments(target.path);
             }
-            target.query = relative.query;
+            target.query = relative3.query;
           }
           target.userinfo = base.userinfo;
           target.host = base.host;
@@ -3922,7 +3922,7 @@ var require_fast_uri = __commonJS({
         }
         target.scheme = base.scheme;
       }
-      target.fragment = relative.fragment;
+      target.fragment = relative3.fragment;
       return target;
     }
     function equal(uriA, uriB, options) {
@@ -3931,7 +3931,7 @@ var require_fast_uri = __commonJS({
       return normalizedA !== void 0 && normalizedB !== void 0 && normalizedA === normalizedB;
     }
     function serialize(cmpts, opts) {
-      const component = {
+      const component2 = {
         host: cmpts.host,
         scheme: cmpts.scheme,
         userinfo: cmpts.userinfo,
@@ -3949,36 +3949,36 @@ var require_fast_uri = __commonJS({
       };
       const options = Object.assign({}, opts);
       const uriTokens = [];
-      if (component.scheme) {
-        component.scheme = decodeValidScheme(component.scheme);
+      if (component2.scheme) {
+        component2.scheme = decodeValidScheme(component2.scheme);
       }
-      const schemeHandler = getSchemeHandler(options.scheme || component.scheme);
-      if (schemeHandler && schemeHandler.serialize) schemeHandler.serialize(component, options);
-      const hasAuthority = component.userinfo !== void 0 || component.host !== void 0 || component.port !== void 0;
-      const pathNoScheme = !options.skipEscape && component.scheme === void 0 && !hasAuthority;
-      if (component.path !== void 0) {
+      const schemeHandler = getSchemeHandler(options.scheme || component2.scheme);
+      if (schemeHandler && schemeHandler.serialize) schemeHandler.serialize(component2, options);
+      const hasAuthority = component2.userinfo !== void 0 || component2.host !== void 0 || component2.port !== void 0;
+      const pathNoScheme = !options.skipEscape && component2.scheme === void 0 && !hasAuthority;
+      if (component2.path !== void 0) {
         if (!options.skipEscape) {
-          component.path = serializePathEncoding(component.path, pathNoScheme);
+          component2.path = serializePathEncoding(component2.path, pathNoScheme);
         } else {
-          component.path = normalizePercentEncoding(component.path);
+          component2.path = normalizePercentEncoding(component2.path);
         }
       }
-      if (options.reference !== "suffix" && component.scheme) {
-        component.scheme = decodeValidScheme(component.scheme);
-        uriTokens.push(component.scheme, ":");
+      if (options.reference !== "suffix" && component2.scheme) {
+        component2.scheme = decodeValidScheme(component2.scheme);
+        uriTokens.push(component2.scheme, ":");
       }
-      const authority = recomposeAuthority(component);
+      const authority = recomposeAuthority(component2);
       if (authority !== void 0) {
         if (options.reference !== "suffix") {
           uriTokens.push("//");
         }
         uriTokens.push(authority);
-        if (component.path && component.path[0] !== "/") {
+        if (component2.path && component2.path[0] !== "/") {
           uriTokens.push("/");
         }
       }
-      if (component.path !== void 0) {
-        let s = component.path;
+      if (component2.path !== void 0) {
+        let s = component2.path;
         if (!options.absolutePath && (!schemeHandler || !schemeHandler.absolutePath)) {
           s = removeDotSegments(s);
         }
@@ -3990,11 +3990,11 @@ var require_fast_uri = __commonJS({
         }
         uriTokens.push(s);
       }
-      if (component.query !== void 0) {
-        uriTokens.push("?", encodeQuery(component.query));
+      if (component2.query !== void 0) {
+        uriTokens.push("?", encodeQuery(component2.query));
       }
-      if (component.fragment !== void 0) {
-        uriTokens.push("#", encodeFragment(component.fragment));
+      if (component2.fragment !== void 0) {
+        uriTokens.push("#", encodeFragment(component2.fragment));
       }
       return uriTokens.join("");
     }
@@ -4010,14 +4010,14 @@ var require_fast_uri = __commonJS({
       }
       return void 0;
     }
-    function hasMalformedPercentEncoding(component) {
-      if (component === void 0) return false;
-      let percent = component.indexOf("%");
+    function hasMalformedPercentEncoding(component2) {
+      if (component2 === void 0) return false;
+      let percent = component2.indexOf("%");
       while (percent !== -1) {
-        if (percent + 2 >= component.length || !/^[\da-f]{2}$/iu.test(component.slice(percent + 1, percent + 3))) {
+        if (percent + 2 >= component2.length || !/^[\da-f]{2}$/iu.test(component2.slice(percent + 1, percent + 3))) {
           return true;
         }
-        percent = component.indexOf("%", percent + 3);
+        percent = component2.indexOf("%", percent + 3);
       }
       return false;
     }
@@ -4175,7 +4175,7 @@ var require_fast_uri = __commonJS({
       }
       return { parsed, malformedAuthorityOrPort, malformedPercentEncoding, malformedSchemeSpecific, malformedHost, malformedScheme };
     }
-    function parse3(uri, opts) {
+    function parse4(uri, opts) {
       return parseWithStatus(uri, opts).parsed;
     }
     function normalizeString(uri, opts) {
@@ -4208,11 +4208,11 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve,
+      resolve: resolve2,
       resolveComponent,
       equal,
       serialize,
-      parse: parse3
+      parse: parse4
     };
     module.exports = fastUri;
     module.exports.default = fastUri;
@@ -7197,6 +7197,10675 @@ var require_dist = __commonJS({
   }
 });
 
+// node_modules/@xmldom/xmldom/lib/conventions.js
+var require_conventions = __commonJS({
+  "node_modules/@xmldom/xmldom/lib/conventions.js"(exports) {
+    "use strict";
+    function find(list, predicate, ac) {
+      if (ac === void 0) {
+        ac = Array.prototype;
+      }
+      if (list && typeof ac.find === "function") {
+        return ac.find.call(list, predicate);
+      }
+      for (var i = 0; i < list.length; i++) {
+        if (hasOwn(list, i)) {
+          var item = list[i];
+          if (predicate.call(void 0, item, i, list)) {
+            return item;
+          }
+        }
+      }
+    }
+    function freeze(object3, oc) {
+      if (oc === void 0) {
+        oc = Object;
+      }
+      if (oc && typeof oc.getOwnPropertyDescriptors === "function") {
+        object3 = oc.create(null, oc.getOwnPropertyDescriptors(object3));
+      }
+      return oc && typeof oc.freeze === "function" ? oc.freeze(object3) : object3;
+    }
+    function hasOwn(object3, key) {
+      return Object.prototype.hasOwnProperty.call(object3, key);
+    }
+    function assign(target, source) {
+      if (target === null || typeof target !== "object") {
+        throw new TypeError("target is not an object");
+      }
+      for (var key in source) {
+        if (hasOwn(source, key)) {
+          target[key] = source[key];
+        }
+      }
+      return target;
+    }
+    var HTML_BOOLEAN_ATTRIBUTES = freeze({
+      allowfullscreen: true,
+      async: true,
+      autofocus: true,
+      autoplay: true,
+      checked: true,
+      controls: true,
+      default: true,
+      defer: true,
+      disabled: true,
+      formnovalidate: true,
+      hidden: true,
+      ismap: true,
+      itemscope: true,
+      loop: true,
+      multiple: true,
+      muted: true,
+      nomodule: true,
+      novalidate: true,
+      open: true,
+      playsinline: true,
+      readonly: true,
+      required: true,
+      reversed: true,
+      selected: true
+    });
+    function isHTMLBooleanAttribute(name) {
+      return hasOwn(HTML_BOOLEAN_ATTRIBUTES, name.toLowerCase());
+    }
+    var HTML_VOID_ELEMENTS = freeze({
+      area: true,
+      base: true,
+      br: true,
+      col: true,
+      embed: true,
+      hr: true,
+      img: true,
+      input: true,
+      link: true,
+      meta: true,
+      param: true,
+      source: true,
+      track: true,
+      wbr: true
+    });
+    function isHTMLVoidElement(tagName) {
+      return hasOwn(HTML_VOID_ELEMENTS, tagName.toLowerCase());
+    }
+    var HTML_RAW_TEXT_ELEMENTS = freeze({
+      script: false,
+      style: false,
+      textarea: true,
+      title: true
+    });
+    function isHTMLRawTextElement(tagName) {
+      var key = tagName.toLowerCase();
+      return hasOwn(HTML_RAW_TEXT_ELEMENTS, key) && !HTML_RAW_TEXT_ELEMENTS[key];
+    }
+    function isHTMLEscapableRawTextElement(tagName) {
+      var key = tagName.toLowerCase();
+      return hasOwn(HTML_RAW_TEXT_ELEMENTS, key) && HTML_RAW_TEXT_ELEMENTS[key];
+    }
+    function isHTMLMimeType(mimeType) {
+      return mimeType === MIME_TYPE.HTML;
+    }
+    function hasDefaultHTMLNamespace(mimeType) {
+      return isHTMLMimeType(mimeType) || mimeType === MIME_TYPE.XML_XHTML_APPLICATION;
+    }
+    var MIME_TYPE = freeze({
+      /**
+       * `text/html`, the only mime type that triggers treating an XML document as HTML.
+       *
+       * @see https://www.iana.org/assignments/media-types/text/html IANA MimeType registration
+       * @see https://en.wikipedia.org/wiki/HTML Wikipedia
+       * @see https://developer.mozilla.org/en-US/docs/Web/API/DOMParser/parseFromString MDN
+       * @see https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-domparser-parsefromstring
+       *      WHATWG HTML Spec
+       */
+      HTML: "text/html",
+      /**
+       * `application/xml`, the standard mime type for XML documents.
+       *
+       * @see https://www.iana.org/assignments/media-types/application/xml IANA MimeType
+       *      registration
+       * @see https://tools.ietf.org/html/rfc7303#section-9.1 RFC 7303
+       * @see https://en.wikipedia.org/wiki/XML_and_MIME Wikipedia
+       */
+      XML_APPLICATION: "application/xml",
+      /**
+       * `text/xml`, an alias for `application/xml`.
+       *
+       * @see https://tools.ietf.org/html/rfc7303#section-9.2 RFC 7303
+       * @see https://www.iana.org/assignments/media-types/text/xml IANA MimeType registration
+       * @see https://en.wikipedia.org/wiki/XML_and_MIME Wikipedia
+       */
+      XML_TEXT: "text/xml",
+      /**
+       * `application/xhtml+xml`, indicates an XML document that has the default HTML namespace,
+       * but is parsed as an XML document.
+       *
+       * @see https://www.iana.org/assignments/media-types/application/xhtml+xml IANA MimeType
+       *      registration
+       * @see https://dom.spec.whatwg.org/#dom-domimplementation-createdocument WHATWG DOM Spec
+       * @see https://en.wikipedia.org/wiki/XHTML Wikipedia
+       */
+      XML_XHTML_APPLICATION: "application/xhtml+xml",
+      /**
+       * `image/svg+xml`,
+       *
+       * @see https://www.iana.org/assignments/media-types/image/svg+xml IANA MimeType registration
+       * @see https://www.w3.org/TR/SVG11/ W3C SVG 1.1
+       * @see https://en.wikipedia.org/wiki/Scalable_Vector_Graphics Wikipedia
+       */
+      XML_SVG_IMAGE: "image/svg+xml"
+    });
+    var _MIME_TYPES = Object.keys(MIME_TYPE).map(function(key) {
+      return MIME_TYPE[key];
+    });
+    function isValidMimeType(mimeType) {
+      return _MIME_TYPES.indexOf(mimeType) > -1;
+    }
+    var NAMESPACE = freeze({
+      /**
+       * The XHTML namespace.
+       *
+       * @see http://www.w3.org/1999/xhtml
+       */
+      HTML: "http://www.w3.org/1999/xhtml",
+      /**
+       * The SVG namespace.
+       *
+       * @see http://www.w3.org/2000/svg
+       */
+      SVG: "http://www.w3.org/2000/svg",
+      /**
+       * The `xml:` namespace.
+       *
+       * @see http://www.w3.org/XML/1998/namespace
+       */
+      XML: "http://www.w3.org/XML/1998/namespace",
+      /**
+       * The `xmlns:` namespace.
+       *
+       * @see https://www.w3.org/2000/xmlns/
+       */
+      XMLNS: "http://www.w3.org/2000/xmlns/"
+    });
+    exports.assign = assign;
+    exports.find = find;
+    exports.freeze = freeze;
+    exports.HTML_BOOLEAN_ATTRIBUTES = HTML_BOOLEAN_ATTRIBUTES;
+    exports.HTML_RAW_TEXT_ELEMENTS = HTML_RAW_TEXT_ELEMENTS;
+    exports.HTML_VOID_ELEMENTS = HTML_VOID_ELEMENTS;
+    exports.hasDefaultHTMLNamespace = hasDefaultHTMLNamespace;
+    exports.hasOwn = hasOwn;
+    exports.isHTMLBooleanAttribute = isHTMLBooleanAttribute;
+    exports.isHTMLRawTextElement = isHTMLRawTextElement;
+    exports.isHTMLEscapableRawTextElement = isHTMLEscapableRawTextElement;
+    exports.isHTMLMimeType = isHTMLMimeType;
+    exports.isHTMLVoidElement = isHTMLVoidElement;
+    exports.isValidMimeType = isValidMimeType;
+    exports.MIME_TYPE = MIME_TYPE;
+    exports.NAMESPACE = NAMESPACE;
+  }
+});
+
+// node_modules/@xmldom/xmldom/lib/errors.js
+var require_errors2 = __commonJS({
+  "node_modules/@xmldom/xmldom/lib/errors.js"(exports) {
+    "use strict";
+    var conventions = require_conventions();
+    function extendError(constructor, writableName) {
+      constructor.prototype = Object.create(Error.prototype, {
+        constructor: { value: constructor },
+        name: { value: constructor.name, enumerable: true, writable: writableName }
+      });
+    }
+    var DOMExceptionName = conventions.freeze({
+      /**
+       * the default value as defined by the spec
+       */
+      Error: "Error",
+      /**
+       * @deprecated
+       * Use RangeError instead.
+       */
+      IndexSizeError: "IndexSizeError",
+      /**
+       * @deprecated
+       * Just to match the related static code, not part of the spec.
+       */
+      DomstringSizeError: "DomstringSizeError",
+      HierarchyRequestError: "HierarchyRequestError",
+      WrongDocumentError: "WrongDocumentError",
+      InvalidCharacterError: "InvalidCharacterError",
+      /**
+       * @deprecated
+       * Just to match the related static code, not part of the spec.
+       */
+      NoDataAllowedError: "NoDataAllowedError",
+      NoModificationAllowedError: "NoModificationAllowedError",
+      NotFoundError: "NotFoundError",
+      NotSupportedError: "NotSupportedError",
+      InUseAttributeError: "InUseAttributeError",
+      InvalidStateError: "InvalidStateError",
+      SyntaxError: "SyntaxError",
+      InvalidModificationError: "InvalidModificationError",
+      NamespaceError: "NamespaceError",
+      /**
+       * @deprecated
+       * Use TypeError for invalid arguments,
+       * "NotSupportedError" DOMException for unsupported operations,
+       * and "NotAllowedError" DOMException for denied requests instead.
+       */
+      InvalidAccessError: "InvalidAccessError",
+      /**
+       * @deprecated
+       * Just to match the related static code, not part of the spec.
+       */
+      ValidationError: "ValidationError",
+      /**
+       * @deprecated
+       * Use TypeError instead.
+       */
+      TypeMismatchError: "TypeMismatchError",
+      SecurityError: "SecurityError",
+      NetworkError: "NetworkError",
+      AbortError: "AbortError",
+      /**
+       * @deprecated
+       * Just to match the related static code, not part of the spec.
+       */
+      URLMismatchError: "URLMismatchError",
+      QuotaExceededError: "QuotaExceededError",
+      TimeoutError: "TimeoutError",
+      InvalidNodeTypeError: "InvalidNodeTypeError",
+      DataCloneError: "DataCloneError",
+      EncodingError: "EncodingError",
+      NotReadableError: "NotReadableError",
+      UnknownError: "UnknownError",
+      ConstraintError: "ConstraintError",
+      DataError: "DataError",
+      TransactionInactiveError: "TransactionInactiveError",
+      ReadOnlyError: "ReadOnlyError",
+      VersionError: "VersionError",
+      OperationError: "OperationError",
+      NotAllowedError: "NotAllowedError",
+      OptOutError: "OptOutError"
+    });
+    var DOMExceptionNames = Object.keys(DOMExceptionName);
+    function isValidDomExceptionCode(value) {
+      return typeof value === "number" && value >= 1 && value <= 25;
+    }
+    function endsWithError(value) {
+      return typeof value === "string" && value.substring(value.length - DOMExceptionName.Error.length) === DOMExceptionName.Error;
+    }
+    function DOMException(messageOrCode, nameOrMessage) {
+      if (isValidDomExceptionCode(messageOrCode)) {
+        this.name = DOMExceptionNames[messageOrCode];
+        this.message = nameOrMessage || "";
+      } else {
+        this.message = messageOrCode;
+        this.name = endsWithError(nameOrMessage) ? nameOrMessage : DOMExceptionName.Error;
+      }
+      if (Error.captureStackTrace) Error.captureStackTrace(this, DOMException);
+    }
+    extendError(DOMException, true);
+    Object.defineProperties(DOMException.prototype, {
+      code: {
+        enumerable: true,
+        get: function() {
+          var code = DOMExceptionNames.indexOf(this.name);
+          if (isValidDomExceptionCode(code)) return code;
+          return 0;
+        }
+      }
+    });
+    var ExceptionCode = {
+      INDEX_SIZE_ERR: 1,
+      DOMSTRING_SIZE_ERR: 2,
+      HIERARCHY_REQUEST_ERR: 3,
+      WRONG_DOCUMENT_ERR: 4,
+      INVALID_CHARACTER_ERR: 5,
+      NO_DATA_ALLOWED_ERR: 6,
+      NO_MODIFICATION_ALLOWED_ERR: 7,
+      NOT_FOUND_ERR: 8,
+      NOT_SUPPORTED_ERR: 9,
+      INUSE_ATTRIBUTE_ERR: 10,
+      INVALID_STATE_ERR: 11,
+      SYNTAX_ERR: 12,
+      INVALID_MODIFICATION_ERR: 13,
+      NAMESPACE_ERR: 14,
+      INVALID_ACCESS_ERR: 15,
+      VALIDATION_ERR: 16,
+      TYPE_MISMATCH_ERR: 17,
+      SECURITY_ERR: 18,
+      NETWORK_ERR: 19,
+      ABORT_ERR: 20,
+      URL_MISMATCH_ERR: 21,
+      QUOTA_EXCEEDED_ERR: 22,
+      TIMEOUT_ERR: 23,
+      INVALID_NODE_TYPE_ERR: 24,
+      DATA_CLONE_ERR: 25
+    };
+    var entries = Object.entries(ExceptionCode);
+    for (i = 0; i < entries.length; i++) {
+      key = entries[i][0];
+      DOMException[key] = entries[i][1];
+    }
+    var key;
+    var i;
+    function ParseError(message2, locator, cause) {
+      this.message = message2;
+      this.locator = locator;
+      this.cause = cause;
+      if (Error.captureStackTrace) Error.captureStackTrace(this, ParseError);
+    }
+    extendError(ParseError);
+    exports.DOMException = DOMException;
+    exports.DOMExceptionName = DOMExceptionName;
+    exports.ExceptionCode = ExceptionCode;
+    exports.ParseError = ParseError;
+  }
+});
+
+// node_modules/@xmldom/xmldom/lib/grammar.js
+var require_grammar = __commonJS({
+  "node_modules/@xmldom/xmldom/lib/grammar.js"(exports) {
+    "use strict";
+    function detectUnicodeSupport(RegExpImpl) {
+      try {
+        if (typeof RegExpImpl !== "function") {
+          RegExpImpl = RegExp;
+        }
+        var match = new RegExpImpl("\u{1D306}", "u").exec("\u{1D306}");
+        return !!match && match[0].length === 2;
+      } catch (error62) {
+      }
+      return false;
+    }
+    var UNICODE_SUPPORT = detectUnicodeSupport();
+    function chars(regexp) {
+      if (regexp.source[0] !== "[") {
+        throw new Error(regexp + " can not be used with chars");
+      }
+      return regexp.source.slice(1, regexp.source.lastIndexOf("]"));
+    }
+    function chars_without(regexp, search) {
+      if (regexp.source[0] !== "[") {
+        throw new Error("/" + regexp.source + "/ can not be used with chars_without");
+      }
+      if (!search || typeof search !== "string") {
+        throw new Error(JSON.stringify(search) + " is not a valid search");
+      }
+      if (regexp.source.indexOf(search) === -1) {
+        throw new Error('"' + search + '" is not is /' + regexp.source + "/");
+      }
+      if (search === "-" && regexp.source.indexOf(search) !== 1) {
+        throw new Error('"' + search + '" is not at the first postion of /' + regexp.source + "/");
+      }
+      return new RegExp(regexp.source.replace(search, ""), UNICODE_SUPPORT ? "u" : "");
+    }
+    function reg(args) {
+      var self = this;
+      return new RegExp(
+        Array.prototype.slice.call(arguments).map(function(part) {
+          var isStr = typeof part === "string";
+          if (isStr && self === void 0 && part === "|") {
+            throw new Error("use regg instead of reg to wrap expressions with `|`!");
+          }
+          return isStr ? part : part.source;
+        }).join(""),
+        UNICODE_SUPPORT ? "u" : ""
+      );
+    }
+    function regg(args) {
+      if (arguments.length === 0) {
+        throw new Error("no parameters provided");
+      }
+      return reg.apply(regg, ["(?:"].concat(Array.prototype.slice.call(arguments), [")"]));
+    }
+    var UNICODE_REPLACEMENT_CHARACTER = "\uFFFD";
+    var Char = /[-\x09\x0A\x0D\x20-\x2C\x2E-\uD7FF\uE000-\uFFFD]/;
+    if (UNICODE_SUPPORT) {
+      Char = reg("[", chars(Char), "\\u{10000}-\\u{10FFFF}", "]");
+    }
+    var InvalidChar = new RegExp("[^" + chars(Char) + "]", UNICODE_SUPPORT ? "u" : "");
+    var _SChar = /[\x20\x09\x0D\x0A]/;
+    var SChar_s = chars(_SChar);
+    var S = reg(_SChar, "+");
+    var S_OPT = reg(_SChar, "*");
+    var NameStartChar = /[:_a-zA-Z\xC0-\xD6\xD8-\xF6\xF8-\u02FF\u0370-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]/;
+    if (UNICODE_SUPPORT) {
+      NameStartChar = reg("[", chars(NameStartChar), "\\u{10000}-\\u{10FFFF}", "]");
+    }
+    var NameStartChar_s = chars(NameStartChar);
+    var NameChar = reg("[", NameStartChar_s, chars(/[-.0-9\xB7]/), chars(/[\u0300-\u036F\u203F-\u2040]/), "]");
+    var Name = reg(NameStartChar, NameChar, "*");
+    var Name_exact = reg("^", Name, "$");
+    var Nmtoken = reg(NameChar, "+");
+    var EntityRef = reg("&", Name, ";");
+    var CharRef = regg(/&#[0-9]+;|&#x[0-9a-fA-F]+;/);
+    var Reference = regg(EntityRef, "|", CharRef);
+    var PEReference = reg("%", Name, ";");
+    var EntityValue = regg(
+      reg('"', regg(/[^%&"]/, "|", PEReference, "|", Reference), "*", '"'),
+      "|",
+      reg("'", regg(/[^%&']/, "|", PEReference, "|", Reference), "*", "'")
+    );
+    var AttValue = regg('"', regg(/[^<&"]/, "|", Reference), "*", '"', "|", "'", regg(/[^<&']/, "|", Reference), "*", "'");
+    var NCNameStartChar = chars_without(NameStartChar, ":");
+    var NCNameChar = chars_without(NameChar, ":");
+    var NCName = reg(NCNameStartChar, NCNameChar, "*");
+    var NCName_exact = reg("^", NCName, "$");
+    var QName = reg(NCName, regg(":", NCName), "?");
+    var QName_exact = reg("^", QName, "$");
+    var QName_group = reg("(", QName, ")");
+    var SystemLiteral = regg(/"[^"]*"|'[^']*'/);
+    var PI = reg(/^<\?/, "(", Name, ")", regg(S, "(?!", _SChar, ")(", Char, "*?)"), "?", /\?>/);
+    var PubidChar = /[\x20\x0D\x0Aa-zA-Z0-9-'()+,./:=?;!*#@$_%]/;
+    var PubidLiteral = regg('"', PubidChar, '*"', "|", "'", chars_without(PubidChar, "'"), "*'");
+    var COMMENT_START = "<!--";
+    var COMMENT_END = "-->";
+    var Comment = reg(COMMENT_START, regg(chars_without(Char, "-"), "|", reg("-", chars_without(Char, "-"))), "*", COMMENT_END);
+    var PCDATA = "#PCDATA";
+    var Mixed = regg(
+      reg(/\(/, S_OPT, PCDATA, regg(S_OPT, /\|/, S_OPT, QName), "*", S_OPT, /\)\*/),
+      "|",
+      reg(/\(/, S_OPT, PCDATA, S_OPT, /\)/)
+    );
+    var _children_quantity = /[?*+]?/;
+    var children2 = reg(
+      /\([^>]+\)/,
+      _children_quantity
+      /*regg(choice, '|', seq), _children_quantity*/
+    );
+    var contentspec = regg("EMPTY", "|", "ANY", "|", Mixed, "|", children2);
+    var ELEMENTDECL_START = "<!ELEMENT";
+    var elementdecl = reg(ELEMENTDECL_START, S, regg(QName, "|", PEReference), S, regg(contentspec, "|", PEReference), S_OPT, ">");
+    var NotationType = reg("NOTATION", S, /\(/, S_OPT, Name, regg(S_OPT, /\|/, S_OPT, Name), "*", S_OPT, /\)/);
+    var Enumeration = reg(/\(/, S_OPT, Nmtoken, regg(S_OPT, /\|/, S_OPT, Nmtoken), "*", S_OPT, /\)/);
+    var EnumeratedType = regg(NotationType, "|", Enumeration);
+    var AttType = regg(/CDATA|ID|IDREF|IDREFS|ENTITY|ENTITIES|NMTOKEN|NMTOKENS/, "|", EnumeratedType);
+    var DefaultDecl = regg(/#REQUIRED|#IMPLIED/, "|", regg(regg("#FIXED", S), "?", AttValue));
+    var AttDef = regg(S, Name, S, AttType, S, DefaultDecl);
+    var ATTLIST_DECL_START = "<!ATTLIST";
+    var AttlistDecl = reg(ATTLIST_DECL_START, S, Name, AttDef, "*", S_OPT, ">");
+    var ABOUT_LEGACY_COMPAT = "about:legacy-compat";
+    var ABOUT_LEGACY_COMPAT_SystemLiteral = regg('"' + ABOUT_LEGACY_COMPAT + '"', "|", "'" + ABOUT_LEGACY_COMPAT + "'");
+    var SYSTEM = "SYSTEM";
+    var PUBLIC = "PUBLIC";
+    var ExternalID = regg(regg(SYSTEM, S, SystemLiteral), "|", regg(PUBLIC, S, PubidLiteral, S, SystemLiteral));
+    var ExternalID_match = reg(
+      "^",
+      regg(
+        regg(SYSTEM, S, "(?<SystemLiteralOnly>", SystemLiteral, ")"),
+        "|",
+        regg(PUBLIC, S, "(?<PubidLiteral>", PubidLiteral, ")", S, "(?<SystemLiteral>", SystemLiteral, ")")
+      )
+    );
+    var PubidLiteral_match = reg("^", PubidLiteral, "$");
+    var SystemLiteral_match = reg("^", SystemLiteral, "$");
+    var NDataDecl = regg(S, "NDATA", S, Name);
+    var EntityDef = regg(EntityValue, "|", regg(ExternalID, NDataDecl, "?"));
+    var ENTITY_DECL_START = "<!ENTITY";
+    var GEDecl = reg(ENTITY_DECL_START, S, Name, S, EntityDef, S_OPT, ">");
+    var PEDef = regg(EntityValue, "|", ExternalID);
+    var PEDecl = reg(ENTITY_DECL_START, S, "%", S, Name, S, PEDef, S_OPT, ">");
+    var EntityDecl = regg(GEDecl, "|", PEDecl);
+    var PublicID = reg(PUBLIC, S, PubidLiteral);
+    var NotationDecl = reg("<!NOTATION", S, Name, S, regg(ExternalID, "|", PublicID), S_OPT, ">");
+    var Eq = reg(S_OPT, "=", S_OPT);
+    var VersionNum = /1[.]\d+/;
+    var VersionInfo = reg(S, "version", Eq, regg("'", VersionNum, "'", "|", '"', VersionNum, '"'));
+    var EncName = /[A-Za-z][-A-Za-z0-9._]*/;
+    var EncodingDecl = regg(S, "encoding", Eq, regg('"', EncName, '"', "|", "'", EncName, "'"));
+    var SDDecl = regg(S, "standalone", Eq, regg("'", regg("yes", "|", "no"), "'", "|", '"', regg("yes", "|", "no"), '"'));
+    var XMLDecl = reg(/^<\?xml/, VersionInfo, EncodingDecl, "?", SDDecl, "?", S_OPT, /\?>/);
+    var DOCTYPE_DECL_START = "<!DOCTYPE";
+    var CDATA_START = "<![CDATA[";
+    var CDATA_END = "]]>";
+    var CDStart = /<!\[CDATA\[/;
+    var CDEnd = /\]\]>/;
+    var CData = reg(Char, "*?", CDEnd);
+    var CDSect = reg(CDStart, CData);
+    exports.chars = chars;
+    exports.chars_without = chars_without;
+    exports.detectUnicodeSupport = detectUnicodeSupport;
+    exports.reg = reg;
+    exports.regg = regg;
+    exports.ABOUT_LEGACY_COMPAT = ABOUT_LEGACY_COMPAT;
+    exports.ABOUT_LEGACY_COMPAT_SystemLiteral = ABOUT_LEGACY_COMPAT_SystemLiteral;
+    exports.AttlistDecl = AttlistDecl;
+    exports.CDATA_START = CDATA_START;
+    exports.CDATA_END = CDATA_END;
+    exports.CDSect = CDSect;
+    exports.Char = Char;
+    exports.Comment = Comment;
+    exports.COMMENT_START = COMMENT_START;
+    exports.COMMENT_END = COMMENT_END;
+    exports.DOCTYPE_DECL_START = DOCTYPE_DECL_START;
+    exports.elementdecl = elementdecl;
+    exports.EntityDecl = EntityDecl;
+    exports.EntityValue = EntityValue;
+    exports.ExternalID = ExternalID;
+    exports.ExternalID_match = ExternalID_match;
+    exports.Name = Name;
+    exports.Name_exact = Name_exact;
+    exports.NCName_exact = NCName_exact;
+    exports.NotationDecl = NotationDecl;
+    exports.Reference = Reference;
+    exports.PEReference = PEReference;
+    exports.PI = PI;
+    exports.PUBLIC = PUBLIC;
+    exports.PubidLiteral = PubidLiteral;
+    exports.PubidLiteral_match = PubidLiteral_match;
+    exports.QName = QName;
+    exports.QName_exact = QName_exact;
+    exports.QName_group = QName_group;
+    exports.S = S;
+    exports.SChar_s = SChar_s;
+    exports.S_OPT = S_OPT;
+    exports.SYSTEM = SYSTEM;
+    exports.SystemLiteral = SystemLiteral;
+    exports.SystemLiteral_match = SystemLiteral_match;
+    exports.InvalidChar = InvalidChar;
+    exports.UNICODE_REPLACEMENT_CHARACTER = UNICODE_REPLACEMENT_CHARACTER;
+    exports.UNICODE_SUPPORT = UNICODE_SUPPORT;
+    exports.XMLDecl = XMLDecl;
+  }
+});
+
+// node_modules/@xmldom/xmldom/lib/dom.js
+var require_dom = __commonJS({
+  "node_modules/@xmldom/xmldom/lib/dom.js"(exports) {
+    "use strict";
+    var conventions = require_conventions();
+    var find = conventions.find;
+    var hasDefaultHTMLNamespace = conventions.hasDefaultHTMLNamespace;
+    var hasOwn = conventions.hasOwn;
+    var isHTMLMimeType = conventions.isHTMLMimeType;
+    var isHTMLRawTextElement = conventions.isHTMLRawTextElement;
+    var isHTMLVoidElement = conventions.isHTMLVoidElement;
+    var MIME_TYPE = conventions.MIME_TYPE;
+    var NAMESPACE = conventions.NAMESPACE;
+    var PDC = /* @__PURE__ */ Symbol();
+    var errors = require_errors2();
+    var DOMException = errors.DOMException;
+    var DOMExceptionName = errors.DOMExceptionName;
+    var g = require_grammar();
+    function checkSymbol(symbol2) {
+      if (symbol2 !== PDC) {
+        throw new TypeError("Illegal constructor");
+      }
+    }
+    function notEmptyString(input2) {
+      return input2 !== "";
+    }
+    function splitOnASCIIWhitespace(input2) {
+      return input2 ? input2.split(/[\t\n\f\r ]+/).filter(notEmptyString) : [];
+    }
+    function orderedSetReducer(current, element) {
+      if (!hasOwn(current, element)) {
+        current[element] = true;
+      }
+      return current;
+    }
+    function toOrderedSet(input2) {
+      if (!input2) return [];
+      var list = splitOnASCIIWhitespace(input2);
+      return Object.keys(list.reduce(orderedSetReducer, {}));
+    }
+    function arrayIncludes(list) {
+      return function(element) {
+        return list && list.indexOf(element) !== -1;
+      };
+    }
+    function validateQualifiedName(qualifiedName) {
+      if (!g.QName_exact.test(qualifiedName)) {
+        throw new DOMException(DOMException.INVALID_CHARACTER_ERR, 'invalid character in qualified name "' + qualifiedName + '"');
+      }
+    }
+    function validateAndExtract(namespace, qualifiedName) {
+      validateQualifiedName(qualifiedName);
+      namespace = namespace || null;
+      var prefix = null;
+      var localName = qualifiedName;
+      if (qualifiedName.indexOf(":") >= 0) {
+        var splitResult = qualifiedName.split(":");
+        prefix = splitResult[0];
+        localName = splitResult[1];
+      }
+      if (prefix !== null && namespace === null) {
+        throw new DOMException(DOMException.NAMESPACE_ERR, "prefix is non-null and namespace is null");
+      }
+      if (prefix === "xml" && namespace !== conventions.NAMESPACE.XML) {
+        throw new DOMException(DOMException.NAMESPACE_ERR, 'prefix is "xml" and namespace is not the XML namespace');
+      }
+      if ((prefix === "xmlns" || qualifiedName === "xmlns") && namespace !== conventions.NAMESPACE.XMLNS) {
+        throw new DOMException(
+          DOMException.NAMESPACE_ERR,
+          'either qualifiedName or prefix is "xmlns" and namespace is not the XMLNS namespace'
+        );
+      }
+      if (namespace === conventions.NAMESPACE.XMLNS && prefix !== "xmlns" && qualifiedName !== "xmlns") {
+        throw new DOMException(
+          DOMException.NAMESPACE_ERR,
+          'namespace is the XMLNS namespace and neither qualifiedName nor prefix is "xmlns"'
+        );
+      }
+      return [namespace, prefix, localName];
+    }
+    function copy(src, dest) {
+      for (var p in src) {
+        if (hasOwn(src, p)) {
+          dest[p] = src[p];
+        }
+      }
+    }
+    function _extends(Class2, Super) {
+      var pt = Class2.prototype;
+      if (!(pt instanceof Super)) {
+        let t = function() {
+        };
+        t.prototype = Super.prototype;
+        t = new t();
+        copy(pt, t);
+        Class2.prototype = pt = t;
+      }
+      if (pt.constructor != Class2) {
+        if (typeof Class2 != "function") {
+          console.error("unknown Class:" + Class2);
+        }
+        pt.constructor = Class2;
+      }
+    }
+    var NodeType = {};
+    var ELEMENT_NODE = NodeType.ELEMENT_NODE = 1;
+    var ATTRIBUTE_NODE = NodeType.ATTRIBUTE_NODE = 2;
+    var TEXT_NODE2 = NodeType.TEXT_NODE = 3;
+    var CDATA_SECTION_NODE = NodeType.CDATA_SECTION_NODE = 4;
+    var ENTITY_REFERENCE_NODE = NodeType.ENTITY_REFERENCE_NODE = 5;
+    var ENTITY_NODE = NodeType.ENTITY_NODE = 6;
+    var PROCESSING_INSTRUCTION_NODE = NodeType.PROCESSING_INSTRUCTION_NODE = 7;
+    var COMMENT_NODE2 = NodeType.COMMENT_NODE = 8;
+    var DOCUMENT_NODE = NodeType.DOCUMENT_NODE = 9;
+    var DOCUMENT_TYPE_NODE = NodeType.DOCUMENT_TYPE_NODE = 10;
+    var DOCUMENT_FRAGMENT_NODE = NodeType.DOCUMENT_FRAGMENT_NODE = 11;
+    var NOTATION_NODE = NodeType.NOTATION_NODE = 12;
+    var DocumentPosition = conventions.freeze({
+      DOCUMENT_POSITION_DISCONNECTED: 1,
+      DOCUMENT_POSITION_PRECEDING: 2,
+      DOCUMENT_POSITION_FOLLOWING: 4,
+      DOCUMENT_POSITION_CONTAINS: 8,
+      DOCUMENT_POSITION_CONTAINED_BY: 16,
+      DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC: 32
+    });
+    function commonAncestor(a, b) {
+      if (b.length < a.length) return commonAncestor(b, a);
+      var c = null;
+      for (var n in a) {
+        if (a[n] !== b[n]) return c;
+        c = a[n];
+      }
+      return c;
+    }
+    function docGUID(doc) {
+      if (!doc.guid) doc.guid = Math.random();
+      return doc.guid;
+    }
+    function NodeList() {
+    }
+    NodeList.prototype = {
+      /**
+       * The number of nodes in the list. The range of valid child node indices is 0 to length-1
+       * inclusive.
+       *
+       * @type {number}
+       */
+      length: 0,
+      /**
+       * Returns the item at `index`. If index is greater than or equal to the number of nodes in
+       * the list, this returns null.
+       *
+       * @param index
+       * Unsigned long Index into the collection.
+       * @returns {Node | null}
+       * The node at position `index` in the NodeList,
+       * or null if that is not a valid index.
+       */
+      item: function(index) {
+        return index >= 0 && index < this.length ? this[index] : null;
+      },
+      /**
+       * Returns a string representation of the NodeList.
+       *
+       * Accepts the same `options` object as `XMLSerializer.prototype.serializeToString`
+       * (`requireWellFormed`, `splitCDATASections`, `nodeFilter`). Passing a function is treated as
+       * a legacy `nodeFilter` for backward compatibility.
+       *
+       * @param {Object | function} [options]
+       * @param {boolean} [options.requireWellFormed=false]
+       * @param {boolean} [options.splitCDATASections=true]
+       * @param {function} [options.nodeFilter]
+       * @returns {string}
+       */
+      toString: function(options) {
+        var opts;
+        if (typeof options === "function") {
+          opts = { requireWellFormed: false, splitCDATASections: true, nodeFilter: options };
+        } else if (!!options) {
+          opts = {
+            requireWellFormed: !!options.requireWellFormed,
+            splitCDATASections: options.splitCDATASections !== false,
+            nodeFilter: options.nodeFilter || null
+          };
+        } else {
+          opts = { requireWellFormed: false, splitCDATASections: true, nodeFilter: null };
+        }
+        for (var buf = [], i = 0; i < this.length; i++) {
+          serializeToString(this[i], buf, null, opts);
+        }
+        return buf.join("");
+      },
+      /**
+       * Filters the NodeList based on a predicate.
+       *
+       * @param {function(Node): boolean} predicate
+       * - A predicate function to filter the NodeList.
+       * @returns {Node[]}
+       * An array of nodes that satisfy the predicate.
+       * @private
+       */
+      filter: function(predicate) {
+        return Array.prototype.filter.call(this, predicate);
+      },
+      /**
+       * Returns the first index at which a given node can be found in the NodeList, or -1 if it is
+       * not present.
+       *
+       * @param {Node} item
+       * - The Node item to locate in the NodeList.
+       * @returns {number}
+       * The first index of the node in the NodeList; -1 if not found.
+       * @private
+       */
+      indexOf: function(item) {
+        return Array.prototype.indexOf.call(this, item);
+      }
+    };
+    NodeList.prototype[Symbol.iterator] = function() {
+      var me = this;
+      var index = 0;
+      return {
+        next: function() {
+          if (index < me.length) {
+            return {
+              value: me[index++],
+              done: false
+            };
+          } else {
+            return {
+              done: true
+            };
+          }
+        },
+        return: function() {
+          return {
+            done: true
+          };
+        }
+      };
+    };
+    function LiveNodeList(node2, refresh) {
+      this._node = node2;
+      this._refresh = refresh;
+      _updateLiveList(this);
+    }
+    function _updateLiveList(list) {
+      var inc = list._node._inc || list._node.ownerDocument._inc;
+      if (list._inc !== inc) {
+        var ls = list._refresh(list._node);
+        __set__(list, "length", ls.length);
+        if (!list.$$length || ls.length < list.$$length) {
+          for (var i = ls.length; i in list; i++) {
+            if (hasOwn(list, i)) {
+              delete list[i];
+            }
+          }
+        }
+        copy(ls, list);
+        list._inc = inc;
+      }
+    }
+    LiveNodeList.prototype.item = function(i) {
+      _updateLiveList(this);
+      return this[i] || null;
+    };
+    _extends(LiveNodeList, NodeList);
+    function NamedNodeMap() {
+      this._nsIndex = /* @__PURE__ */ Object.create(null);
+      this._noNsIndex = /* @__PURE__ */ Object.create(null);
+    }
+    function _findNodeIndex(list, node2) {
+      var i = 0;
+      while (i < list.length) {
+        if (list[i] === node2) {
+          return i;
+        }
+        i++;
+      }
+    }
+    function _nnmBucket(map2, namespaceURI, create) {
+      if (!namespaceURI) {
+        return map2._noNsIndex;
+      }
+      var bucket = map2._nsIndex[namespaceURI];
+      if (!bucket && create) {
+        bucket = map2._nsIndex[namespaceURI] = /* @__PURE__ */ Object.create(null);
+      }
+      return bucket;
+    }
+    function _nnmIndexFind(map2, namespaceURI, localName) {
+      var bucket = _nnmBucket(map2, namespaceURI, false);
+      var found = bucket && bucket[localName];
+      return found ? found : null;
+    }
+    function _nnmIndexAdd(map2, attr) {
+      _nnmBucket(map2, attr.namespaceURI, true)[attr.localName] = attr;
+    }
+    function _nnmIndexRemove(map2, attr) {
+      var bucket = _nnmBucket(map2, attr.namespaceURI, false);
+      if (bucket) {
+        delete bucket[attr.localName];
+      }
+    }
+    function _addNamedNode(el, list, newAttr, oldAttr) {
+      if (oldAttr) {
+        list[_findNodeIndex(list, oldAttr)] = newAttr;
+      } else {
+        list[list.length] = newAttr;
+        list.length++;
+      }
+      _nnmIndexAdd(list, newAttr);
+      if (el) {
+        newAttr.ownerElement = el;
+        var doc = el.ownerDocument;
+        if (doc) {
+          oldAttr && _onRemoveAttribute(doc, el, oldAttr);
+          _onAddAttribute(doc, el, newAttr);
+        }
+      }
+    }
+    function _removeNamedNode(el, list, attr) {
+      var i = _findNodeIndex(list, attr);
+      if (i >= 0) {
+        var lastIndex = list.length - 1;
+        while (i <= lastIndex) {
+          list[i] = list[++i];
+        }
+        list.length = lastIndex;
+        _nnmIndexRemove(list, attr);
+        if (el) {
+          var doc = el.ownerDocument;
+          if (doc) {
+            _onRemoveAttribute(doc, el, attr);
+          }
+          attr.ownerElement = null;
+        }
+      }
+    }
+    NamedNodeMap.prototype = {
+      length: 0,
+      item: NodeList.prototype.item,
+      /**
+       * Get an attribute by name. Note: Name is in lower case in case of HTML namespace and
+       * document.
+       *
+       * @param {string} localName
+       * The local name of the attribute.
+       * @returns {Attr | null}
+       * The attribute with the given local name, or null if no such attribute exists.
+       * @see https://dom.spec.whatwg.org/#concept-element-attributes-get-by-name
+       */
+      getNamedItem: function(localName) {
+        if (this._ownerElement && this._ownerElement._isInHTMLDocumentAndNamespace()) {
+          localName = localName.toLowerCase();
+        }
+        var i = 0;
+        while (i < this.length) {
+          var attr = this[i];
+          if (attr.nodeName === localName) {
+            return attr;
+          }
+          i++;
+        }
+        return null;
+      },
+      /**
+       * Set an attribute.
+       *
+       * @param {Attr} attr
+       * The attribute to set.
+       * @returns {Attr | null}
+       * The old attribute with the same local name and namespace URI as the new one, or null if no
+       * such attribute exists.
+       * @throws {DOMException}
+       * With code:
+       * - {@link INUSE_ATTRIBUTE_ERR} - If the attribute is already an attribute of another
+       * element.
+       * @see https://dom.spec.whatwg.org/#concept-element-attributes-set
+       */
+      setNamedItem: function(attr) {
+        var el = attr.ownerElement;
+        if (el && el !== this._ownerElement) {
+          throw new DOMException(DOMException.INUSE_ATTRIBUTE_ERR);
+        }
+        var oldAttr = _nnmIndexFind(this, attr.namespaceURI, attr.localName);
+        if (oldAttr === attr) {
+          return attr;
+        }
+        _addNamedNode(this._ownerElement, this, attr, oldAttr);
+        return oldAttr;
+      },
+      /**
+       * Set an attribute, replacing an existing attribute with the same local name and namespace
+       * URI if one exists.
+       *
+       * @param {Attr} attr
+       * The attribute to set.
+       * @returns {Attr | null}
+       * The old attribute with the same local name and namespace URI as the new one, or null if no
+       * such attribute exists.
+       * @throws {DOMException}
+       * Throws a DOMException with the name "InUseAttributeError" if the attribute is already an
+       * attribute of another element.
+       * @see https://dom.spec.whatwg.org/#concept-element-attributes-set
+       */
+      setNamedItemNS: function(attr) {
+        return this.setNamedItem(attr);
+      },
+      /**
+       * Removes an attribute specified by the local name.
+       *
+       * @param {string} localName
+       * The local name of the attribute to be removed.
+       * @returns {Attr}
+       * The attribute node that was removed.
+       * @throws {DOMException}
+       * With code:
+       * - {@link DOMException.NOT_FOUND_ERR} if no attribute with the given name is found.
+       * @see https://dom.spec.whatwg.org/#dom-namednodemap-removenameditem
+       * @see https://dom.spec.whatwg.org/#concept-element-attributes-remove-by-name
+       */
+      removeNamedItem: function(localName) {
+        var attr = this.getNamedItem(localName);
+        if (!attr) {
+          throw new DOMException(DOMException.NOT_FOUND_ERR, localName);
+        }
+        _removeNamedNode(this._ownerElement, this, attr);
+        return attr;
+      },
+      /**
+       * Removes an attribute specified by the namespace and local name.
+       *
+       * @param {string | null} namespaceURI
+       * The namespace URI of the attribute to be removed.
+       * @param {string} localName
+       * The local name of the attribute to be removed.
+       * @returns {Attr}
+       * The attribute node that was removed.
+       * @throws {DOMException}
+       * With code:
+       * - {@link DOMException.NOT_FOUND_ERR} if no attribute with the given namespace URI and local
+       * name is found.
+       * @see https://dom.spec.whatwg.org/#dom-namednodemap-removenameditemns
+       * @see https://dom.spec.whatwg.org/#concept-element-attributes-remove-by-namespace
+       */
+      removeNamedItemNS: function(namespaceURI, localName) {
+        var attr = this.getNamedItemNS(namespaceURI, localName);
+        if (!attr) {
+          throw new DOMException(DOMException.NOT_FOUND_ERR, namespaceURI ? namespaceURI + " : " + localName : localName);
+        }
+        _removeNamedNode(this._ownerElement, this, attr);
+        return attr;
+      },
+      /**
+       * Get an attribute by namespace and local name.
+       *
+       * @param {string | null} namespaceURI
+       * The namespace URI of the attribute.
+       * @param {string} localName
+       * The local name of the attribute.
+       * @returns {Attr | null}
+       * The attribute with the given namespace URI and local name, or null if no such attribute
+       * exists.
+       * @see https://dom.spec.whatwg.org/#concept-element-attributes-get-by-namespace
+       */
+      getNamedItemNS: function(namespaceURI, localName) {
+        if (!namespaceURI) {
+          namespaceURI = null;
+        }
+        var i = 0;
+        while (i < this.length) {
+          var node2 = this[i];
+          if (node2.localName === localName && node2.namespaceURI === namespaceURI) {
+            return node2;
+          }
+          i++;
+        }
+        return null;
+      }
+    };
+    NamedNodeMap.prototype[Symbol.iterator] = function() {
+      var me = this;
+      var index = 0;
+      return {
+        next: function() {
+          if (index < me.length) {
+            return {
+              value: me[index++],
+              done: false
+            };
+          } else {
+            return {
+              done: true
+            };
+          }
+        },
+        return: function() {
+          return {
+            done: true
+          };
+        }
+      };
+    };
+    function DOMImplementation() {
+    }
+    DOMImplementation.prototype = {
+      /**
+       * Test if the DOM implementation implements a specific feature and version, as specified in
+       * {@link https://www.w3.org/TR/DOM-Level-3-Core/core.html#DOMFeatures DOM Features}.
+       *
+       * The DOMImplementation.hasFeature() method returns a Boolean flag indicating if a given
+       * feature is supported. The different implementations fairly diverged in what kind of
+       * features were reported. The latest version of the spec settled to force this method to
+       * always return true, where the functionality was accurate and in use.
+       *
+       * @deprecated
+       * It is deprecated and modern browsers return true in all cases.
+       * @function DOMImplementation#hasFeature
+       * @param {string} feature
+       * The name of the feature to test.
+       * @param {string} [version]
+       * This is the version number of the feature to test.
+       * @returns {boolean}
+       * Always returns true.
+       * @see https://developer.mozilla.org/en-US/docs/Web/API/DOMImplementation/hasFeature MDN
+       * @see https://www.w3.org/TR/REC-DOM-Level-1/level-one-core.html#ID-5CED94D7 DOM Level 1 Core
+       * @see https://dom.spec.whatwg.org/#dom-domimplementation-hasfeature DOM Living Standard
+       * @see https://www.w3.org/TR/DOM-Level-3-Core/core.html#ID-5CED94D7 DOM Level 3 Core
+       */
+      hasFeature: function(feature, version2) {
+        return true;
+      },
+      /**
+       * Creates a DOM Document object of the specified type with its document element. Note that
+       * based on the {@link DocumentType}
+       * given to create the document, the implementation may instantiate specialized
+       * {@link Document} objects that support additional features than the "Core", such as "HTML"
+       * {@link https://www.w3.org/TR/DOM-Level-3-Core/references.html#DOM2HTML DOM Level 2 HTML}.
+       * On the other hand, setting the {@link DocumentType} after the document was created makes
+       * this very unlikely to happen. Alternatively, specialized {@link Document} creation methods,
+       * such as createHTMLDocument
+       * {@link https://www.w3.org/TR/DOM-Level-3-Core/references.html#DOM2HTML DOM Level 2 HTML},
+       * can be used to obtain specific types of {@link Document} objects.
+       *
+       * __It behaves slightly different from the description in the living standard__:
+       * - There is no interface/class `XMLDocument`, it returns a `Document`
+       * instance (with it's `type` set to `'xml'`).
+       * - `encoding`, `mode`, `origin`, `url` fields are currently not declared.
+       *
+       * @function DOMImplementation.createDocument
+       * @param {string | null} namespaceURI
+       * The
+       * {@link https://www.w3.org/TR/DOM-Level-3-Core/glossary.html#dt-namespaceURI namespace URI}
+       * of the document element to create or null.
+       * @param {string | null} qualifiedName
+       * The
+       * {@link https://www.w3.org/TR/DOM-Level-3-Core/glossary.html#dt-qualifiedname qualified name}
+       * of the document element to be created or null.
+       * @param {DocumentType | null} [doctype=null]
+       * The type of document to be created or null. When doctype is not null, its
+       * {@link Node#ownerDocument} attribute is set to the document being created. Default is
+       * `null`
+       * @returns {Document}
+       * A new {@link Document} object with its document element. If the NamespaceURI,
+       * qualifiedName, and doctype are null, the returned {@link Document} is empty with no
+       * document element.
+       * @throws {DOMException}
+       * With code:
+       *
+       * - `INVALID_CHARACTER_ERR`: Raised if the specified qualified name is not an XML name
+       * according to {@link https://www.w3.org/TR/DOM-Level-3-Core/references.html#XML XML 1.0}.
+       * - `NAMESPACE_ERR`: Raised if the qualifiedName is malformed, if the qualifiedName has a
+       * prefix and the namespaceURI is null, or if the qualifiedName is null and the namespaceURI
+       * is different from null, or if the qualifiedName has a prefix that is "xml" and the
+       * namespaceURI is different from "{@link http://www.w3.org/XML/1998/namespace}"
+       * {@link https://www.w3.org/TR/DOM-Level-3-Core/references.html#Namespaces XML Namespaces},
+       * or if the DOM implementation does not support the "XML" feature but a non-null namespace
+       * URI was provided, since namespaces were defined by XML.
+       * - `WRONG_DOCUMENT_ERR`: Raised if doctype has already been used with a different document
+       * or was created from a different implementation.
+       * - `NOT_SUPPORTED_ERR`: May be raised if the implementation does not support the feature
+       * "XML" and the language exposed through the Document does not support XML Namespaces (such
+       * as {@link https://www.w3.org/TR/DOM-Level-3-Core/references.html#HTML40 HTML 4.01}).
+       * @since DOM Level 2.
+       * @see {@link #createHTMLDocument}
+       * @see https://developer.mozilla.org/en-US/docs/Web/API/DOMImplementation/createDocument MDN
+       * @see https://dom.spec.whatwg.org/#dom-domimplementation-createdocument DOM Living Standard
+       * @see https://www.w3.org/TR/DOM-Level-3-Core/core.html#Level-2-Core-DOM-createDocument DOM
+       *      Level 3 Core
+       * @see https://www.w3.org/TR/DOM-Level-2-Core/core.html#Level-2-Core-DOM-createDocument DOM
+       *      Level 2 Core (initial)
+       */
+      createDocument: function(namespaceURI, qualifiedName, doctype) {
+        var contentType = MIME_TYPE.XML_APPLICATION;
+        if (namespaceURI === NAMESPACE.HTML) {
+          contentType = MIME_TYPE.XML_XHTML_APPLICATION;
+        } else if (namespaceURI === NAMESPACE.SVG) {
+          contentType = MIME_TYPE.XML_SVG_IMAGE;
+        }
+        var doc = new Document(PDC, { contentType });
+        doc.implementation = this;
+        doc.childNodes = new NodeList();
+        doc.doctype = doctype || null;
+        if (doctype) {
+          doc.appendChild(doctype);
+        }
+        if (qualifiedName) {
+          var root = doc.createElementNS(namespaceURI, qualifiedName);
+          doc.appendChild(root);
+        }
+        return doc;
+      },
+      /**
+       * Creates an empty DocumentType node. Entity declarations and notations are not made
+       * available. Entity reference expansions and default attribute additions do not occur.
+       *
+       * **This behavior is slightly different from the one in the specs**:
+       * - `encoding`, `mode`, `origin`, `url` fields are currently not declared.
+       * - `publicId` and `systemId` contain the raw data including any possible quotes,
+       *   so they can always be serialized back to the original value
+       * - `internalSubset` contains the raw string between `[` and `]` if present,
+       *   but is not parsed or validated in any form.
+       *
+       * @function DOMImplementation#createDocumentType
+       * @param {string} qualifiedName
+       * The {@link https://www.w3.org/TR/DOM-Level-3-Core/glossary.html#dt-qualifiedname qualified
+       * name} of the document type to be created.
+       * @param {string} [publicId]
+       * The external subset public identifier. Stored verbatim including surrounding quotes.
+       * When serialized with `requireWellFormed: true`, the serializer throws `InvalidStateError`
+       * if the value is non-empty and does not match the XML `PubidLiteral` production
+       * (W3C DOM Parsing §3.2.1.3; XML 1.0 production [12]). Creation-time validation is not
+       * enforced — deferred to a future breaking release.
+       * @param {string} [systemId]
+       * The external subset system identifier. Stored verbatim including surrounding quotes.
+       * When serialized with `requireWellFormed: true`, the serializer throws `InvalidStateError`
+       * if the value is non-empty and does not match the XML `SystemLiteral` production
+       * (W3C DOM Parsing §3.2.1.3; XML 1.0 production [11]). Creation-time validation is not
+       * enforced — deferred to a future breaking release.
+       * @param {string} [internalSubset]
+       * The internal subset or an empty string if it is not present. Stored verbatim.
+       * When serialized with `requireWellFormed: true`, the serializer throws `InvalidStateError`
+       * if the value contains `"]>"`. Creation-time validation is not enforced.
+       * @returns {DocumentType}
+       * A new {@link DocumentType} node with {@link Node#ownerDocument} set to null.
+       * @throws {DOMException}
+       * With code:
+       *
+       * - `INVALID_CHARACTER_ERR`: Raised if the specified qualified name is not an XML name
+       * according to {@link https://www.w3.org/TR/DOM-Level-3-Core/references.html#XML XML 1.0}.
+       * - `NAMESPACE_ERR`: Raised if the qualifiedName is malformed.
+       * - `NOT_SUPPORTED_ERR`: May be raised if the implementation does not support the feature
+       * "XML" and the language exposed through the Document does not support XML Namespaces (such
+       * as {@link https://www.w3.org/TR/DOM-Level-3-Core/references.html#HTML40 HTML 4.01}).
+       * @since DOM Level 2.
+       * @see https://developer.mozilla.org/en-US/docs/Web/API/DOMImplementation/createDocumentType
+       *      MDN
+       * @see https://dom.spec.whatwg.org/#dom-domimplementation-createdocumenttype DOM Living
+       *      Standard
+       * @see https://www.w3.org/TR/DOM-Level-3-Core/core.html#Level-3-Core-DOM-createDocType DOM
+       *      Level 3 Core
+       * @see https://www.w3.org/TR/DOM-Level-2-Core/core.html#Level-2-Core-DOM-createDocType DOM
+       *      Level 2 Core
+       * @see https://github.com/xmldom/xmldom/blob/master/CHANGELOG.md#050
+       * @see https://www.w3.org/TR/DOM-Level-2-Core/#core-ID-Core-DocType-internalSubset
+       * @prettierignore
+       */
+      createDocumentType: function(qualifiedName, publicId, systemId, internalSubset) {
+        validateQualifiedName(qualifiedName);
+        var node2 = new DocumentType(PDC);
+        node2.name = qualifiedName;
+        node2.nodeName = qualifiedName;
+        node2.publicId = publicId || "";
+        node2.systemId = systemId || "";
+        node2.internalSubset = internalSubset || "";
+        node2.childNodes = new NodeList();
+        return node2;
+      },
+      /**
+       * Returns an HTML document, that might already have a basic DOM structure.
+       *
+       * __It behaves slightly different from the description in the living standard__:
+       * - If the first argument is `false` no initial nodes are added (steps 3-7 in the specs are
+       * omitted)
+       * - `encoding`, `mode`, `origin`, `url` fields are currently not declared.
+       *
+       * @param {string | false} [title]
+       * A string containing the title to give the new HTML document.
+       * @returns {Document}
+       * The HTML document.
+       * @since WHATWG Living Standard.
+       * @see {@link #createDocument}
+       * @see https://dom.spec.whatwg.org/#dom-domimplementation-createhtmldocument
+       * @see https://dom.spec.whatwg.org/#html-document
+       */
+      createHTMLDocument: function(title) {
+        var doc = new Document(PDC, { contentType: MIME_TYPE.HTML });
+        doc.implementation = this;
+        doc.childNodes = new NodeList();
+        if (title !== false) {
+          doc.doctype = this.createDocumentType("html");
+          doc.doctype.ownerDocument = doc;
+          doc.appendChild(doc.doctype);
+          var htmlNode = doc.createElement("html");
+          doc.appendChild(htmlNode);
+          var headNode = doc.createElement("head");
+          htmlNode.appendChild(headNode);
+          if (typeof title === "string") {
+            var titleNode = doc.createElement("title");
+            titleNode.appendChild(doc.createTextNode(title));
+            headNode.appendChild(titleNode);
+          }
+          htmlNode.appendChild(doc.createElement("body"));
+        }
+        return doc;
+      }
+    };
+    function Node(symbol2) {
+      checkSymbol(symbol2);
+    }
+    Node.prototype = {
+      /**
+       * The first child of this node.
+       *
+       * @type {Node | null}
+       */
+      firstChild: null,
+      /**
+       * The last child of this node.
+       *
+       * @type {Node | null}
+       */
+      lastChild: null,
+      /**
+       * The previous sibling of this node.
+       *
+       * @type {Node | null}
+       */
+      previousSibling: null,
+      /**
+       * The next sibling of this node.
+       *
+       * @type {Node | null}
+       */
+      nextSibling: null,
+      /**
+       * The parent node of this node.
+       *
+       * @type {Node | null}
+       */
+      parentNode: null,
+      /**
+       * The parent element of this node.
+       *
+       * @type {Element | null}
+       */
+      get parentElement() {
+        return this.parentNode && this.parentNode.nodeType === this.ELEMENT_NODE ? this.parentNode : null;
+      },
+      /**
+       * The child nodes of this node.
+       *
+       * @type {NodeList}
+       */
+      childNodes: null,
+      /**
+       * The document object associated with this node.
+       *
+       * @type {Document | null}
+       */
+      ownerDocument: null,
+      /**
+       * The value of this node.
+       *
+       * @type {string | null}
+       */
+      nodeValue: null,
+      /**
+       * The namespace URI of this node.
+       *
+       * @type {string | null}
+       */
+      namespaceURI: null,
+      /**
+       * The prefix of the namespace for this node.
+       *
+       * @type {string | null}
+       */
+      prefix: null,
+      /**
+       * The local part of the qualified name of this node.
+       *
+       * @type {string | null}
+       */
+      localName: null,
+      /**
+       * The baseURI is currently always `about:blank`,
+       * since that's what happens when you create a document from scratch.
+       *
+       * @type {'about:blank'}
+       */
+      baseURI: "about:blank",
+      /**
+       * Is true if this node is part of a document.
+       *
+       * @type {boolean}
+       */
+      get isConnected() {
+        var rootNode = this.getRootNode();
+        return rootNode && rootNode.nodeType === rootNode.DOCUMENT_NODE;
+      },
+      /**
+       * Checks whether `other` is an inclusive descendant of this node.
+       *
+       * @param {Node | null | undefined} other
+       * The node to check.
+       * @returns {boolean}
+       * True if `other` is an inclusive descendant of this node; false otherwise.
+       * @see https://dom.spec.whatwg.org/#dom-node-contains
+       */
+      contains: function(other) {
+        if (!other) return false;
+        var parent = other;
+        do {
+          if (this === parent) return true;
+          parent = parent.parentNode;
+        } while (parent);
+        return false;
+      },
+      /**
+       * @typedef GetRootNodeOptions
+       * @property {boolean} [composed=false]
+       */
+      /**
+       * Searches for the root node of this node.
+       *
+       * **This behavior is slightly different from the in the specs**:
+       * - ignores `options.composed`, since `ShadowRoot`s are unsupported, always returns root.
+       *
+       * @param {GetRootNodeOptions} [options]
+       * @returns {Node}
+       * Root node.
+       * @see https://dom.spec.whatwg.org/#dom-node-getrootnode
+       * @see https://dom.spec.whatwg.org/#concept-shadow-including-root
+       */
+      getRootNode: function(options) {
+        var parent = this;
+        do {
+          if (!parent.parentNode) {
+            return parent;
+          }
+          parent = parent.parentNode;
+        } while (parent);
+      },
+      /**
+       * Checks whether the given node is equal to this node.
+       *
+       * Two nodes are equal when they have the same type, defining characteristics (for the type),
+       * and the same childNodes. The comparison is iterative to avoid stack overflows on
+       * deeply-nested trees. Attribute nodes of each Element pair are also pushed onto the stack
+       * and compared the same way.
+       *
+       * @param {Node} [otherNode]
+       * @returns {boolean}
+       * @see https://dom.spec.whatwg.org/#concept-node-equals
+       * @see ../docs/walk-dom.md.
+       */
+      isEqualNode: function(otherNode) {
+        if (!otherNode) return false;
+        var stack = [{ node: this, other: otherNode }];
+        while (stack.length > 0) {
+          var pair = stack.pop();
+          var node2 = pair.node;
+          var other = pair.other;
+          if (node2.nodeType !== other.nodeType) return false;
+          switch (node2.nodeType) {
+            case node2.DOCUMENT_TYPE_NODE:
+              if (node2.name !== other.name) return false;
+              if (node2.publicId !== other.publicId) return false;
+              if (node2.systemId !== other.systemId) return false;
+              break;
+            case node2.ELEMENT_NODE:
+              if (node2.namespaceURI !== other.namespaceURI) return false;
+              if (node2.prefix !== other.prefix) return false;
+              if (node2.localName !== other.localName) return false;
+              if (node2.attributes.length !== other.attributes.length) return false;
+              for (var i = 0; i < node2.attributes.length; i++) {
+                var attr = node2.attributes.item(i);
+                var otherAttr = other.getAttributeNodeNS(attr.namespaceURI, attr.localName);
+                if (!otherAttr) return false;
+                stack.push({ node: attr, other: otherAttr });
+              }
+              break;
+            case node2.ATTRIBUTE_NODE:
+              if (node2.namespaceURI !== other.namespaceURI) return false;
+              if (node2.localName !== other.localName) return false;
+              if (node2.value !== other.value) return false;
+              break;
+            case node2.PROCESSING_INSTRUCTION_NODE:
+              if (node2.target !== other.target || node2.data !== other.data) return false;
+              break;
+            case node2.TEXT_NODE:
+            case node2.CDATA_SECTION_NODE:
+            case node2.COMMENT_NODE:
+              if (node2.data !== other.data) return false;
+              break;
+          }
+          if (node2.childNodes.length !== other.childNodes.length) return false;
+          for (var i = node2.childNodes.length - 1; i >= 0; i--) {
+            stack.push({ node: node2.childNodes[i], other: other.childNodes[i] });
+          }
+        }
+        return true;
+      },
+      /**
+       * Checks whether or not the given node is this node.
+       *
+       * @param {Node} [otherNode]
+       */
+      isSameNode: function(otherNode) {
+        return this === otherNode;
+      },
+      /**
+       * Inserts a node before a reference node as a child of this node.
+       *
+       * @param {Node} newChild
+       * The new child node to be inserted.
+       * @param {Node | null} refChild
+       * The reference node before which newChild will be inserted.
+       * @returns {Node}
+       * The new child node successfully inserted.
+       * @throws {DOMException}
+       * Throws a DOMException if inserting the node would result in a DOM tree that is not
+       * well-formed, or if `child` is provided but is not a child of `parent`.
+       * See {@link _insertBefore} for more details.
+       * @since Modified in DOM L2
+       */
+      insertBefore: function(newChild, refChild) {
+        return _insertBefore(this, newChild, refChild);
+      },
+      /**
+       * Replaces an old child node with a new child node within this node.
+       *
+       * @param {Node} newChild
+       * The new node that is to replace the old node.
+       * If it already exists in the DOM, it is removed from its original position.
+       * @param {Node} oldChild
+       * The existing child node to be replaced.
+       * @returns {Node}
+       * Returns the replaced child node.
+       * @throws {DOMException}
+       * Throws a DOMException if replacing the node would result in a DOM tree that is not
+       * well-formed, or if `oldChild` is not a child of `this`.
+       * This can also occur if the pre-replacement validity assertion fails.
+       * See {@link _insertBefore}, {@link Node.removeChild}, and
+       * {@link assertPreReplacementValidityInDocument} for more details.
+       * @see https://dom.spec.whatwg.org/#concept-node-replace
+       */
+      replaceChild: function(newChild, oldChild) {
+        _insertBefore(this, newChild, oldChild, assertPreReplacementValidityInDocument);
+        if (oldChild) {
+          this.removeChild(oldChild);
+        }
+      },
+      /**
+       * Removes an existing child node from this node.
+       *
+       * @param {Node} oldChild
+       * The child node to be removed.
+       * @returns {Node}
+       * Returns the removed child node.
+       * @throws {DOMException}
+       * Throws a DOMException if `oldChild` is not a child of `this`.
+       * See {@link _removeChild} for more details.
+       */
+      removeChild: function(oldChild) {
+        return _removeChild(this, oldChild);
+      },
+      /**
+       * Appends a child node to this node.
+       *
+       * @param {Node} newChild
+       * The child node to be appended to this node.
+       * If it already exists in the DOM, it is removed from its original position.
+       * @returns {Node}
+       * Returns the appended child node.
+       * @throws {DOMException}
+       * Throws a DOMException if appending the node would result in a DOM tree that is not
+       * well-formed, or if `newChild` is not a valid Node.
+       * See {@link insertBefore} for more details.
+       */
+      appendChild: function(newChild) {
+        return this.insertBefore(newChild, null);
+      },
+      /**
+       * Determines whether this node has any child nodes.
+       *
+       * @returns {boolean}
+       * Returns true if this node has any child nodes, and false otherwise.
+       */
+      hasChildNodes: function() {
+        return this.firstChild != null;
+      },
+      /**
+       * Creates a copy of the calling node.
+       *
+       * @param {boolean} deep
+       * If true, the contents of the node are recursively copied.
+       * If false, only the node itself (and its attributes, if it is an element) are copied.
+       * @returns {Node}
+       * Returns the newly created copy of the node.
+       * @throws {DOMException}
+       * May throw a DOMException if operations within {@link Element#setAttributeNode} or
+       * {@link Node#appendChild} (which are potentially invoked in this method) do not meet their
+       * specific constraints.
+       * @see {@link cloneNode}
+       */
+      cloneNode: function(deep) {
+        return cloneNode(this.ownerDocument || this, this, deep);
+      },
+      /**
+       * Puts the specified node and all of its subtree into a "normalized" form. In a normalized
+       * subtree, no text nodes in the subtree are empty and there are no adjacent text nodes.
+       *
+       * Specifically, this method merges any adjacent text nodes (i.e., nodes for which `nodeType`
+       * is `TEXT_NODE`) into a single node with the combined data. It also removes any empty text
+       * nodes.
+       *
+       * This method iterativly traverses all child nodes to normalize all descendent nodes within
+       * the subtree.
+       *
+       * @throws {DOMException}
+       * May throw a DOMException if operations within removeChild or appendData (which are
+       * potentially invoked in this method) do not meet their specific constraints.
+       * @since Modified in DOM Level 2
+       * @see {@link Node.removeChild}
+       * @see {@link CharacterData.appendData}
+       * @see ../docs/walk-dom.md.
+       */
+      normalize: function() {
+        walkDOM(this, null, {
+          enter: function(node2) {
+            var child = node2.firstChild;
+            while (child) {
+              var next = child.nextSibling;
+              if (next !== null && next.nodeType === TEXT_NODE2 && child.nodeType === TEXT_NODE2) {
+                var tail2 = [];
+                var sibling = next;
+                while (sibling !== null && sibling.nodeType === TEXT_NODE2) {
+                  tail2.push(sibling.data);
+                  sibling = sibling.nextSibling;
+                }
+                var removed = child.nextSibling;
+                while (removed !== sibling) {
+                  var following = removed.nextSibling;
+                  removed.parentNode = null;
+                  removed.previousSibling = null;
+                  removed.nextSibling = null;
+                  removed = following;
+                }
+                child.nextSibling = sibling;
+                if (sibling !== null) {
+                  sibling.previousSibling = child;
+                } else {
+                  node2.lastChild = child;
+                }
+                child.appendData(tail2.join(""));
+                _onUpdateChild(node2.ownerDocument, node2);
+                child = sibling;
+              } else {
+                child = next;
+              }
+            }
+            return true;
+          }
+        });
+      },
+      /**
+       * Checks whether the DOM implementation implements a specific feature and its version.
+       *
+       * @deprecated
+       * Since `DOMImplementation.hasFeature` is deprecated and always returns true.
+       * @param {string} feature
+       * The package name of the feature to test. This is the same name that can be passed to the
+       * method `hasFeature` on `DOMImplementation`.
+       * @param {string} version
+       * This is the version number of the package name to test.
+       * @returns {boolean}
+       * Returns true in all cases in the current implementation.
+       * @since Introduced in DOM Level 2
+       * @see {@link DOMImplementation.hasFeature}
+       */
+      isSupported: function(feature, version2) {
+        return this.ownerDocument.implementation.hasFeature(feature, version2);
+      },
+      /**
+       * Look up the prefix associated to the given namespace URI, starting from this node.
+       * **The default namespace declarations are ignored by this method.**
+       * See Namespace Prefix Lookup for details on the algorithm used by this method.
+       *
+       * **This behavior is different from the in the specs**:
+       * - no node type specific handling
+       * - uses the internal attribute _nsMap for resolving namespaces that is updated when changing attributes
+       *
+       * @param {string | null} namespaceURI
+       * The namespace URI for which to find the associated prefix.
+       * @returns {string | null}
+       * The associated prefix, if found; otherwise, null.
+       * @see https://www.w3.org/TR/DOM-Level-3-Core/core.html#Node3-lookupNamespacePrefix
+       * @see https://www.w3.org/TR/DOM-Level-3-Core/namespaces-algorithms.html#lookupNamespacePrefixAlgo
+       * @see https://dom.spec.whatwg.org/#dom-node-lookupprefix
+       * @see https://github.com/xmldom/xmldom/issues/322
+       * @prettierignore
+       */
+      lookupPrefix: function(namespaceURI) {
+        var el = this;
+        while (el) {
+          var map2 = el._nsMap;
+          if (map2) {
+            for (var n in map2) {
+              if (hasOwn(map2, n) && map2[n] === namespaceURI) {
+                return n;
+              }
+            }
+          }
+          el = el.nodeType == ATTRIBUTE_NODE ? el.ownerDocument : el.parentNode;
+        }
+        return null;
+      },
+      /**
+       * This function is used to look up the namespace URI associated with the given prefix,
+       * starting from this node.
+       *
+       * **This behavior is different from the in the specs**:
+       * - no node type specific handling
+       * - uses the internal attribute _nsMap for resolving namespaces that is updated when changing attributes
+       *
+       * @param {string | null} prefix
+       * The prefix for which to find the associated namespace URI.
+       * @returns {string | null}
+       * The associated namespace URI, if found; otherwise, null.
+       * @since DOM Level 3
+       * @see https://dom.spec.whatwg.org/#dom-node-lookupnamespaceuri
+       * @see https://www.w3.org/TR/DOM-Level-3-Core/core.html#Node3-lookupNamespaceURI
+       * @prettierignore
+       */
+      lookupNamespaceURI: function(prefix) {
+        var el = this;
+        while (el) {
+          var map2 = el._nsMap;
+          if (map2) {
+            if (hasOwn(map2, prefix)) {
+              return map2[prefix];
+            }
+          }
+          el = el.nodeType == ATTRIBUTE_NODE ? el.ownerDocument : el.parentNode;
+        }
+        return null;
+      },
+      /**
+       * Determines whether the given namespace URI is the default namespace.
+       *
+       * The function works by looking up the prefix associated with the given namespace URI. If no
+       * prefix is found (i.e., the namespace URI is not registered in the namespace map of this
+       * node or any of its ancestors), it returns `true`, implying the namespace URI is considered
+       * the default.
+       *
+       * **This behavior is different from the in the specs**:
+       * - no node type specific handling
+       * - uses the internal attribute _nsMap for resolving namespaces that is updated when changing attributes
+       *
+       * @param {string | null} namespaceURI
+       * The namespace URI to be checked.
+       * @returns {boolean}
+       * Returns true if the given namespace URI is the default namespace, false otherwise.
+       * @since DOM Level 3
+       * @see https://www.w3.org/TR/DOM-Level-3-Core/core.html#Node3-isDefaultNamespace
+       * @see https://dom.spec.whatwg.org/#dom-node-isdefaultnamespace
+       * @prettierignore
+       */
+      isDefaultNamespace: function(namespaceURI) {
+        var prefix = this.lookupPrefix(namespaceURI);
+        return prefix == null;
+      },
+      /**
+       * Compares the reference node with a node with regard to their position in the document and
+       * according to the document order.
+       *
+       * @param {Node} other
+       * The node to compare the reference node to.
+       * @returns {number}
+       * Returns how the node is positioned relatively to the reference node according to the
+       * bitmask. 0 if reference node and given node are the same.
+       * @since DOM Level 3
+       * @see https://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core.html#Node3-compare
+       * @see https://dom.spec.whatwg.org/#dom-node-comparedocumentposition
+       */
+      compareDocumentPosition: function(other) {
+        if (this === other) return 0;
+        var node1 = other;
+        var node2 = this;
+        var attr1 = null;
+        var attr2 = null;
+        if (node1 instanceof Attr) {
+          attr1 = node1;
+          node1 = attr1.ownerElement;
+        }
+        if (node2 instanceof Attr) {
+          attr2 = node2;
+          node2 = attr2.ownerElement;
+          if (attr1 && node1 && node2 === node1) {
+            for (var i = 0, attr; attr = node2.attributes[i]; i++) {
+              if (attr === attr1)
+                return DocumentPosition.DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC + DocumentPosition.DOCUMENT_POSITION_PRECEDING;
+              if (attr === attr2)
+                return DocumentPosition.DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC + DocumentPosition.DOCUMENT_POSITION_FOLLOWING;
+            }
+          }
+        }
+        if (!node1 || !node2 || node2.ownerDocument !== node1.ownerDocument) {
+          return DocumentPosition.DOCUMENT_POSITION_DISCONNECTED + DocumentPosition.DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC + (docGUID(node2.ownerDocument) > docGUID(node1.ownerDocument) ? DocumentPosition.DOCUMENT_POSITION_FOLLOWING : DocumentPosition.DOCUMENT_POSITION_PRECEDING);
+        }
+        if (attr2 && node1 === node2) {
+          return DocumentPosition.DOCUMENT_POSITION_CONTAINS + DocumentPosition.DOCUMENT_POSITION_PRECEDING;
+        }
+        if (attr1 && node1 === node2) {
+          return DocumentPosition.DOCUMENT_POSITION_CONTAINED_BY + DocumentPosition.DOCUMENT_POSITION_FOLLOWING;
+        }
+        var chain1 = [];
+        var ancestor1 = node1.parentNode;
+        while (ancestor1) {
+          if (!attr2 && ancestor1 === node2) {
+            return DocumentPosition.DOCUMENT_POSITION_CONTAINED_BY + DocumentPosition.DOCUMENT_POSITION_FOLLOWING;
+          }
+          chain1.push(ancestor1);
+          ancestor1 = ancestor1.parentNode;
+        }
+        chain1.reverse();
+        var chain2 = [];
+        var ancestor2 = node2.parentNode;
+        while (ancestor2) {
+          if (!attr1 && ancestor2 === node1) {
+            return DocumentPosition.DOCUMENT_POSITION_CONTAINS + DocumentPosition.DOCUMENT_POSITION_PRECEDING;
+          }
+          chain2.push(ancestor2);
+          ancestor2 = ancestor2.parentNode;
+        }
+        chain2.reverse();
+        var ca = commonAncestor(chain1, chain2);
+        for (var n in ca.childNodes) {
+          var child = ca.childNodes[n];
+          if (child === node2) return DocumentPosition.DOCUMENT_POSITION_FOLLOWING;
+          if (child === node1) return DocumentPosition.DOCUMENT_POSITION_PRECEDING;
+          if (chain2.indexOf(child) >= 0) return DocumentPosition.DOCUMENT_POSITION_FOLLOWING;
+          if (chain1.indexOf(child) >= 0) return DocumentPosition.DOCUMENT_POSITION_PRECEDING;
+        }
+        return 0;
+      }
+    };
+    function _xmlEncoder(c) {
+      return c == "<" && "&lt;" || c == ">" && "&gt;" || c == "&" && "&amp;" || c == '"' && "&quot;" || "&#" + c.charCodeAt() + ";";
+    }
+    copy(NodeType, Node);
+    copy(NodeType, Node.prototype);
+    copy(DocumentPosition, Node);
+    copy(DocumentPosition, Node.prototype);
+    function _visitNode(node2, callback) {
+      walkDOM(node2, null, {
+        enter: function(n) {
+          return callback(n) ? walkDOM.STOP : true;
+        }
+      });
+    }
+    function walkDOM(node2, context, callbacks) {
+      var stack = [{ node: node2, context, phase: walkDOM.ENTER }];
+      while (stack.length > 0) {
+        var frame = stack.pop();
+        if (frame.phase === walkDOM.ENTER) {
+          var childContext = callbacks.enter(frame.node, frame.context);
+          if (childContext === walkDOM.STOP) {
+            return walkDOM.STOP;
+          }
+          stack.push({ node: frame.node, context: childContext, phase: walkDOM.EXIT });
+          if (childContext === null || childContext === void 0) {
+            continue;
+          }
+          var child = frame.node.lastChild;
+          while (child) {
+            stack.push({ node: child, context: childContext, phase: walkDOM.ENTER });
+            child = child.previousSibling;
+          }
+        } else {
+          if (callbacks.exit) {
+            callbacks.exit(frame.node, frame.context);
+          }
+        }
+      }
+    }
+    walkDOM.STOP = /* @__PURE__ */ Symbol("walkDOM.STOP");
+    walkDOM.ENTER = 0;
+    walkDOM.EXIT = 1;
+    function Document(symbol2, options) {
+      checkSymbol(symbol2);
+      var opt = options || {};
+      this.ownerDocument = this;
+      this.contentType = opt.contentType || MIME_TYPE.XML_APPLICATION;
+      this.type = isHTMLMimeType(this.contentType) ? "html" : "xml";
+    }
+    function _onAddAttribute(doc, el, newAttr) {
+      doc && doc._inc++;
+      var ns = newAttr.namespaceURI;
+      if (ns === NAMESPACE.XMLNS) {
+        el._nsMap[newAttr.prefix ? newAttr.localName : ""] = newAttr.value;
+      }
+    }
+    function _onRemoveAttribute(doc, el, newAttr, remove) {
+      doc && doc._inc++;
+      var ns = newAttr.namespaceURI;
+      if (ns === NAMESPACE.XMLNS) {
+        delete el._nsMap[newAttr.prefix ? newAttr.localName : ""];
+      }
+    }
+    function _onUpdateChild(doc, parent, newChild) {
+      if (doc && doc._inc) {
+        doc._inc++;
+        var childNodes = parent.childNodes;
+        if (newChild && !newChild.nextSibling) {
+          childNodes[childNodes.length++] = newChild;
+        } else {
+          var child = parent.firstChild;
+          var i = 0;
+          while (child) {
+            childNodes[i++] = child;
+            child = child.nextSibling;
+          }
+          childNodes.length = i;
+          delete childNodes[childNodes.length];
+        }
+      }
+    }
+    function _removeChild(parentNode, child) {
+      if (parentNode !== child.parentNode) {
+        throw new DOMException(DOMException.NOT_FOUND_ERR, "child's parent is not parent");
+      }
+      var oldPreviousSibling = child.previousSibling;
+      var oldNextSibling = child.nextSibling;
+      if (oldPreviousSibling) {
+        oldPreviousSibling.nextSibling = oldNextSibling;
+      } else {
+        parentNode.firstChild = oldNextSibling;
+      }
+      if (oldNextSibling) {
+        oldNextSibling.previousSibling = oldPreviousSibling;
+      } else {
+        parentNode.lastChild = oldPreviousSibling;
+      }
+      _onUpdateChild(parentNode.ownerDocument, parentNode);
+      child.parentNode = null;
+      child.previousSibling = null;
+      child.nextSibling = null;
+      return child;
+    }
+    function hasValidParentNodeType(node2) {
+      return node2 && (node2.nodeType === Node.DOCUMENT_NODE || node2.nodeType === Node.DOCUMENT_FRAGMENT_NODE || node2.nodeType === Node.ELEMENT_NODE);
+    }
+    function hasInsertableNodeType(node2) {
+      return node2 && (node2.nodeType === Node.CDATA_SECTION_NODE || node2.nodeType === Node.COMMENT_NODE || node2.nodeType === Node.DOCUMENT_FRAGMENT_NODE || node2.nodeType === Node.DOCUMENT_TYPE_NODE || node2.nodeType === Node.ELEMENT_NODE || node2.nodeType === Node.PROCESSING_INSTRUCTION_NODE || node2.nodeType === Node.TEXT_NODE);
+    }
+    function isDocTypeNode(node2) {
+      return node2 && node2.nodeType === Node.DOCUMENT_TYPE_NODE;
+    }
+    function isElementNode(node2) {
+      return node2 && node2.nodeType === Node.ELEMENT_NODE;
+    }
+    function isTextNode(node2) {
+      return node2 && node2.nodeType === Node.TEXT_NODE;
+    }
+    function isElementInsertionPossible(doc, child) {
+      var parentChildNodes = doc.childNodes || [];
+      if (find(parentChildNodes, isElementNode) || isDocTypeNode(child)) {
+        return false;
+      }
+      var docTypeNode = find(parentChildNodes, isDocTypeNode);
+      return !(child && docTypeNode && parentChildNodes.indexOf(docTypeNode) > parentChildNodes.indexOf(child));
+    }
+    function isElementReplacementPossible(doc, child) {
+      var parentChildNodes = doc.childNodes || [];
+      function hasElementChildThatIsNotChild(node2) {
+        return isElementNode(node2) && node2 !== child;
+      }
+      if (find(parentChildNodes, hasElementChildThatIsNotChild)) {
+        return false;
+      }
+      var docTypeNode = find(parentChildNodes, isDocTypeNode);
+      return !(child && docTypeNode && parentChildNodes.indexOf(docTypeNode) > parentChildNodes.indexOf(child));
+    }
+    function assertPreInsertionValidity1to5(parent, node2, child) {
+      if (!hasValidParentNodeType(parent)) {
+        throw new DOMException(DOMException.HIERARCHY_REQUEST_ERR, "Unexpected parent node type " + parent.nodeType);
+      }
+      if (child && child.parentNode !== parent) {
+        throw new DOMException(DOMException.NOT_FOUND_ERR, "child not in parent");
+      }
+      if (
+        // 4. If `node` is not a DocumentFragment, DocumentType, Element, or CharacterData node, then throw a "HierarchyRequestError" DOMException.
+        !hasInsertableNodeType(node2) || // 5. If either `node` is a Text node and `parent` is a document,
+        // the sax parser currently adds top level text nodes, this will be fixed in 0.9.0
+        // || (node.nodeType === Node.TEXT_NODE && parent.nodeType === Node.DOCUMENT_NODE)
+        // or `node` is a doctype and `parent` is not a document, then throw a "HierarchyRequestError" DOMException.
+        isDocTypeNode(node2) && parent.nodeType !== Node.DOCUMENT_NODE
+      ) {
+        throw new DOMException(
+          DOMException.HIERARCHY_REQUEST_ERR,
+          "Unexpected node type " + node2.nodeType + " for parent node type " + parent.nodeType
+        );
+      }
+    }
+    function assertPreInsertionValidityInDocument(parent, node2, child) {
+      var parentChildNodes = parent.childNodes || [];
+      var nodeChildNodes = node2.childNodes || [];
+      if (node2.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+        var nodeChildElements = nodeChildNodes.filter(isElementNode);
+        if (nodeChildElements.length > 1 || find(nodeChildNodes, isTextNode)) {
+          throw new DOMException(DOMException.HIERARCHY_REQUEST_ERR, "More than one element or text in fragment");
+        }
+        if (nodeChildElements.length === 1 && !isElementInsertionPossible(parent, child)) {
+          throw new DOMException(DOMException.HIERARCHY_REQUEST_ERR, "Element in fragment can not be inserted before doctype");
+        }
+      }
+      if (isElementNode(node2)) {
+        if (!isElementInsertionPossible(parent, child)) {
+          throw new DOMException(DOMException.HIERARCHY_REQUEST_ERR, "Only one element can be added and only after doctype");
+        }
+      }
+      if (isDocTypeNode(node2)) {
+        if (find(parentChildNodes, isDocTypeNode)) {
+          throw new DOMException(DOMException.HIERARCHY_REQUEST_ERR, "Only one doctype is allowed");
+        }
+        var parentElementChild = find(parentChildNodes, isElementNode);
+        if (child && parentChildNodes.indexOf(parentElementChild) < parentChildNodes.indexOf(child)) {
+          throw new DOMException(DOMException.HIERARCHY_REQUEST_ERR, "Doctype can only be inserted before an element");
+        }
+        if (!child && parentElementChild) {
+          throw new DOMException(DOMException.HIERARCHY_REQUEST_ERR, "Doctype can not be appended since element is present");
+        }
+      }
+    }
+    function assertPreReplacementValidityInDocument(parent, node2, child) {
+      var parentChildNodes = parent.childNodes || [];
+      var nodeChildNodes = node2.childNodes || [];
+      if (node2.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+        var nodeChildElements = nodeChildNodes.filter(isElementNode);
+        if (nodeChildElements.length > 1 || find(nodeChildNodes, isTextNode)) {
+          throw new DOMException(DOMException.HIERARCHY_REQUEST_ERR, "More than one element or text in fragment");
+        }
+        if (nodeChildElements.length === 1 && !isElementReplacementPossible(parent, child)) {
+          throw new DOMException(DOMException.HIERARCHY_REQUEST_ERR, "Element in fragment can not be inserted before doctype");
+        }
+      }
+      if (isElementNode(node2)) {
+        if (!isElementReplacementPossible(parent, child)) {
+          throw new DOMException(DOMException.HIERARCHY_REQUEST_ERR, "Only one element can be added and only after doctype");
+        }
+      }
+      if (isDocTypeNode(node2)) {
+        let hasDoctypeChildThatIsNotChild = function(node3) {
+          return isDocTypeNode(node3) && node3 !== child;
+        };
+        if (find(parentChildNodes, hasDoctypeChildThatIsNotChild)) {
+          throw new DOMException(DOMException.HIERARCHY_REQUEST_ERR, "Only one doctype is allowed");
+        }
+        var parentElementChild = find(parentChildNodes, isElementNode);
+        if (child && parentChildNodes.indexOf(parentElementChild) < parentChildNodes.indexOf(child)) {
+          throw new DOMException(DOMException.HIERARCHY_REQUEST_ERR, "Doctype can only be inserted before an element");
+        }
+      }
+    }
+    function _insertBefore(parent, node2, child, _inDocumentAssertion) {
+      assertPreInsertionValidity1to5(parent, node2, child);
+      if (parent.nodeType === Node.DOCUMENT_NODE) {
+        (_inDocumentAssertion || assertPreInsertionValidityInDocument)(parent, node2, child);
+      }
+      var cp = node2.parentNode;
+      if (cp) {
+        cp.removeChild(node2);
+      }
+      if (node2.nodeType === DOCUMENT_FRAGMENT_NODE) {
+        var newFirst = node2.firstChild;
+        if (newFirst == null) {
+          return node2;
+        }
+        var newLast = node2.lastChild;
+      } else {
+        newFirst = newLast = node2;
+      }
+      var pre = child ? child.previousSibling : parent.lastChild;
+      newFirst.previousSibling = pre;
+      newLast.nextSibling = child;
+      if (pre) {
+        pre.nextSibling = newFirst;
+      } else {
+        parent.firstChild = newFirst;
+      }
+      if (child == null) {
+        parent.lastChild = newLast;
+      } else {
+        child.previousSibling = newLast;
+      }
+      do {
+        newFirst.parentNode = parent;
+      } while (newFirst !== newLast && (newFirst = newFirst.nextSibling));
+      _onUpdateChild(parent.ownerDocument || parent, parent, node2);
+      if (node2.nodeType == DOCUMENT_FRAGMENT_NODE) {
+        node2.firstChild = node2.lastChild = null;
+      }
+      return node2;
+    }
+    Document.prototype = {
+      /**
+       * The implementation that created this document.
+       *
+       * @type DOMImplementation
+       * @readonly
+       */
+      implementation: null,
+      nodeName: "#document",
+      nodeType: DOCUMENT_NODE,
+      /**
+       * The DocumentType node of the document.
+       *
+       * @type DocumentType
+       * @readonly
+       */
+      doctype: null,
+      documentElement: null,
+      _inc: 1,
+      insertBefore: function(newChild, refChild) {
+        if (newChild.nodeType === DOCUMENT_FRAGMENT_NODE) {
+          var child = newChild.firstChild;
+          while (child) {
+            var next = child.nextSibling;
+            this.insertBefore(child, refChild);
+            child = next;
+          }
+          return newChild;
+        }
+        _insertBefore(this, newChild, refChild);
+        newChild.ownerDocument = this;
+        if (this.documentElement === null && newChild.nodeType === ELEMENT_NODE) {
+          this.documentElement = newChild;
+        }
+        return newChild;
+      },
+      removeChild: function(oldChild) {
+        var removed = _removeChild(this, oldChild);
+        if (removed === this.documentElement) {
+          this.documentElement = null;
+        }
+        return removed;
+      },
+      replaceChild: function(newChild, oldChild) {
+        _insertBefore(this, newChild, oldChild, assertPreReplacementValidityInDocument);
+        newChild.ownerDocument = this;
+        if (oldChild) {
+          this.removeChild(oldChild);
+        }
+        if (isElementNode(newChild)) {
+          this.documentElement = newChild;
+        }
+      },
+      /**
+       * Imports a node from another document into this document, creating a new copy owned by this
+       * document. The source node and its subtree are not modified.
+       *
+       * @param {Node} importedNode
+       * The node to import.
+       * @param {boolean} deep
+       * If true, the contents of the node are recursively imported.
+       * If false, only the node itself (and its attributes, if it is an element) are imported.
+       * @returns {Node}
+       * Returns the newly created import of the node.
+       * @see {@link importNode}
+       * @see {@link https://dom.spec.whatwg.org/#dom-document-importnode}
+       */
+      importNode: function(importedNode, deep) {
+        return importNode(this, importedNode, deep);
+      },
+      // Introduced in DOM Level 2:
+      getElementById: function(id) {
+        var rtv = null;
+        _visitNode(this.documentElement, function(node2) {
+          if (node2.nodeType == ELEMENT_NODE) {
+            if (node2.getAttribute("id") == id) {
+              rtv = node2;
+              return true;
+            }
+          }
+        });
+        return rtv;
+      },
+      /**
+       * Creates a new `Element` that is owned by this `Document`.
+       * In HTML Documents `localName` is the lower cased `tagName`,
+       * otherwise no transformation is being applied.
+       * When `contentType` implies the HTML namespace, it will be set as `namespaceURI`.
+       *
+       * __This implementation differs from the specification:__ - The provided name is not checked
+       * against the `Name` production,
+       * so no related error will be thrown.
+       * - There is no interface `HTMLElement`, it is always an `Element`.
+       * - There is no support for a second argument to indicate using custom elements.
+       *
+       * @param {string} tagName
+       * @returns {Element}
+       * @see https://developer.mozilla.org/en-US/docs/Web/API/Document/createElement
+       * @see https://dom.spec.whatwg.org/#dom-document-createelement
+       * @see https://dom.spec.whatwg.org/#concept-create-element
+       */
+      createElement: function(tagName) {
+        var node2 = new Element(PDC);
+        node2.ownerDocument = this;
+        if (this.type === "html") {
+          tagName = tagName.toLowerCase();
+        }
+        if (hasDefaultHTMLNamespace(this.contentType)) {
+          node2.namespaceURI = NAMESPACE.HTML;
+        }
+        node2.nodeName = tagName;
+        node2.tagName = tagName;
+        node2.localName = tagName;
+        node2.childNodes = new NodeList();
+        var attrs = node2.attributes = new NamedNodeMap();
+        attrs._ownerElement = node2;
+        return node2;
+      },
+      /**
+       * @returns {DocumentFragment}
+       */
+      createDocumentFragment: function() {
+        var node2 = new DocumentFragment(PDC);
+        node2.ownerDocument = this;
+        node2.childNodes = new NodeList();
+        return node2;
+      },
+      /**
+       * @param {string} data
+       * @returns {Text}
+       */
+      createTextNode: function(data) {
+        var node2 = new Text(PDC);
+        node2.ownerDocument = this;
+        node2.childNodes = new NodeList();
+        node2.appendData(data);
+        return node2;
+      },
+      /**
+       * @param {string} data
+       * @returns {Comment}
+       * @see https://dom.spec.whatwg.org/#dom-document-createcomment
+       * @see https://www.w3.org/TR/xml/#NT-Comment XML 1.0 production [15]
+       * @see https://www.w3.org/TR/DOM-Parsing/#dfn-concept-serialize-xml §3.2.1.3
+       *
+       *      Note: no validation is performed at creation time. When the resulting document is
+       *      serialized with `requireWellFormed: true`, the serializer throws `InvalidStateError`
+       *      if the comment data contains `--` anywhere, ends with `-`, or contains characters
+       *      outside the XML Char production (W3C DOM Parsing §3.2.1.3). Without that option the
+       *      data is emitted verbatim.
+       */
+      createComment: function(data) {
+        var node2 = new Comment(PDC);
+        node2.ownerDocument = this;
+        node2.childNodes = new NodeList();
+        node2.appendData(data);
+        return node2;
+      },
+      /**
+       * Returns a new CDATASection node whose data is `data`.
+       *
+       * __This implementation differs from the specification:__ - calling this method on an HTML
+       * document does not throw `NotSupportedError`.
+       *
+       * @param {string} data
+       * @returns {CDATASection}
+       * @throws {DOMException}
+       * With code `INVALID_CHARACTER_ERR` if `data` contains `"]]>"`.
+       * @see https://developer.mozilla.org/en-US/docs/Web/API/Document/createCDATASection
+       * @see https://dom.spec.whatwg.org/#dom-document-createcdatasection
+       */
+      createCDATASection: function(data) {
+        if (data.indexOf("]]>") !== -1) {
+          throw new DOMException(DOMException.INVALID_CHARACTER_ERR, 'data contains "]]>"');
+        }
+        var node2 = new CDATASection(PDC);
+        node2.ownerDocument = this;
+        node2.childNodes = new NodeList();
+        node2.appendData(data);
+        return node2;
+      },
+      /**
+       * Returns a ProcessingInstruction node whose target is target and data is data.
+       *
+       * __This behavior is slightly different from the in the specs__:
+       * - it does not do any input validation on the arguments and doesn't throw
+       * "InvalidCharacterError".
+       *
+       * Note: When the resulting document is serialized with `requireWellFormed: true`, the
+       * serializer throws `InvalidStateError` if `.target` is not a valid XML `NCName` (a `Name`
+       * with no colon) or is an ASCII case-insensitive match for `"xml"`, or if `.data` contains
+       * `?>` or characters outside the XML Char production (W3C DOM Parsing §3.2.1.7). Without that
+       * option the target and data are emitted verbatim.
+       *
+       * @param {string} target
+       * @param {string} data
+       * @returns {ProcessingInstruction}
+       * @see https://developer.mozilla.org/docs/Web/API/Document/createProcessingInstruction
+       * @see https://dom.spec.whatwg.org/#dom-document-createprocessinginstruction
+       * @see https://www.w3.org/TR/DOM-Parsing/#dfn-concept-serialize-xml §3.2.1.7
+       */
+      createProcessingInstruction: function(target, data) {
+        var node2 = new ProcessingInstruction(PDC);
+        node2.ownerDocument = this;
+        node2.childNodes = new NodeList();
+        node2.nodeName = node2.target = target;
+        node2.nodeValue = node2.data = data;
+        return node2;
+      },
+      /**
+       * Creates an `Attr` node that is owned by this document.
+       * In HTML Documents `localName` is the lower cased `name`,
+       * otherwise no transformation is being applied.
+       *
+       * __This implementation differs from the specification:__ - The provided name is not checked
+       * against the `Name` production,
+       * so no related error will be thrown.
+       *
+       * @param {string} name
+       * @returns {Attr}
+       * @see https://developer.mozilla.org/en-US/docs/Web/API/Document/createAttribute
+       * @see https://dom.spec.whatwg.org/#dom-document-createattribute
+       */
+      createAttribute: function(name) {
+        if (!g.QName_exact.test(name)) {
+          throw new DOMException(DOMException.INVALID_CHARACTER_ERR, 'invalid character in name "' + name + '"');
+        }
+        if (this.type === "html") {
+          name = name.toLowerCase();
+        }
+        return this._createAttribute(name);
+      },
+      _createAttribute: function(name) {
+        var node2 = new Attr(PDC);
+        node2.ownerDocument = this;
+        node2.childNodes = new NodeList();
+        node2.name = name;
+        node2.nodeName = name;
+        node2.localName = name;
+        node2.specified = true;
+        return node2;
+      },
+      /**
+       * Creates an EntityReference object.
+       * The current implementation does not fill the `childNodes` with those of the corresponding
+       * `Entity`
+       *
+       * The `name` is validated against the XML `Name` production at creation time; an invalid name
+       * throws `InvalidCharacterError`. When the resulting node is serialized with
+       * `requireWellFormed: true`, the serializer re-validates `nodeName` against the XML `Name`
+       * production and throws `InvalidStateError` if a later `nodeName` mutation made it invalid;
+       * without that option the name is emitted verbatim.
+       *
+       * __This implementation differs from the specification:__ xmldom does not expand entities —
+       * the parser resolves entity references inline and never constructs `EntityReference` nodes,
+       * so this method is the only producer.
+       *
+       * @deprecated
+       * In DOM Level 4.
+       * @param {string} name
+       * The name of the entity to reference. No namespace well-formedness checks are performed.
+       * @returns {EntityReference}
+       * @throws {DOMException}
+       * With code `INVALID_CHARACTER_ERR` when `name` is not a valid XML `Name`.
+       * @throws {DOMException}
+       * with code `NOT_SUPPORTED_ERR` when the document is of type `html`
+       * @see https://www.w3.org/TR/DOM-Level-3-Core/core.html#ID-392B75AE
+       */
+      createEntityReference: function(name) {
+        if (!g.Name_exact.test(name)) {
+          throw new DOMException(DOMException.INVALID_CHARACTER_ERR, 'not a valid xml name "' + name + '"');
+        }
+        if (this.type === "html") {
+          throw new DOMException("document is an html document", DOMExceptionName.NotSupportedError);
+        }
+        var node2 = new EntityReference(PDC);
+        node2.ownerDocument = this;
+        node2.childNodes = new NodeList();
+        node2.nodeName = name;
+        return node2;
+      },
+      // Introduced in DOM Level 2:
+      /**
+       * @param {string} namespaceURI
+       * @param {string} qualifiedName
+       * @returns {Element}
+       */
+      createElementNS: function(namespaceURI, qualifiedName) {
+        var validated = validateAndExtract(namespaceURI, qualifiedName);
+        var node2 = new Element(PDC);
+        var attrs = node2.attributes = new NamedNodeMap();
+        node2.childNodes = new NodeList();
+        node2.ownerDocument = this;
+        node2.nodeName = qualifiedName;
+        node2.tagName = qualifiedName;
+        node2.namespaceURI = validated[0];
+        node2.prefix = validated[1];
+        node2.localName = validated[2];
+        attrs._ownerElement = node2;
+        return node2;
+      },
+      // Introduced in DOM Level 2:
+      /**
+       * @param {string} namespaceURI
+       * @param {string} qualifiedName
+       * @returns {Attr}
+       */
+      createAttributeNS: function(namespaceURI, qualifiedName) {
+        var validated = validateAndExtract(namespaceURI, qualifiedName);
+        var node2 = new Attr(PDC);
+        node2.ownerDocument = this;
+        node2.childNodes = new NodeList();
+        node2.nodeName = qualifiedName;
+        node2.name = qualifiedName;
+        node2.specified = true;
+        node2.namespaceURI = validated[0];
+        node2.prefix = validated[1];
+        node2.localName = validated[2];
+        return node2;
+      }
+    };
+    _extends(Document, Node);
+    function Element(symbol2) {
+      checkSymbol(symbol2);
+      this._nsMap = /* @__PURE__ */ Object.create(null);
+    }
+    Element.prototype = {
+      nodeType: ELEMENT_NODE,
+      /**
+       * The attributes of this element.
+       *
+       * @type {NamedNodeMap | null}
+       */
+      attributes: null,
+      getQualifiedName: function() {
+        return this.prefix ? this.prefix + ":" + this.localName : this.localName;
+      },
+      _isInHTMLDocumentAndNamespace: function() {
+        return this.ownerDocument.type === "html" && this.namespaceURI === NAMESPACE.HTML;
+      },
+      /**
+       * Implementaton of Level2 Core function hasAttributes.
+       *
+       * @returns {boolean}
+       * True if attribute list is not empty.
+       * @see https://www.w3.org/TR/DOM-Level-2-Core/#core-ID-NodeHasAttrs
+       */
+      hasAttributes: function() {
+        return !!(this.attributes && this.attributes.length);
+      },
+      hasAttribute: function(name) {
+        return !!this.getAttributeNode(name);
+      },
+      /**
+       * Returns element’s first attribute whose qualified name is `name`, and `null`
+       * if there is no such attribute.
+       *
+       * @param {string} name
+       * @returns {string | null}
+       */
+      getAttribute: function(name) {
+        var attr = this.getAttributeNode(name);
+        return attr ? attr.value : null;
+      },
+      getAttributeNode: function(name) {
+        if (this._isInHTMLDocumentAndNamespace()) {
+          name = name.toLowerCase();
+        }
+        return this.attributes.getNamedItem(name);
+      },
+      /**
+       * Sets the value of element’s first attribute whose qualified name is qualifiedName to value.
+       *
+       * @param {string} name
+       * @param {string} value
+       */
+      setAttribute: function(name, value) {
+        if (this._isInHTMLDocumentAndNamespace()) {
+          name = name.toLowerCase();
+        }
+        var attr = this.getAttributeNode(name);
+        if (attr) {
+          attr.value = attr.nodeValue = "" + value;
+        } else {
+          attr = this.ownerDocument._createAttribute(name);
+          attr.value = attr.nodeValue = "" + value;
+          this.setAttributeNode(attr);
+        }
+      },
+      removeAttribute: function(name) {
+        var attr = this.getAttributeNode(name);
+        attr && this.removeAttributeNode(attr);
+      },
+      setAttributeNode: function(newAttr) {
+        return this.attributes.setNamedItem(newAttr);
+      },
+      setAttributeNodeNS: function(newAttr) {
+        return this.attributes.setNamedItemNS(newAttr);
+      },
+      removeAttributeNode: function(oldAttr) {
+        return this.attributes.removeNamedItem(oldAttr.nodeName);
+      },
+      //get real attribute name,and remove it by removeAttributeNode
+      removeAttributeNS: function(namespaceURI, localName) {
+        var old = this.getAttributeNodeNS(namespaceURI, localName);
+        old && this.removeAttributeNode(old);
+      },
+      hasAttributeNS: function(namespaceURI, localName) {
+        return this.getAttributeNodeNS(namespaceURI, localName) != null;
+      },
+      /**
+       * Returns element’s attribute whose namespace is `namespaceURI` and local name is
+       * `localName`,
+       * or `null` if there is no such attribute.
+       *
+       * @param {string} namespaceURI
+       * @param {string} localName
+       * @returns {string | null}
+       */
+      getAttributeNS: function(namespaceURI, localName) {
+        var attr = this.getAttributeNodeNS(namespaceURI, localName);
+        return attr ? attr.value : null;
+      },
+      /**
+       * Sets the value of element’s attribute whose namespace is `namespaceURI` and local name is
+       * `localName` to value.
+       *
+       * @param {string} namespaceURI
+       * @param {string} qualifiedName
+       * @param {string} value
+       * @see https://dom.spec.whatwg.org/#dom-element-setattributens
+       */
+      setAttributeNS: function(namespaceURI, qualifiedName, value) {
+        var validated = validateAndExtract(namespaceURI, qualifiedName);
+        var localName = validated[2];
+        var attr = this.getAttributeNodeNS(namespaceURI, localName);
+        if (attr) {
+          attr.value = attr.nodeValue = "" + value;
+        } else {
+          attr = this.ownerDocument.createAttributeNS(namespaceURI, qualifiedName);
+          attr.value = attr.nodeValue = "" + value;
+          this.setAttributeNode(attr);
+        }
+      },
+      getAttributeNodeNS: function(namespaceURI, localName) {
+        return this.attributes.getNamedItemNS(namespaceURI, localName);
+      },
+      /**
+       * Returns a LiveNodeList of all child elements which have **all** of the given class name(s).
+       *
+       * Returns an empty list if `classNames` is an empty string or only contains HTML white space
+       * characters.
+       *
+       * Warning: This returns a live LiveNodeList.
+       * Changes in the DOM will reflect in the array as the changes occur.
+       * If an element selected by this array no longer qualifies for the selector,
+       * it will automatically be removed. Be aware of this for iteration purposes.
+       *
+       * @param {string} classNames
+       * Is a string representing the class name(s) to match; multiple class names are separated by
+       * (ASCII-)whitespace.
+       * @see https://developer.mozilla.org/en-US/docs/Web/API/Element/getElementsByClassName
+       * @see https://developer.mozilla.org/en-US/docs/Web/API/Document/getElementsByClassName
+       * @see https://dom.spec.whatwg.org/#concept-getelementsbyclassname
+       */
+      getElementsByClassName: function(classNames) {
+        var classNamesSet = toOrderedSet(classNames);
+        return new LiveNodeList(this, function(base) {
+          var ls = [];
+          if (classNamesSet.length > 0) {
+            _visitNode(base, function(node2) {
+              if (node2 !== base && node2.nodeType === ELEMENT_NODE) {
+                var nodeClassNames = node2.getAttribute("class");
+                if (nodeClassNames) {
+                  var matches = classNames === nodeClassNames;
+                  if (!matches) {
+                    var nodeClassNamesSet = toOrderedSet(nodeClassNames);
+                    matches = classNamesSet.every(arrayIncludes(nodeClassNamesSet));
+                  }
+                  if (matches) {
+                    ls.push(node2);
+                  }
+                }
+              }
+            });
+          }
+          return ls;
+        });
+      },
+      /**
+       * Returns a LiveNodeList of elements with the given qualifiedName.
+       * Searching for all descendants can be done by passing `*` as `qualifiedName`.
+       *
+       * All descendants of the specified element are searched, but not the element itself.
+       * The returned list is live, which means it updates itself with the DOM tree automatically.
+       * Therefore, there is no need to call `Element.getElementsByTagName()`
+       * with the same element and arguments repeatedly if the DOM changes in between calls.
+       *
+       * When called on an HTML element in an HTML document,
+       * `getElementsByTagName` lower-cases the argument before searching for it.
+       * This is undesirable when trying to match camel-cased SVG elements (such as
+       * `<linearGradient>`) in an HTML document.
+       * Instead, use `Element.getElementsByTagNameNS()`,
+       * which preserves the capitalization of the tag name.
+       *
+       * `Element.getElementsByTagName` is similar to `Document.getElementsByTagName()`,
+       * except that it only searches for elements that are descendants of the specified element.
+       *
+       * @param {string} qualifiedName
+       * @returns {LiveNodeList}
+       * @see https://developer.mozilla.org/en-US/docs/Web/API/Element/getElementsByTagName
+       * @see https://dom.spec.whatwg.org/#concept-getelementsbytagname
+       */
+      getElementsByTagName: function(qualifiedName) {
+        var isHTMLDocument = (this.nodeType === DOCUMENT_NODE ? this : this.ownerDocument).type === "html";
+        var lowerQualifiedName = qualifiedName.toLowerCase();
+        return new LiveNodeList(this, function(base) {
+          var ls = [];
+          _visitNode(base, function(node2) {
+            if (node2 === base || node2.nodeType !== ELEMENT_NODE) {
+              return;
+            }
+            if (qualifiedName === "*") {
+              ls.push(node2);
+            } else {
+              var nodeQualifiedName = node2.getQualifiedName();
+              var matchingQName = isHTMLDocument && node2.namespaceURI === NAMESPACE.HTML ? lowerQualifiedName : qualifiedName;
+              if (nodeQualifiedName === matchingQName) {
+                ls.push(node2);
+              }
+            }
+          });
+          return ls;
+        });
+      },
+      getElementsByTagNameNS: function(namespaceURI, localName) {
+        return new LiveNodeList(this, function(base) {
+          var ls = [];
+          _visitNode(base, function(node2) {
+            if (node2 !== base && node2.nodeType === ELEMENT_NODE && (namespaceURI === "*" || node2.namespaceURI === namespaceURI) && (localName === "*" || node2.localName == localName)) {
+              ls.push(node2);
+            }
+          });
+          return ls;
+        });
+      }
+    };
+    Document.prototype.getElementsByClassName = Element.prototype.getElementsByClassName;
+    Document.prototype.getElementsByTagName = Element.prototype.getElementsByTagName;
+    Document.prototype.getElementsByTagNameNS = Element.prototype.getElementsByTagNameNS;
+    _extends(Element, Node);
+    function Attr(symbol2) {
+      checkSymbol(symbol2);
+      this.namespaceURI = null;
+      this.prefix = null;
+      this.ownerElement = null;
+    }
+    Attr.prototype.nodeType = ATTRIBUTE_NODE;
+    _extends(Attr, Node);
+    function CharacterData(symbol2) {
+      checkSymbol(symbol2);
+    }
+    CharacterData.prototype = {
+      data: "",
+      substringData: function(offset, count) {
+        return this.data.substring(offset, offset + count);
+      },
+      appendData: function(text) {
+        text = this.data + text;
+        this.nodeValue = this.data = text;
+        this.length = text.length;
+      },
+      insertData: function(offset, text) {
+        this.replaceData(offset, 0, text);
+      },
+      deleteData: function(offset, count) {
+        this.replaceData(offset, count, "");
+      },
+      replaceData: function(offset, count, text) {
+        var start = this.data.substring(0, offset);
+        var end = this.data.substring(offset + count);
+        text = start + text + end;
+        this.nodeValue = this.data = text;
+        this.length = text.length;
+      }
+    };
+    _extends(CharacterData, Node);
+    function Text(symbol2) {
+      checkSymbol(symbol2);
+    }
+    Text.prototype = {
+      nodeName: "#text",
+      nodeType: TEXT_NODE2,
+      splitText: function(offset) {
+        var text = this.data;
+        var newText = text.substring(offset);
+        text = text.substring(0, offset);
+        this.data = this.nodeValue = text;
+        this.length = text.length;
+        var newNode = this.ownerDocument.createTextNode(newText);
+        if (this.parentNode) {
+          this.parentNode.insertBefore(newNode, this.nextSibling);
+        }
+        return newNode;
+      }
+    };
+    _extends(Text, CharacterData);
+    function Comment(symbol2) {
+      checkSymbol(symbol2);
+    }
+    Comment.prototype = {
+      nodeName: "#comment",
+      nodeType: COMMENT_NODE2
+    };
+    _extends(Comment, CharacterData);
+    function CDATASection(symbol2) {
+      checkSymbol(symbol2);
+    }
+    CDATASection.prototype = {
+      nodeName: "#cdata-section",
+      nodeType: CDATA_SECTION_NODE
+    };
+    _extends(CDATASection, Text);
+    function DocumentType(symbol2) {
+      checkSymbol(symbol2);
+    }
+    DocumentType.prototype.nodeType = DOCUMENT_TYPE_NODE;
+    _extends(DocumentType, Node);
+    function Notation(symbol2) {
+      checkSymbol(symbol2);
+    }
+    Notation.prototype.nodeType = NOTATION_NODE;
+    _extends(Notation, Node);
+    function Entity(symbol2) {
+      checkSymbol(symbol2);
+    }
+    Entity.prototype.nodeType = ENTITY_NODE;
+    _extends(Entity, Node);
+    function EntityReference(symbol2) {
+      checkSymbol(symbol2);
+    }
+    EntityReference.prototype.nodeType = ENTITY_REFERENCE_NODE;
+    _extends(EntityReference, Node);
+    function DocumentFragment(symbol2) {
+      checkSymbol(symbol2);
+    }
+    DocumentFragment.prototype.nodeName = "#document-fragment";
+    DocumentFragment.prototype.nodeType = DOCUMENT_FRAGMENT_NODE;
+    _extends(DocumentFragment, Node);
+    function ProcessingInstruction(symbol2) {
+      checkSymbol(symbol2);
+    }
+    ProcessingInstruction.prototype.nodeType = PROCESSING_INSTRUCTION_NODE;
+    _extends(ProcessingInstruction, CharacterData);
+    function XMLSerializer() {
+    }
+    XMLSerializer.prototype.serializeToString = function(node2, options) {
+      return nodeSerializeToString.call(node2, options);
+    };
+    Node.prototype.toString = nodeSerializeToString;
+    function nodeSerializeToString(options) {
+      var opts;
+      if (typeof options === "function") {
+        opts = { requireWellFormed: false, splitCDATASections: true, nodeFilter: options };
+      } else if (options != null) {
+        opts = {
+          requireWellFormed: !!options.requireWellFormed,
+          splitCDATASections: options.splitCDATASections !== false,
+          nodeFilter: options.nodeFilter || null
+        };
+      } else {
+        opts = { requireWellFormed: false, splitCDATASections: true, nodeFilter: null };
+      }
+      var buf = [];
+      var refNode = this.nodeType === DOCUMENT_NODE && this.documentElement || this;
+      var prefix = refNode.prefix;
+      var uri = refNode.namespaceURI;
+      if (uri && prefix == null) {
+        var prefix = refNode.lookupPrefix(uri);
+        if (prefix == null) {
+          var visibleNamespaces = [
+            { namespace: uri, prefix: null }
+            //{namespace:uri,prefix:''}
+          ];
+        }
+      }
+      serializeToString(this, buf, visibleNamespaces, opts);
+      return buf.join("");
+    }
+    function needNamespaceDefine(node2, isHTML, visibleNamespaces) {
+      var prefix = node2.prefix || "";
+      var uri = node2.namespaceURI;
+      if (!uri) {
+        return false;
+      }
+      if (prefix === "xml" && uri === NAMESPACE.XML || uri === NAMESPACE.XMLNS) {
+        return false;
+      }
+      var i = visibleNamespaces.length;
+      while (i--) {
+        var ns = visibleNamespaces[i];
+        if (ns.prefix === prefix) {
+          return ns.namespace !== uri;
+        }
+      }
+      return true;
+    }
+    function addSerializedAttribute(buf, qualifiedName, value, requireWellFormed) {
+      if (requireWellFormed && !g.QName_exact.test(qualifiedName)) {
+        throw new DOMException(
+          'The attribute name "' + qualifiedName + '" is not a valid XML QName',
+          DOMExceptionName.InvalidStateError
+        );
+      }
+      buf.push(" ", qualifiedName, '="', value.replace(/[<>&"\t\n\r]/g, _xmlEncoder), '"');
+    }
+    function serializeToString(node2, buf, visibleNamespaces, opts) {
+      if (!visibleNamespaces) {
+        visibleNamespaces = [];
+      }
+      var nodeFilter = opts.nodeFilter;
+      var requireWellFormed = opts.requireWellFormed;
+      var splitCDATASections = opts.splitCDATASections;
+      var doc = node2.nodeType === DOCUMENT_NODE ? node2 : node2.ownerDocument;
+      var isHTML = doc.type === "html";
+      walkDOM(
+        node2,
+        { ns: visibleNamespaces },
+        {
+          enter: function(n, ctx) {
+            var namespaces = ctx.ns;
+            if (nodeFilter) {
+              n = nodeFilter(n);
+              if (n) {
+                if (typeof n == "string") {
+                  buf.push(n);
+                  return null;
+                }
+              } else {
+                return null;
+              }
+            }
+            switch (n.nodeType) {
+              case ELEMENT_NODE:
+                var attrs = n.attributes;
+                var len = attrs.length;
+                var nodeName = n.tagName;
+                var prefixedNodeName = nodeName;
+                if (!isHTML && !n.prefix && n.namespaceURI) {
+                  var defaultNS;
+                  for (var ai = 0; ai < attrs.length; ai++) {
+                    if (attrs.item(ai).name === "xmlns") {
+                      defaultNS = attrs.item(ai).value;
+                      break;
+                    }
+                  }
+                  if (!defaultNS) {
+                    for (var nsi = namespaces.length - 1; nsi >= 0; nsi--) {
+                      var nsEntry = namespaces[nsi];
+                      if (nsEntry.prefix === "" && nsEntry.namespace === n.namespaceURI) {
+                        defaultNS = nsEntry.namespace;
+                        break;
+                      }
+                    }
+                  }
+                  if (defaultNS !== n.namespaceURI) {
+                    for (var nsi = namespaces.length - 1; nsi >= 0; nsi--) {
+                      var nsEntry = namespaces[nsi];
+                      if (nsEntry.namespace === n.namespaceURI) {
+                        if (nsEntry.prefix) {
+                          prefixedNodeName = nsEntry.prefix + ":" + nodeName;
+                        }
+                        break;
+                      }
+                    }
+                  }
+                }
+                if (requireWellFormed && !g.QName_exact.test(prefixedNodeName)) {
+                  throw new DOMException(
+                    'The element name "' + prefixedNodeName + '" is not a valid XML QName',
+                    DOMExceptionName.InvalidStateError
+                  );
+                }
+                buf.push("<", prefixedNodeName);
+                var childNamespaces = namespaces.slice();
+                for (var i = 0; i < len; i++) {
+                  var attr = attrs.item(i);
+                  if (attr.prefix == "xmlns") {
+                    childNamespaces.push({
+                      prefix: attr.localName,
+                      namespace: attr.value
+                    });
+                  } else if (attr.nodeName == "xmlns") {
+                    childNamespaces.push({ prefix: "", namespace: attr.value });
+                  }
+                }
+                for (var i = 0; i < len; i++) {
+                  var attr = attrs.item(i);
+                  if (needNamespaceDefine(attr, isHTML, childNamespaces)) {
+                    var attrPrefix = attr.prefix || "";
+                    var uri = attr.namespaceURI;
+                    addSerializedAttribute(buf, attrPrefix ? "xmlns:" + attrPrefix : "xmlns", uri, requireWellFormed);
+                    childNamespaces.push({ prefix: attrPrefix, namespace: uri });
+                  }
+                  var filteredAttr = nodeFilter ? nodeFilter(attr) : attr;
+                  if (filteredAttr) {
+                    if (typeof filteredAttr === "string") {
+                      buf.push(filteredAttr);
+                    } else {
+                      addSerializedAttribute(buf, filteredAttr.name, filteredAttr.value, requireWellFormed);
+                    }
+                  }
+                }
+                if (nodeName === prefixedNodeName && needNamespaceDefine(n, isHTML, childNamespaces)) {
+                  var nodePrefix = n.prefix || "";
+                  var uri = n.namespaceURI;
+                  addSerializedAttribute(buf, nodePrefix ? "xmlns:" + nodePrefix : "xmlns", uri, requireWellFormed);
+                  childNamespaces.push({ prefix: nodePrefix, namespace: uri });
+                }
+                var canCloseTag = !n.firstChild;
+                if (canCloseTag && (isHTML || n.namespaceURI === NAMESPACE.HTML)) {
+                  canCloseTag = isHTMLVoidElement(nodeName);
+                }
+                if (canCloseTag) {
+                  buf.push("/>");
+                  return null;
+                }
+                buf.push(">");
+                if (isHTML && isHTMLRawTextElement(nodeName)) {
+                  var child = n.firstChild;
+                  while (child) {
+                    if (child.data) {
+                      buf.push(child.data);
+                    } else {
+                      serializeToString(child, buf, childNamespaces.slice(), opts);
+                    }
+                    child = child.nextSibling;
+                  }
+                  buf.push("</", prefixedNodeName, ">");
+                  return null;
+                }
+                return { ns: childNamespaces, tag: prefixedNodeName };
+              case DOCUMENT_NODE:
+              case DOCUMENT_FRAGMENT_NODE:
+                if (requireWellFormed && n.nodeType === DOCUMENT_NODE && n.documentElement == null) {
+                  throw new DOMException("The Document has no documentElement", DOMExceptionName.InvalidStateError);
+                }
+                return { ns: namespaces };
+              case ATTRIBUTE_NODE:
+                addSerializedAttribute(buf, n.name, n.value, requireWellFormed);
+                return null;
+              case TEXT_NODE2:
+                if (requireWellFormed && g.InvalidChar.test(n.data)) {
+                  throw new DOMException(
+                    "The Text node data contains characters outside the XML Char production",
+                    DOMExceptionName.InvalidStateError
+                  );
+                }
+                buf.push(n.data.replace(/[<&>]/g, _xmlEncoder));
+                return null;
+              case CDATA_SECTION_NODE:
+                if (requireWellFormed && n.data.indexOf("]]>") !== -1) {
+                  throw new DOMException('The CDATASection data contains "]]>"', DOMExceptionName.InvalidStateError);
+                }
+                if (splitCDATASections) {
+                  buf.push(g.CDATA_START, n.data.replace(/]]>/g, "]]]]><![CDATA[>"), g.CDATA_END);
+                } else {
+                  buf.push(g.CDATA_START, n.data, g.CDATA_END);
+                }
+                return null;
+              case COMMENT_NODE2:
+                if (requireWellFormed) {
+                  if (g.InvalidChar.test(n.data)) {
+                    throw new DOMException(
+                      "The comment node data contains characters outside the XML Char production",
+                      DOMExceptionName.InvalidStateError
+                    );
+                  }
+                  if (n.data.indexOf("--") !== -1 || n.data[n.data.length - 1] === "-") {
+                    throw new DOMException(
+                      'The comment node data contains "--" or ends with "-"',
+                      DOMExceptionName.InvalidStateError
+                    );
+                  }
+                }
+                buf.push(g.COMMENT_START, n.data, g.COMMENT_END);
+                return null;
+              case DOCUMENT_TYPE_NODE:
+                var pubid = n.publicId;
+                var sysid = n.systemId;
+                if (requireWellFormed) {
+                  if (!g.Name_exact.test(n.name)) {
+                    throw new DOMException(
+                      'The doctype name "' + n.name + '" is not a valid XML Name',
+                      DOMExceptionName.InvalidStateError
+                    );
+                  }
+                  if (pubid && !g.PubidLiteral_match.test(pubid)) {
+                    throw new DOMException("DocumentType publicId is not a valid PubidLiteral", DOMExceptionName.InvalidStateError);
+                  }
+                  if (sysid && sysid !== "." && !g.SystemLiteral_match.test(sysid)) {
+                    throw new DOMException("DocumentType systemId is not a valid SystemLiteral", DOMExceptionName.InvalidStateError);
+                  }
+                  if (n.internalSubset && n.internalSubset.indexOf("]>") !== -1) {
+                    throw new DOMException('DocumentType internalSubset contains "]>"', DOMExceptionName.InvalidStateError);
+                  }
+                }
+                buf.push(g.DOCTYPE_DECL_START, " ", n.name);
+                if (pubid) {
+                  buf.push(" ", g.PUBLIC, " ", pubid);
+                  if (sysid && sysid !== ".") {
+                    buf.push(" ", sysid);
+                  }
+                } else if (sysid && sysid !== ".") {
+                  buf.push(" ", g.SYSTEM, " ", sysid);
+                }
+                if (n.internalSubset) {
+                  buf.push(" [", n.internalSubset, "]");
+                }
+                buf.push(">");
+                return null;
+              case PROCESSING_INSTRUCTION_NODE:
+                if (requireWellFormed) {
+                  if (!g.NCName_exact.test(n.target) || n.target.toLowerCase() === "xml") {
+                    throw new DOMException(
+                      'The processing instruction target "' + n.target + '" is not a valid XML NCName or is reserved',
+                      DOMExceptionName.InvalidStateError
+                    );
+                  }
+                  if (g.InvalidChar.test(n.data)) {
+                    throw new DOMException(
+                      "The ProcessingInstruction data contains characters outside the XML Char production",
+                      DOMExceptionName.InvalidStateError
+                    );
+                  }
+                  if (n.data.indexOf("?>") !== -1) {
+                    throw new DOMException('The ProcessingInstruction data contains "?>"', DOMExceptionName.InvalidStateError);
+                  }
+                }
+                buf.push("<?", n.target, " ", n.data, "?>");
+                return null;
+              case ENTITY_REFERENCE_NODE:
+                if (requireWellFormed && !g.Name_exact.test(n.nodeName)) {
+                  throw new DOMException(
+                    'The entity reference name "' + n.nodeName + '" is not a valid XML Name',
+                    DOMExceptionName.InvalidStateError
+                  );
+                }
+                buf.push("&", n.nodeName, ";");
+                return null;
+              //case ENTITY_NODE:
+              //case NOTATION_NODE:
+              default:
+                buf.push("??", n.nodeName);
+                return null;
+            }
+          },
+          exit: function(n, childCtx) {
+            if (childCtx && childCtx.tag) {
+              buf.push("</", childCtx.tag, ">");
+            }
+          }
+        }
+      );
+    }
+    function importNode(doc, node2, deep) {
+      var destRoot;
+      walkDOM(node2, null, {
+        enter: function(srcNode, destParent) {
+          var destNode = srcNode.cloneNode(false);
+          destNode.ownerDocument = doc;
+          destNode.parentNode = null;
+          if (destParent === null) {
+            destRoot = destNode;
+          } else {
+            destParent.appendChild(destNode);
+          }
+          var shouldDeep = srcNode.nodeType === ATTRIBUTE_NODE || deep;
+          return shouldDeep ? destNode : null;
+        }
+      });
+      return destRoot;
+    }
+    function cloneNode(doc, node2, deep) {
+      var destRoot;
+      walkDOM(node2, null, {
+        enter: function(srcNode, destParent) {
+          var destNode = new srcNode.constructor(PDC);
+          for (var n in srcNode) {
+            if (hasOwn(srcNode, n)) {
+              var v = srcNode[n];
+              if (typeof v != "object") {
+                if (v != destNode[n]) {
+                  destNode[n] = v;
+                }
+              }
+            }
+          }
+          if (srcNode.childNodes) {
+            destNode.childNodes = new NodeList();
+          }
+          destNode.ownerDocument = doc;
+          var shouldDeep = deep;
+          switch (destNode.nodeType) {
+            case ELEMENT_NODE:
+              var attrs = srcNode.attributes;
+              var attrs2 = destNode.attributes = new NamedNodeMap();
+              var len = attrs.length;
+              attrs2._ownerElement = destNode;
+              for (var i = 0; i < len; i++) {
+                destNode.setAttributeNode(cloneNode(doc, attrs.item(i), true));
+              }
+              break;
+            case ATTRIBUTE_NODE:
+              shouldDeep = true;
+          }
+          if (destParent !== null) {
+            destParent.appendChild(destNode);
+          } else {
+            destRoot = destNode;
+          }
+          return shouldDeep ? destNode : null;
+        }
+      });
+      return destRoot;
+    }
+    function __set__(object3, key, value) {
+      object3[key] = value;
+    }
+    function childrenRefresh(node2) {
+      var ls = [];
+      var child = node2.firstChild;
+      while (child) {
+        if (child.nodeType === ELEMENT_NODE) {
+          ls.push(child);
+        }
+        child = child.nextSibling;
+      }
+      return ls;
+    }
+    try {
+      if (Object.defineProperty) {
+        Object.defineProperty(LiveNodeList.prototype, "length", {
+          get: function() {
+            _updateLiveList(this);
+            return this.$$length;
+          }
+        });
+        Object.defineProperty(Node.prototype, "textContent", {
+          get: function() {
+            if (this.nodeType === ELEMENT_NODE || this.nodeType === DOCUMENT_FRAGMENT_NODE) {
+              var buf = [];
+              walkDOM(this, null, {
+                enter: function(n) {
+                  if (n.nodeType === ELEMENT_NODE || n.nodeType === DOCUMENT_FRAGMENT_NODE) {
+                    return true;
+                  }
+                  if (n.nodeType === PROCESSING_INSTRUCTION_NODE || n.nodeType === COMMENT_NODE2) {
+                    return null;
+                  }
+                  buf.push(n.nodeValue);
+                }
+              });
+              return buf.join("");
+            }
+            return this.nodeValue;
+          },
+          set: function(data) {
+            switch (this.nodeType) {
+              case ELEMENT_NODE:
+              case DOCUMENT_FRAGMENT_NODE:
+                while (this.firstChild) {
+                  this.removeChild(this.firstChild);
+                }
+                if (data || String(data)) {
+                  this.appendChild(this.ownerDocument.createTextNode(data));
+                }
+                break;
+              default:
+                this.data = data;
+                this.value = data;
+                this.nodeValue = data;
+            }
+          }
+        });
+        Object.defineProperty(CharacterData.prototype, "data", {
+          get: function() {
+            return this._data != null ? this._data : "";
+          },
+          set: function(v) {
+            this._data = v;
+            this.length = typeof v === "string" ? v.length : 0;
+          }
+        });
+        Object.defineProperty(CharacterData.prototype, "nodeValue", {
+          get: function() {
+            return this.data;
+          },
+          set: function(v) {
+            this.data = v;
+          },
+          enumerable: true,
+          configurable: true
+        });
+        Object.defineProperty(Element.prototype, "children", {
+          get: function() {
+            return new LiveNodeList(this, childrenRefresh);
+          }
+        });
+        Object.defineProperty(Document.prototype, "children", {
+          get: function() {
+            return new LiveNodeList(this, childrenRefresh);
+          }
+        });
+        Object.defineProperty(DocumentFragment.prototype, "children", {
+          get: function() {
+            return new LiveNodeList(this, childrenRefresh);
+          }
+        });
+        __set__ = function(object3, key, value) {
+          object3["$$" + key] = value;
+        };
+      }
+    } catch (e) {
+    }
+    exports._updateLiveList = _updateLiveList;
+    exports.Attr = Attr;
+    exports.CDATASection = CDATASection;
+    exports.CharacterData = CharacterData;
+    exports.Comment = Comment;
+    exports.Document = Document;
+    exports.DocumentFragment = DocumentFragment;
+    exports.DocumentType = DocumentType;
+    exports.DOMImplementation = DOMImplementation;
+    exports.Element = Element;
+    exports.Entity = Entity;
+    exports.EntityReference = EntityReference;
+    exports.LiveNodeList = LiveNodeList;
+    exports.NamedNodeMap = NamedNodeMap;
+    exports.Node = Node;
+    exports.NodeList = NodeList;
+    exports.Notation = Notation;
+    exports.Text = Text;
+    exports.ProcessingInstruction = ProcessingInstruction;
+    exports.walkDOM = walkDOM;
+    exports.XMLSerializer = XMLSerializer;
+  }
+});
+
+// node_modules/@xmldom/xmldom/lib/entities.js
+var require_entities = __commonJS({
+  "node_modules/@xmldom/xmldom/lib/entities.js"(exports) {
+    "use strict";
+    var freeze = require_conventions().freeze;
+    exports.XML_ENTITIES = freeze({
+      amp: "&",
+      apos: "'",
+      gt: ">",
+      lt: "<",
+      quot: '"'
+    });
+    exports.HTML_ENTITIES = freeze({
+      Aacute: "\xC1",
+      aacute: "\xE1",
+      Abreve: "\u0102",
+      abreve: "\u0103",
+      ac: "\u223E",
+      acd: "\u223F",
+      acE: "\u223E\u0333",
+      Acirc: "\xC2",
+      acirc: "\xE2",
+      acute: "\xB4",
+      Acy: "\u0410",
+      acy: "\u0430",
+      AElig: "\xC6",
+      aelig: "\xE6",
+      af: "\u2061",
+      Afr: "\u{1D504}",
+      afr: "\u{1D51E}",
+      Agrave: "\xC0",
+      agrave: "\xE0",
+      alefsym: "\u2135",
+      aleph: "\u2135",
+      Alpha: "\u0391",
+      alpha: "\u03B1",
+      Amacr: "\u0100",
+      amacr: "\u0101",
+      amalg: "\u2A3F",
+      AMP: "&",
+      amp: "&",
+      And: "\u2A53",
+      and: "\u2227",
+      andand: "\u2A55",
+      andd: "\u2A5C",
+      andslope: "\u2A58",
+      andv: "\u2A5A",
+      ang: "\u2220",
+      ange: "\u29A4",
+      angle: "\u2220",
+      angmsd: "\u2221",
+      angmsdaa: "\u29A8",
+      angmsdab: "\u29A9",
+      angmsdac: "\u29AA",
+      angmsdad: "\u29AB",
+      angmsdae: "\u29AC",
+      angmsdaf: "\u29AD",
+      angmsdag: "\u29AE",
+      angmsdah: "\u29AF",
+      angrt: "\u221F",
+      angrtvb: "\u22BE",
+      angrtvbd: "\u299D",
+      angsph: "\u2222",
+      angst: "\xC5",
+      angzarr: "\u237C",
+      Aogon: "\u0104",
+      aogon: "\u0105",
+      Aopf: "\u{1D538}",
+      aopf: "\u{1D552}",
+      ap: "\u2248",
+      apacir: "\u2A6F",
+      apE: "\u2A70",
+      ape: "\u224A",
+      apid: "\u224B",
+      apos: "'",
+      ApplyFunction: "\u2061",
+      approx: "\u2248",
+      approxeq: "\u224A",
+      Aring: "\xC5",
+      aring: "\xE5",
+      Ascr: "\u{1D49C}",
+      ascr: "\u{1D4B6}",
+      Assign: "\u2254",
+      ast: "*",
+      asymp: "\u2248",
+      asympeq: "\u224D",
+      Atilde: "\xC3",
+      atilde: "\xE3",
+      Auml: "\xC4",
+      auml: "\xE4",
+      awconint: "\u2233",
+      awint: "\u2A11",
+      backcong: "\u224C",
+      backepsilon: "\u03F6",
+      backprime: "\u2035",
+      backsim: "\u223D",
+      backsimeq: "\u22CD",
+      Backslash: "\u2216",
+      Barv: "\u2AE7",
+      barvee: "\u22BD",
+      Barwed: "\u2306",
+      barwed: "\u2305",
+      barwedge: "\u2305",
+      bbrk: "\u23B5",
+      bbrktbrk: "\u23B6",
+      bcong: "\u224C",
+      Bcy: "\u0411",
+      bcy: "\u0431",
+      bdquo: "\u201E",
+      becaus: "\u2235",
+      Because: "\u2235",
+      because: "\u2235",
+      bemptyv: "\u29B0",
+      bepsi: "\u03F6",
+      bernou: "\u212C",
+      Bernoullis: "\u212C",
+      Beta: "\u0392",
+      beta: "\u03B2",
+      beth: "\u2136",
+      between: "\u226C",
+      Bfr: "\u{1D505}",
+      bfr: "\u{1D51F}",
+      bigcap: "\u22C2",
+      bigcirc: "\u25EF",
+      bigcup: "\u22C3",
+      bigodot: "\u2A00",
+      bigoplus: "\u2A01",
+      bigotimes: "\u2A02",
+      bigsqcup: "\u2A06",
+      bigstar: "\u2605",
+      bigtriangledown: "\u25BD",
+      bigtriangleup: "\u25B3",
+      biguplus: "\u2A04",
+      bigvee: "\u22C1",
+      bigwedge: "\u22C0",
+      bkarow: "\u290D",
+      blacklozenge: "\u29EB",
+      blacksquare: "\u25AA",
+      blacktriangle: "\u25B4",
+      blacktriangledown: "\u25BE",
+      blacktriangleleft: "\u25C2",
+      blacktriangleright: "\u25B8",
+      blank: "\u2423",
+      blk12: "\u2592",
+      blk14: "\u2591",
+      blk34: "\u2593",
+      block: "\u2588",
+      bne: "=\u20E5",
+      bnequiv: "\u2261\u20E5",
+      bNot: "\u2AED",
+      bnot: "\u2310",
+      Bopf: "\u{1D539}",
+      bopf: "\u{1D553}",
+      bot: "\u22A5",
+      bottom: "\u22A5",
+      bowtie: "\u22C8",
+      boxbox: "\u29C9",
+      boxDL: "\u2557",
+      boxDl: "\u2556",
+      boxdL: "\u2555",
+      boxdl: "\u2510",
+      boxDR: "\u2554",
+      boxDr: "\u2553",
+      boxdR: "\u2552",
+      boxdr: "\u250C",
+      boxH: "\u2550",
+      boxh: "\u2500",
+      boxHD: "\u2566",
+      boxHd: "\u2564",
+      boxhD: "\u2565",
+      boxhd: "\u252C",
+      boxHU: "\u2569",
+      boxHu: "\u2567",
+      boxhU: "\u2568",
+      boxhu: "\u2534",
+      boxminus: "\u229F",
+      boxplus: "\u229E",
+      boxtimes: "\u22A0",
+      boxUL: "\u255D",
+      boxUl: "\u255C",
+      boxuL: "\u255B",
+      boxul: "\u2518",
+      boxUR: "\u255A",
+      boxUr: "\u2559",
+      boxuR: "\u2558",
+      boxur: "\u2514",
+      boxV: "\u2551",
+      boxv: "\u2502",
+      boxVH: "\u256C",
+      boxVh: "\u256B",
+      boxvH: "\u256A",
+      boxvh: "\u253C",
+      boxVL: "\u2563",
+      boxVl: "\u2562",
+      boxvL: "\u2561",
+      boxvl: "\u2524",
+      boxVR: "\u2560",
+      boxVr: "\u255F",
+      boxvR: "\u255E",
+      boxvr: "\u251C",
+      bprime: "\u2035",
+      Breve: "\u02D8",
+      breve: "\u02D8",
+      brvbar: "\xA6",
+      Bscr: "\u212C",
+      bscr: "\u{1D4B7}",
+      bsemi: "\u204F",
+      bsim: "\u223D",
+      bsime: "\u22CD",
+      bsol: "\\",
+      bsolb: "\u29C5",
+      bsolhsub: "\u27C8",
+      bull: "\u2022",
+      bullet: "\u2022",
+      bump: "\u224E",
+      bumpE: "\u2AAE",
+      bumpe: "\u224F",
+      Bumpeq: "\u224E",
+      bumpeq: "\u224F",
+      Cacute: "\u0106",
+      cacute: "\u0107",
+      Cap: "\u22D2",
+      cap: "\u2229",
+      capand: "\u2A44",
+      capbrcup: "\u2A49",
+      capcap: "\u2A4B",
+      capcup: "\u2A47",
+      capdot: "\u2A40",
+      CapitalDifferentialD: "\u2145",
+      caps: "\u2229\uFE00",
+      caret: "\u2041",
+      caron: "\u02C7",
+      Cayleys: "\u212D",
+      ccaps: "\u2A4D",
+      Ccaron: "\u010C",
+      ccaron: "\u010D",
+      Ccedil: "\xC7",
+      ccedil: "\xE7",
+      Ccirc: "\u0108",
+      ccirc: "\u0109",
+      Cconint: "\u2230",
+      ccups: "\u2A4C",
+      ccupssm: "\u2A50",
+      Cdot: "\u010A",
+      cdot: "\u010B",
+      cedil: "\xB8",
+      Cedilla: "\xB8",
+      cemptyv: "\u29B2",
+      cent: "\xA2",
+      CenterDot: "\xB7",
+      centerdot: "\xB7",
+      Cfr: "\u212D",
+      cfr: "\u{1D520}",
+      CHcy: "\u0427",
+      chcy: "\u0447",
+      check: "\u2713",
+      checkmark: "\u2713",
+      Chi: "\u03A7",
+      chi: "\u03C7",
+      cir: "\u25CB",
+      circ: "\u02C6",
+      circeq: "\u2257",
+      circlearrowleft: "\u21BA",
+      circlearrowright: "\u21BB",
+      circledast: "\u229B",
+      circledcirc: "\u229A",
+      circleddash: "\u229D",
+      CircleDot: "\u2299",
+      circledR: "\xAE",
+      circledS: "\u24C8",
+      CircleMinus: "\u2296",
+      CirclePlus: "\u2295",
+      CircleTimes: "\u2297",
+      cirE: "\u29C3",
+      cire: "\u2257",
+      cirfnint: "\u2A10",
+      cirmid: "\u2AEF",
+      cirscir: "\u29C2",
+      ClockwiseContourIntegral: "\u2232",
+      CloseCurlyDoubleQuote: "\u201D",
+      CloseCurlyQuote: "\u2019",
+      clubs: "\u2663",
+      clubsuit: "\u2663",
+      Colon: "\u2237",
+      colon: ":",
+      Colone: "\u2A74",
+      colone: "\u2254",
+      coloneq: "\u2254",
+      comma: ",",
+      commat: "@",
+      comp: "\u2201",
+      compfn: "\u2218",
+      complement: "\u2201",
+      complexes: "\u2102",
+      cong: "\u2245",
+      congdot: "\u2A6D",
+      Congruent: "\u2261",
+      Conint: "\u222F",
+      conint: "\u222E",
+      ContourIntegral: "\u222E",
+      Copf: "\u2102",
+      copf: "\u{1D554}",
+      coprod: "\u2210",
+      Coproduct: "\u2210",
+      COPY: "\xA9",
+      copy: "\xA9",
+      copysr: "\u2117",
+      CounterClockwiseContourIntegral: "\u2233",
+      crarr: "\u21B5",
+      Cross: "\u2A2F",
+      cross: "\u2717",
+      Cscr: "\u{1D49E}",
+      cscr: "\u{1D4B8}",
+      csub: "\u2ACF",
+      csube: "\u2AD1",
+      csup: "\u2AD0",
+      csupe: "\u2AD2",
+      ctdot: "\u22EF",
+      cudarrl: "\u2938",
+      cudarrr: "\u2935",
+      cuepr: "\u22DE",
+      cuesc: "\u22DF",
+      cularr: "\u21B6",
+      cularrp: "\u293D",
+      Cup: "\u22D3",
+      cup: "\u222A",
+      cupbrcap: "\u2A48",
+      CupCap: "\u224D",
+      cupcap: "\u2A46",
+      cupcup: "\u2A4A",
+      cupdot: "\u228D",
+      cupor: "\u2A45",
+      cups: "\u222A\uFE00",
+      curarr: "\u21B7",
+      curarrm: "\u293C",
+      curlyeqprec: "\u22DE",
+      curlyeqsucc: "\u22DF",
+      curlyvee: "\u22CE",
+      curlywedge: "\u22CF",
+      curren: "\xA4",
+      curvearrowleft: "\u21B6",
+      curvearrowright: "\u21B7",
+      cuvee: "\u22CE",
+      cuwed: "\u22CF",
+      cwconint: "\u2232",
+      cwint: "\u2231",
+      cylcty: "\u232D",
+      Dagger: "\u2021",
+      dagger: "\u2020",
+      daleth: "\u2138",
+      Darr: "\u21A1",
+      dArr: "\u21D3",
+      darr: "\u2193",
+      dash: "\u2010",
+      Dashv: "\u2AE4",
+      dashv: "\u22A3",
+      dbkarow: "\u290F",
+      dblac: "\u02DD",
+      Dcaron: "\u010E",
+      dcaron: "\u010F",
+      Dcy: "\u0414",
+      dcy: "\u0434",
+      DD: "\u2145",
+      dd: "\u2146",
+      ddagger: "\u2021",
+      ddarr: "\u21CA",
+      DDotrahd: "\u2911",
+      ddotseq: "\u2A77",
+      deg: "\xB0",
+      Del: "\u2207",
+      Delta: "\u0394",
+      delta: "\u03B4",
+      demptyv: "\u29B1",
+      dfisht: "\u297F",
+      Dfr: "\u{1D507}",
+      dfr: "\u{1D521}",
+      dHar: "\u2965",
+      dharl: "\u21C3",
+      dharr: "\u21C2",
+      DiacriticalAcute: "\xB4",
+      DiacriticalDot: "\u02D9",
+      DiacriticalDoubleAcute: "\u02DD",
+      DiacriticalGrave: "`",
+      DiacriticalTilde: "\u02DC",
+      diam: "\u22C4",
+      Diamond: "\u22C4",
+      diamond: "\u22C4",
+      diamondsuit: "\u2666",
+      diams: "\u2666",
+      die: "\xA8",
+      DifferentialD: "\u2146",
+      digamma: "\u03DD",
+      disin: "\u22F2",
+      div: "\xF7",
+      divide: "\xF7",
+      divideontimes: "\u22C7",
+      divonx: "\u22C7",
+      DJcy: "\u0402",
+      djcy: "\u0452",
+      dlcorn: "\u231E",
+      dlcrop: "\u230D",
+      dollar: "$",
+      Dopf: "\u{1D53B}",
+      dopf: "\u{1D555}",
+      Dot: "\xA8",
+      dot: "\u02D9",
+      DotDot: "\u20DC",
+      doteq: "\u2250",
+      doteqdot: "\u2251",
+      DotEqual: "\u2250",
+      dotminus: "\u2238",
+      dotplus: "\u2214",
+      dotsquare: "\u22A1",
+      doublebarwedge: "\u2306",
+      DoubleContourIntegral: "\u222F",
+      DoubleDot: "\xA8",
+      DoubleDownArrow: "\u21D3",
+      DoubleLeftArrow: "\u21D0",
+      DoubleLeftRightArrow: "\u21D4",
+      DoubleLeftTee: "\u2AE4",
+      DoubleLongLeftArrow: "\u27F8",
+      DoubleLongLeftRightArrow: "\u27FA",
+      DoubleLongRightArrow: "\u27F9",
+      DoubleRightArrow: "\u21D2",
+      DoubleRightTee: "\u22A8",
+      DoubleUpArrow: "\u21D1",
+      DoubleUpDownArrow: "\u21D5",
+      DoubleVerticalBar: "\u2225",
+      DownArrow: "\u2193",
+      Downarrow: "\u21D3",
+      downarrow: "\u2193",
+      DownArrowBar: "\u2913",
+      DownArrowUpArrow: "\u21F5",
+      DownBreve: "\u0311",
+      downdownarrows: "\u21CA",
+      downharpoonleft: "\u21C3",
+      downharpoonright: "\u21C2",
+      DownLeftRightVector: "\u2950",
+      DownLeftTeeVector: "\u295E",
+      DownLeftVector: "\u21BD",
+      DownLeftVectorBar: "\u2956",
+      DownRightTeeVector: "\u295F",
+      DownRightVector: "\u21C1",
+      DownRightVectorBar: "\u2957",
+      DownTee: "\u22A4",
+      DownTeeArrow: "\u21A7",
+      drbkarow: "\u2910",
+      drcorn: "\u231F",
+      drcrop: "\u230C",
+      Dscr: "\u{1D49F}",
+      dscr: "\u{1D4B9}",
+      DScy: "\u0405",
+      dscy: "\u0455",
+      dsol: "\u29F6",
+      Dstrok: "\u0110",
+      dstrok: "\u0111",
+      dtdot: "\u22F1",
+      dtri: "\u25BF",
+      dtrif: "\u25BE",
+      duarr: "\u21F5",
+      duhar: "\u296F",
+      dwangle: "\u29A6",
+      DZcy: "\u040F",
+      dzcy: "\u045F",
+      dzigrarr: "\u27FF",
+      Eacute: "\xC9",
+      eacute: "\xE9",
+      easter: "\u2A6E",
+      Ecaron: "\u011A",
+      ecaron: "\u011B",
+      ecir: "\u2256",
+      Ecirc: "\xCA",
+      ecirc: "\xEA",
+      ecolon: "\u2255",
+      Ecy: "\u042D",
+      ecy: "\u044D",
+      eDDot: "\u2A77",
+      Edot: "\u0116",
+      eDot: "\u2251",
+      edot: "\u0117",
+      ee: "\u2147",
+      efDot: "\u2252",
+      Efr: "\u{1D508}",
+      efr: "\u{1D522}",
+      eg: "\u2A9A",
+      Egrave: "\xC8",
+      egrave: "\xE8",
+      egs: "\u2A96",
+      egsdot: "\u2A98",
+      el: "\u2A99",
+      Element: "\u2208",
+      elinters: "\u23E7",
+      ell: "\u2113",
+      els: "\u2A95",
+      elsdot: "\u2A97",
+      Emacr: "\u0112",
+      emacr: "\u0113",
+      empty: "\u2205",
+      emptyset: "\u2205",
+      EmptySmallSquare: "\u25FB",
+      emptyv: "\u2205",
+      EmptyVerySmallSquare: "\u25AB",
+      emsp: "\u2003",
+      emsp13: "\u2004",
+      emsp14: "\u2005",
+      ENG: "\u014A",
+      eng: "\u014B",
+      ensp: "\u2002",
+      Eogon: "\u0118",
+      eogon: "\u0119",
+      Eopf: "\u{1D53C}",
+      eopf: "\u{1D556}",
+      epar: "\u22D5",
+      eparsl: "\u29E3",
+      eplus: "\u2A71",
+      epsi: "\u03B5",
+      Epsilon: "\u0395",
+      epsilon: "\u03B5",
+      epsiv: "\u03F5",
+      eqcirc: "\u2256",
+      eqcolon: "\u2255",
+      eqsim: "\u2242",
+      eqslantgtr: "\u2A96",
+      eqslantless: "\u2A95",
+      Equal: "\u2A75",
+      equals: "=",
+      EqualTilde: "\u2242",
+      equest: "\u225F",
+      Equilibrium: "\u21CC",
+      equiv: "\u2261",
+      equivDD: "\u2A78",
+      eqvparsl: "\u29E5",
+      erarr: "\u2971",
+      erDot: "\u2253",
+      Escr: "\u2130",
+      escr: "\u212F",
+      esdot: "\u2250",
+      Esim: "\u2A73",
+      esim: "\u2242",
+      Eta: "\u0397",
+      eta: "\u03B7",
+      ETH: "\xD0",
+      eth: "\xF0",
+      Euml: "\xCB",
+      euml: "\xEB",
+      euro: "\u20AC",
+      excl: "!",
+      exist: "\u2203",
+      Exists: "\u2203",
+      expectation: "\u2130",
+      ExponentialE: "\u2147",
+      exponentiale: "\u2147",
+      fallingdotseq: "\u2252",
+      Fcy: "\u0424",
+      fcy: "\u0444",
+      female: "\u2640",
+      ffilig: "\uFB03",
+      fflig: "\uFB00",
+      ffllig: "\uFB04",
+      Ffr: "\u{1D509}",
+      ffr: "\u{1D523}",
+      filig: "\uFB01",
+      FilledSmallSquare: "\u25FC",
+      FilledVerySmallSquare: "\u25AA",
+      fjlig: "fj",
+      flat: "\u266D",
+      fllig: "\uFB02",
+      fltns: "\u25B1",
+      fnof: "\u0192",
+      Fopf: "\u{1D53D}",
+      fopf: "\u{1D557}",
+      ForAll: "\u2200",
+      forall: "\u2200",
+      fork: "\u22D4",
+      forkv: "\u2AD9",
+      Fouriertrf: "\u2131",
+      fpartint: "\u2A0D",
+      frac12: "\xBD",
+      frac13: "\u2153",
+      frac14: "\xBC",
+      frac15: "\u2155",
+      frac16: "\u2159",
+      frac18: "\u215B",
+      frac23: "\u2154",
+      frac25: "\u2156",
+      frac34: "\xBE",
+      frac35: "\u2157",
+      frac38: "\u215C",
+      frac45: "\u2158",
+      frac56: "\u215A",
+      frac58: "\u215D",
+      frac78: "\u215E",
+      frasl: "\u2044",
+      frown: "\u2322",
+      Fscr: "\u2131",
+      fscr: "\u{1D4BB}",
+      gacute: "\u01F5",
+      Gamma: "\u0393",
+      gamma: "\u03B3",
+      Gammad: "\u03DC",
+      gammad: "\u03DD",
+      gap: "\u2A86",
+      Gbreve: "\u011E",
+      gbreve: "\u011F",
+      Gcedil: "\u0122",
+      Gcirc: "\u011C",
+      gcirc: "\u011D",
+      Gcy: "\u0413",
+      gcy: "\u0433",
+      Gdot: "\u0120",
+      gdot: "\u0121",
+      gE: "\u2267",
+      ge: "\u2265",
+      gEl: "\u2A8C",
+      gel: "\u22DB",
+      geq: "\u2265",
+      geqq: "\u2267",
+      geqslant: "\u2A7E",
+      ges: "\u2A7E",
+      gescc: "\u2AA9",
+      gesdot: "\u2A80",
+      gesdoto: "\u2A82",
+      gesdotol: "\u2A84",
+      gesl: "\u22DB\uFE00",
+      gesles: "\u2A94",
+      Gfr: "\u{1D50A}",
+      gfr: "\u{1D524}",
+      Gg: "\u22D9",
+      gg: "\u226B",
+      ggg: "\u22D9",
+      gimel: "\u2137",
+      GJcy: "\u0403",
+      gjcy: "\u0453",
+      gl: "\u2277",
+      gla: "\u2AA5",
+      glE: "\u2A92",
+      glj: "\u2AA4",
+      gnap: "\u2A8A",
+      gnapprox: "\u2A8A",
+      gnE: "\u2269",
+      gne: "\u2A88",
+      gneq: "\u2A88",
+      gneqq: "\u2269",
+      gnsim: "\u22E7",
+      Gopf: "\u{1D53E}",
+      gopf: "\u{1D558}",
+      grave: "`",
+      GreaterEqual: "\u2265",
+      GreaterEqualLess: "\u22DB",
+      GreaterFullEqual: "\u2267",
+      GreaterGreater: "\u2AA2",
+      GreaterLess: "\u2277",
+      GreaterSlantEqual: "\u2A7E",
+      GreaterTilde: "\u2273",
+      Gscr: "\u{1D4A2}",
+      gscr: "\u210A",
+      gsim: "\u2273",
+      gsime: "\u2A8E",
+      gsiml: "\u2A90",
+      Gt: "\u226B",
+      GT: ">",
+      gt: ">",
+      gtcc: "\u2AA7",
+      gtcir: "\u2A7A",
+      gtdot: "\u22D7",
+      gtlPar: "\u2995",
+      gtquest: "\u2A7C",
+      gtrapprox: "\u2A86",
+      gtrarr: "\u2978",
+      gtrdot: "\u22D7",
+      gtreqless: "\u22DB",
+      gtreqqless: "\u2A8C",
+      gtrless: "\u2277",
+      gtrsim: "\u2273",
+      gvertneqq: "\u2269\uFE00",
+      gvnE: "\u2269\uFE00",
+      Hacek: "\u02C7",
+      hairsp: "\u200A",
+      half: "\xBD",
+      hamilt: "\u210B",
+      HARDcy: "\u042A",
+      hardcy: "\u044A",
+      hArr: "\u21D4",
+      harr: "\u2194",
+      harrcir: "\u2948",
+      harrw: "\u21AD",
+      Hat: "^",
+      hbar: "\u210F",
+      Hcirc: "\u0124",
+      hcirc: "\u0125",
+      hearts: "\u2665",
+      heartsuit: "\u2665",
+      hellip: "\u2026",
+      hercon: "\u22B9",
+      Hfr: "\u210C",
+      hfr: "\u{1D525}",
+      HilbertSpace: "\u210B",
+      hksearow: "\u2925",
+      hkswarow: "\u2926",
+      hoarr: "\u21FF",
+      homtht: "\u223B",
+      hookleftarrow: "\u21A9",
+      hookrightarrow: "\u21AA",
+      Hopf: "\u210D",
+      hopf: "\u{1D559}",
+      horbar: "\u2015",
+      HorizontalLine: "\u2500",
+      Hscr: "\u210B",
+      hscr: "\u{1D4BD}",
+      hslash: "\u210F",
+      Hstrok: "\u0126",
+      hstrok: "\u0127",
+      HumpDownHump: "\u224E",
+      HumpEqual: "\u224F",
+      hybull: "\u2043",
+      hyphen: "\u2010",
+      Iacute: "\xCD",
+      iacute: "\xED",
+      ic: "\u2063",
+      Icirc: "\xCE",
+      icirc: "\xEE",
+      Icy: "\u0418",
+      icy: "\u0438",
+      Idot: "\u0130",
+      IEcy: "\u0415",
+      iecy: "\u0435",
+      iexcl: "\xA1",
+      iff: "\u21D4",
+      Ifr: "\u2111",
+      ifr: "\u{1D526}",
+      Igrave: "\xCC",
+      igrave: "\xEC",
+      ii: "\u2148",
+      iiiint: "\u2A0C",
+      iiint: "\u222D",
+      iinfin: "\u29DC",
+      iiota: "\u2129",
+      IJlig: "\u0132",
+      ijlig: "\u0133",
+      Im: "\u2111",
+      Imacr: "\u012A",
+      imacr: "\u012B",
+      image: "\u2111",
+      ImaginaryI: "\u2148",
+      imagline: "\u2110",
+      imagpart: "\u2111",
+      imath: "\u0131",
+      imof: "\u22B7",
+      imped: "\u01B5",
+      Implies: "\u21D2",
+      in: "\u2208",
+      incare: "\u2105",
+      infin: "\u221E",
+      infintie: "\u29DD",
+      inodot: "\u0131",
+      Int: "\u222C",
+      int: "\u222B",
+      intcal: "\u22BA",
+      integers: "\u2124",
+      Integral: "\u222B",
+      intercal: "\u22BA",
+      Intersection: "\u22C2",
+      intlarhk: "\u2A17",
+      intprod: "\u2A3C",
+      InvisibleComma: "\u2063",
+      InvisibleTimes: "\u2062",
+      IOcy: "\u0401",
+      iocy: "\u0451",
+      Iogon: "\u012E",
+      iogon: "\u012F",
+      Iopf: "\u{1D540}",
+      iopf: "\u{1D55A}",
+      Iota: "\u0399",
+      iota: "\u03B9",
+      iprod: "\u2A3C",
+      iquest: "\xBF",
+      Iscr: "\u2110",
+      iscr: "\u{1D4BE}",
+      isin: "\u2208",
+      isindot: "\u22F5",
+      isinE: "\u22F9",
+      isins: "\u22F4",
+      isinsv: "\u22F3",
+      isinv: "\u2208",
+      it: "\u2062",
+      Itilde: "\u0128",
+      itilde: "\u0129",
+      Iukcy: "\u0406",
+      iukcy: "\u0456",
+      Iuml: "\xCF",
+      iuml: "\xEF",
+      Jcirc: "\u0134",
+      jcirc: "\u0135",
+      Jcy: "\u0419",
+      jcy: "\u0439",
+      Jfr: "\u{1D50D}",
+      jfr: "\u{1D527}",
+      jmath: "\u0237",
+      Jopf: "\u{1D541}",
+      jopf: "\u{1D55B}",
+      Jscr: "\u{1D4A5}",
+      jscr: "\u{1D4BF}",
+      Jsercy: "\u0408",
+      jsercy: "\u0458",
+      Jukcy: "\u0404",
+      jukcy: "\u0454",
+      Kappa: "\u039A",
+      kappa: "\u03BA",
+      kappav: "\u03F0",
+      Kcedil: "\u0136",
+      kcedil: "\u0137",
+      Kcy: "\u041A",
+      kcy: "\u043A",
+      Kfr: "\u{1D50E}",
+      kfr: "\u{1D528}",
+      kgreen: "\u0138",
+      KHcy: "\u0425",
+      khcy: "\u0445",
+      KJcy: "\u040C",
+      kjcy: "\u045C",
+      Kopf: "\u{1D542}",
+      kopf: "\u{1D55C}",
+      Kscr: "\u{1D4A6}",
+      kscr: "\u{1D4C0}",
+      lAarr: "\u21DA",
+      Lacute: "\u0139",
+      lacute: "\u013A",
+      laemptyv: "\u29B4",
+      lagran: "\u2112",
+      Lambda: "\u039B",
+      lambda: "\u03BB",
+      Lang: "\u27EA",
+      lang: "\u27E8",
+      langd: "\u2991",
+      langle: "\u27E8",
+      lap: "\u2A85",
+      Laplacetrf: "\u2112",
+      laquo: "\xAB",
+      Larr: "\u219E",
+      lArr: "\u21D0",
+      larr: "\u2190",
+      larrb: "\u21E4",
+      larrbfs: "\u291F",
+      larrfs: "\u291D",
+      larrhk: "\u21A9",
+      larrlp: "\u21AB",
+      larrpl: "\u2939",
+      larrsim: "\u2973",
+      larrtl: "\u21A2",
+      lat: "\u2AAB",
+      lAtail: "\u291B",
+      latail: "\u2919",
+      late: "\u2AAD",
+      lates: "\u2AAD\uFE00",
+      lBarr: "\u290E",
+      lbarr: "\u290C",
+      lbbrk: "\u2772",
+      lbrace: "{",
+      lbrack: "[",
+      lbrke: "\u298B",
+      lbrksld: "\u298F",
+      lbrkslu: "\u298D",
+      Lcaron: "\u013D",
+      lcaron: "\u013E",
+      Lcedil: "\u013B",
+      lcedil: "\u013C",
+      lceil: "\u2308",
+      lcub: "{",
+      Lcy: "\u041B",
+      lcy: "\u043B",
+      ldca: "\u2936",
+      ldquo: "\u201C",
+      ldquor: "\u201E",
+      ldrdhar: "\u2967",
+      ldrushar: "\u294B",
+      ldsh: "\u21B2",
+      lE: "\u2266",
+      le: "\u2264",
+      LeftAngleBracket: "\u27E8",
+      LeftArrow: "\u2190",
+      Leftarrow: "\u21D0",
+      leftarrow: "\u2190",
+      LeftArrowBar: "\u21E4",
+      LeftArrowRightArrow: "\u21C6",
+      leftarrowtail: "\u21A2",
+      LeftCeiling: "\u2308",
+      LeftDoubleBracket: "\u27E6",
+      LeftDownTeeVector: "\u2961",
+      LeftDownVector: "\u21C3",
+      LeftDownVectorBar: "\u2959",
+      LeftFloor: "\u230A",
+      leftharpoondown: "\u21BD",
+      leftharpoonup: "\u21BC",
+      leftleftarrows: "\u21C7",
+      LeftRightArrow: "\u2194",
+      Leftrightarrow: "\u21D4",
+      leftrightarrow: "\u2194",
+      leftrightarrows: "\u21C6",
+      leftrightharpoons: "\u21CB",
+      leftrightsquigarrow: "\u21AD",
+      LeftRightVector: "\u294E",
+      LeftTee: "\u22A3",
+      LeftTeeArrow: "\u21A4",
+      LeftTeeVector: "\u295A",
+      leftthreetimes: "\u22CB",
+      LeftTriangle: "\u22B2",
+      LeftTriangleBar: "\u29CF",
+      LeftTriangleEqual: "\u22B4",
+      LeftUpDownVector: "\u2951",
+      LeftUpTeeVector: "\u2960",
+      LeftUpVector: "\u21BF",
+      LeftUpVectorBar: "\u2958",
+      LeftVector: "\u21BC",
+      LeftVectorBar: "\u2952",
+      lEg: "\u2A8B",
+      leg: "\u22DA",
+      leq: "\u2264",
+      leqq: "\u2266",
+      leqslant: "\u2A7D",
+      les: "\u2A7D",
+      lescc: "\u2AA8",
+      lesdot: "\u2A7F",
+      lesdoto: "\u2A81",
+      lesdotor: "\u2A83",
+      lesg: "\u22DA\uFE00",
+      lesges: "\u2A93",
+      lessapprox: "\u2A85",
+      lessdot: "\u22D6",
+      lesseqgtr: "\u22DA",
+      lesseqqgtr: "\u2A8B",
+      LessEqualGreater: "\u22DA",
+      LessFullEqual: "\u2266",
+      LessGreater: "\u2276",
+      lessgtr: "\u2276",
+      LessLess: "\u2AA1",
+      lesssim: "\u2272",
+      LessSlantEqual: "\u2A7D",
+      LessTilde: "\u2272",
+      lfisht: "\u297C",
+      lfloor: "\u230A",
+      Lfr: "\u{1D50F}",
+      lfr: "\u{1D529}",
+      lg: "\u2276",
+      lgE: "\u2A91",
+      lHar: "\u2962",
+      lhard: "\u21BD",
+      lharu: "\u21BC",
+      lharul: "\u296A",
+      lhblk: "\u2584",
+      LJcy: "\u0409",
+      ljcy: "\u0459",
+      Ll: "\u22D8",
+      ll: "\u226A",
+      llarr: "\u21C7",
+      llcorner: "\u231E",
+      Lleftarrow: "\u21DA",
+      llhard: "\u296B",
+      lltri: "\u25FA",
+      Lmidot: "\u013F",
+      lmidot: "\u0140",
+      lmoust: "\u23B0",
+      lmoustache: "\u23B0",
+      lnap: "\u2A89",
+      lnapprox: "\u2A89",
+      lnE: "\u2268",
+      lne: "\u2A87",
+      lneq: "\u2A87",
+      lneqq: "\u2268",
+      lnsim: "\u22E6",
+      loang: "\u27EC",
+      loarr: "\u21FD",
+      lobrk: "\u27E6",
+      LongLeftArrow: "\u27F5",
+      Longleftarrow: "\u27F8",
+      longleftarrow: "\u27F5",
+      LongLeftRightArrow: "\u27F7",
+      Longleftrightarrow: "\u27FA",
+      longleftrightarrow: "\u27F7",
+      longmapsto: "\u27FC",
+      LongRightArrow: "\u27F6",
+      Longrightarrow: "\u27F9",
+      longrightarrow: "\u27F6",
+      looparrowleft: "\u21AB",
+      looparrowright: "\u21AC",
+      lopar: "\u2985",
+      Lopf: "\u{1D543}",
+      lopf: "\u{1D55D}",
+      loplus: "\u2A2D",
+      lotimes: "\u2A34",
+      lowast: "\u2217",
+      lowbar: "_",
+      LowerLeftArrow: "\u2199",
+      LowerRightArrow: "\u2198",
+      loz: "\u25CA",
+      lozenge: "\u25CA",
+      lozf: "\u29EB",
+      lpar: "(",
+      lparlt: "\u2993",
+      lrarr: "\u21C6",
+      lrcorner: "\u231F",
+      lrhar: "\u21CB",
+      lrhard: "\u296D",
+      lrm: "\u200E",
+      lrtri: "\u22BF",
+      lsaquo: "\u2039",
+      Lscr: "\u2112",
+      lscr: "\u{1D4C1}",
+      Lsh: "\u21B0",
+      lsh: "\u21B0",
+      lsim: "\u2272",
+      lsime: "\u2A8D",
+      lsimg: "\u2A8F",
+      lsqb: "[",
+      lsquo: "\u2018",
+      lsquor: "\u201A",
+      Lstrok: "\u0141",
+      lstrok: "\u0142",
+      Lt: "\u226A",
+      LT: "<",
+      lt: "<",
+      ltcc: "\u2AA6",
+      ltcir: "\u2A79",
+      ltdot: "\u22D6",
+      lthree: "\u22CB",
+      ltimes: "\u22C9",
+      ltlarr: "\u2976",
+      ltquest: "\u2A7B",
+      ltri: "\u25C3",
+      ltrie: "\u22B4",
+      ltrif: "\u25C2",
+      ltrPar: "\u2996",
+      lurdshar: "\u294A",
+      luruhar: "\u2966",
+      lvertneqq: "\u2268\uFE00",
+      lvnE: "\u2268\uFE00",
+      macr: "\xAF",
+      male: "\u2642",
+      malt: "\u2720",
+      maltese: "\u2720",
+      Map: "\u2905",
+      map: "\u21A6",
+      mapsto: "\u21A6",
+      mapstodown: "\u21A7",
+      mapstoleft: "\u21A4",
+      mapstoup: "\u21A5",
+      marker: "\u25AE",
+      mcomma: "\u2A29",
+      Mcy: "\u041C",
+      mcy: "\u043C",
+      mdash: "\u2014",
+      mDDot: "\u223A",
+      measuredangle: "\u2221",
+      MediumSpace: "\u205F",
+      Mellintrf: "\u2133",
+      Mfr: "\u{1D510}",
+      mfr: "\u{1D52A}",
+      mho: "\u2127",
+      micro: "\xB5",
+      mid: "\u2223",
+      midast: "*",
+      midcir: "\u2AF0",
+      middot: "\xB7",
+      minus: "\u2212",
+      minusb: "\u229F",
+      minusd: "\u2238",
+      minusdu: "\u2A2A",
+      MinusPlus: "\u2213",
+      mlcp: "\u2ADB",
+      mldr: "\u2026",
+      mnplus: "\u2213",
+      models: "\u22A7",
+      Mopf: "\u{1D544}",
+      mopf: "\u{1D55E}",
+      mp: "\u2213",
+      Mscr: "\u2133",
+      mscr: "\u{1D4C2}",
+      mstpos: "\u223E",
+      Mu: "\u039C",
+      mu: "\u03BC",
+      multimap: "\u22B8",
+      mumap: "\u22B8",
+      nabla: "\u2207",
+      Nacute: "\u0143",
+      nacute: "\u0144",
+      nang: "\u2220\u20D2",
+      nap: "\u2249",
+      napE: "\u2A70\u0338",
+      napid: "\u224B\u0338",
+      napos: "\u0149",
+      napprox: "\u2249",
+      natur: "\u266E",
+      natural: "\u266E",
+      naturals: "\u2115",
+      nbsp: "\xA0",
+      nbump: "\u224E\u0338",
+      nbumpe: "\u224F\u0338",
+      ncap: "\u2A43",
+      Ncaron: "\u0147",
+      ncaron: "\u0148",
+      Ncedil: "\u0145",
+      ncedil: "\u0146",
+      ncong: "\u2247",
+      ncongdot: "\u2A6D\u0338",
+      ncup: "\u2A42",
+      Ncy: "\u041D",
+      ncy: "\u043D",
+      ndash: "\u2013",
+      ne: "\u2260",
+      nearhk: "\u2924",
+      neArr: "\u21D7",
+      nearr: "\u2197",
+      nearrow: "\u2197",
+      nedot: "\u2250\u0338",
+      NegativeMediumSpace: "\u200B",
+      NegativeThickSpace: "\u200B",
+      NegativeThinSpace: "\u200B",
+      NegativeVeryThinSpace: "\u200B",
+      nequiv: "\u2262",
+      nesear: "\u2928",
+      nesim: "\u2242\u0338",
+      NestedGreaterGreater: "\u226B",
+      NestedLessLess: "\u226A",
+      NewLine: "\n",
+      nexist: "\u2204",
+      nexists: "\u2204",
+      Nfr: "\u{1D511}",
+      nfr: "\u{1D52B}",
+      ngE: "\u2267\u0338",
+      nge: "\u2271",
+      ngeq: "\u2271",
+      ngeqq: "\u2267\u0338",
+      ngeqslant: "\u2A7E\u0338",
+      nges: "\u2A7E\u0338",
+      nGg: "\u22D9\u0338",
+      ngsim: "\u2275",
+      nGt: "\u226B\u20D2",
+      ngt: "\u226F",
+      ngtr: "\u226F",
+      nGtv: "\u226B\u0338",
+      nhArr: "\u21CE",
+      nharr: "\u21AE",
+      nhpar: "\u2AF2",
+      ni: "\u220B",
+      nis: "\u22FC",
+      nisd: "\u22FA",
+      niv: "\u220B",
+      NJcy: "\u040A",
+      njcy: "\u045A",
+      nlArr: "\u21CD",
+      nlarr: "\u219A",
+      nldr: "\u2025",
+      nlE: "\u2266\u0338",
+      nle: "\u2270",
+      nLeftarrow: "\u21CD",
+      nleftarrow: "\u219A",
+      nLeftrightarrow: "\u21CE",
+      nleftrightarrow: "\u21AE",
+      nleq: "\u2270",
+      nleqq: "\u2266\u0338",
+      nleqslant: "\u2A7D\u0338",
+      nles: "\u2A7D\u0338",
+      nless: "\u226E",
+      nLl: "\u22D8\u0338",
+      nlsim: "\u2274",
+      nLt: "\u226A\u20D2",
+      nlt: "\u226E",
+      nltri: "\u22EA",
+      nltrie: "\u22EC",
+      nLtv: "\u226A\u0338",
+      nmid: "\u2224",
+      NoBreak: "\u2060",
+      NonBreakingSpace: "\xA0",
+      Nopf: "\u2115",
+      nopf: "\u{1D55F}",
+      Not: "\u2AEC",
+      not: "\xAC",
+      NotCongruent: "\u2262",
+      NotCupCap: "\u226D",
+      NotDoubleVerticalBar: "\u2226",
+      NotElement: "\u2209",
+      NotEqual: "\u2260",
+      NotEqualTilde: "\u2242\u0338",
+      NotExists: "\u2204",
+      NotGreater: "\u226F",
+      NotGreaterEqual: "\u2271",
+      NotGreaterFullEqual: "\u2267\u0338",
+      NotGreaterGreater: "\u226B\u0338",
+      NotGreaterLess: "\u2279",
+      NotGreaterSlantEqual: "\u2A7E\u0338",
+      NotGreaterTilde: "\u2275",
+      NotHumpDownHump: "\u224E\u0338",
+      NotHumpEqual: "\u224F\u0338",
+      notin: "\u2209",
+      notindot: "\u22F5\u0338",
+      notinE: "\u22F9\u0338",
+      notinva: "\u2209",
+      notinvb: "\u22F7",
+      notinvc: "\u22F6",
+      NotLeftTriangle: "\u22EA",
+      NotLeftTriangleBar: "\u29CF\u0338",
+      NotLeftTriangleEqual: "\u22EC",
+      NotLess: "\u226E",
+      NotLessEqual: "\u2270",
+      NotLessGreater: "\u2278",
+      NotLessLess: "\u226A\u0338",
+      NotLessSlantEqual: "\u2A7D\u0338",
+      NotLessTilde: "\u2274",
+      NotNestedGreaterGreater: "\u2AA2\u0338",
+      NotNestedLessLess: "\u2AA1\u0338",
+      notni: "\u220C",
+      notniva: "\u220C",
+      notnivb: "\u22FE",
+      notnivc: "\u22FD",
+      NotPrecedes: "\u2280",
+      NotPrecedesEqual: "\u2AAF\u0338",
+      NotPrecedesSlantEqual: "\u22E0",
+      NotReverseElement: "\u220C",
+      NotRightTriangle: "\u22EB",
+      NotRightTriangleBar: "\u29D0\u0338",
+      NotRightTriangleEqual: "\u22ED",
+      NotSquareSubset: "\u228F\u0338",
+      NotSquareSubsetEqual: "\u22E2",
+      NotSquareSuperset: "\u2290\u0338",
+      NotSquareSupersetEqual: "\u22E3",
+      NotSubset: "\u2282\u20D2",
+      NotSubsetEqual: "\u2288",
+      NotSucceeds: "\u2281",
+      NotSucceedsEqual: "\u2AB0\u0338",
+      NotSucceedsSlantEqual: "\u22E1",
+      NotSucceedsTilde: "\u227F\u0338",
+      NotSuperset: "\u2283\u20D2",
+      NotSupersetEqual: "\u2289",
+      NotTilde: "\u2241",
+      NotTildeEqual: "\u2244",
+      NotTildeFullEqual: "\u2247",
+      NotTildeTilde: "\u2249",
+      NotVerticalBar: "\u2224",
+      npar: "\u2226",
+      nparallel: "\u2226",
+      nparsl: "\u2AFD\u20E5",
+      npart: "\u2202\u0338",
+      npolint: "\u2A14",
+      npr: "\u2280",
+      nprcue: "\u22E0",
+      npre: "\u2AAF\u0338",
+      nprec: "\u2280",
+      npreceq: "\u2AAF\u0338",
+      nrArr: "\u21CF",
+      nrarr: "\u219B",
+      nrarrc: "\u2933\u0338",
+      nrarrw: "\u219D\u0338",
+      nRightarrow: "\u21CF",
+      nrightarrow: "\u219B",
+      nrtri: "\u22EB",
+      nrtrie: "\u22ED",
+      nsc: "\u2281",
+      nsccue: "\u22E1",
+      nsce: "\u2AB0\u0338",
+      Nscr: "\u{1D4A9}",
+      nscr: "\u{1D4C3}",
+      nshortmid: "\u2224",
+      nshortparallel: "\u2226",
+      nsim: "\u2241",
+      nsime: "\u2244",
+      nsimeq: "\u2244",
+      nsmid: "\u2224",
+      nspar: "\u2226",
+      nsqsube: "\u22E2",
+      nsqsupe: "\u22E3",
+      nsub: "\u2284",
+      nsubE: "\u2AC5\u0338",
+      nsube: "\u2288",
+      nsubset: "\u2282\u20D2",
+      nsubseteq: "\u2288",
+      nsubseteqq: "\u2AC5\u0338",
+      nsucc: "\u2281",
+      nsucceq: "\u2AB0\u0338",
+      nsup: "\u2285",
+      nsupE: "\u2AC6\u0338",
+      nsupe: "\u2289",
+      nsupset: "\u2283\u20D2",
+      nsupseteq: "\u2289",
+      nsupseteqq: "\u2AC6\u0338",
+      ntgl: "\u2279",
+      Ntilde: "\xD1",
+      ntilde: "\xF1",
+      ntlg: "\u2278",
+      ntriangleleft: "\u22EA",
+      ntrianglelefteq: "\u22EC",
+      ntriangleright: "\u22EB",
+      ntrianglerighteq: "\u22ED",
+      Nu: "\u039D",
+      nu: "\u03BD",
+      num: "#",
+      numero: "\u2116",
+      numsp: "\u2007",
+      nvap: "\u224D\u20D2",
+      nVDash: "\u22AF",
+      nVdash: "\u22AE",
+      nvDash: "\u22AD",
+      nvdash: "\u22AC",
+      nvge: "\u2265\u20D2",
+      nvgt: ">\u20D2",
+      nvHarr: "\u2904",
+      nvinfin: "\u29DE",
+      nvlArr: "\u2902",
+      nvle: "\u2264\u20D2",
+      nvlt: "<\u20D2",
+      nvltrie: "\u22B4\u20D2",
+      nvrArr: "\u2903",
+      nvrtrie: "\u22B5\u20D2",
+      nvsim: "\u223C\u20D2",
+      nwarhk: "\u2923",
+      nwArr: "\u21D6",
+      nwarr: "\u2196",
+      nwarrow: "\u2196",
+      nwnear: "\u2927",
+      Oacute: "\xD3",
+      oacute: "\xF3",
+      oast: "\u229B",
+      ocir: "\u229A",
+      Ocirc: "\xD4",
+      ocirc: "\xF4",
+      Ocy: "\u041E",
+      ocy: "\u043E",
+      odash: "\u229D",
+      Odblac: "\u0150",
+      odblac: "\u0151",
+      odiv: "\u2A38",
+      odot: "\u2299",
+      odsold: "\u29BC",
+      OElig: "\u0152",
+      oelig: "\u0153",
+      ofcir: "\u29BF",
+      Ofr: "\u{1D512}",
+      ofr: "\u{1D52C}",
+      ogon: "\u02DB",
+      Ograve: "\xD2",
+      ograve: "\xF2",
+      ogt: "\u29C1",
+      ohbar: "\u29B5",
+      ohm: "\u03A9",
+      oint: "\u222E",
+      olarr: "\u21BA",
+      olcir: "\u29BE",
+      olcross: "\u29BB",
+      oline: "\u203E",
+      olt: "\u29C0",
+      Omacr: "\u014C",
+      omacr: "\u014D",
+      Omega: "\u03A9",
+      omega: "\u03C9",
+      Omicron: "\u039F",
+      omicron: "\u03BF",
+      omid: "\u29B6",
+      ominus: "\u2296",
+      Oopf: "\u{1D546}",
+      oopf: "\u{1D560}",
+      opar: "\u29B7",
+      OpenCurlyDoubleQuote: "\u201C",
+      OpenCurlyQuote: "\u2018",
+      operp: "\u29B9",
+      oplus: "\u2295",
+      Or: "\u2A54",
+      or: "\u2228",
+      orarr: "\u21BB",
+      ord: "\u2A5D",
+      order: "\u2134",
+      orderof: "\u2134",
+      ordf: "\xAA",
+      ordm: "\xBA",
+      origof: "\u22B6",
+      oror: "\u2A56",
+      orslope: "\u2A57",
+      orv: "\u2A5B",
+      oS: "\u24C8",
+      Oscr: "\u{1D4AA}",
+      oscr: "\u2134",
+      Oslash: "\xD8",
+      oslash: "\xF8",
+      osol: "\u2298",
+      Otilde: "\xD5",
+      otilde: "\xF5",
+      Otimes: "\u2A37",
+      otimes: "\u2297",
+      otimesas: "\u2A36",
+      Ouml: "\xD6",
+      ouml: "\xF6",
+      ovbar: "\u233D",
+      OverBar: "\u203E",
+      OverBrace: "\u23DE",
+      OverBracket: "\u23B4",
+      OverParenthesis: "\u23DC",
+      par: "\u2225",
+      para: "\xB6",
+      parallel: "\u2225",
+      parsim: "\u2AF3",
+      parsl: "\u2AFD",
+      part: "\u2202",
+      PartialD: "\u2202",
+      Pcy: "\u041F",
+      pcy: "\u043F",
+      percnt: "%",
+      period: ".",
+      permil: "\u2030",
+      perp: "\u22A5",
+      pertenk: "\u2031",
+      Pfr: "\u{1D513}",
+      pfr: "\u{1D52D}",
+      Phi: "\u03A6",
+      phi: "\u03C6",
+      phiv: "\u03D5",
+      phmmat: "\u2133",
+      phone: "\u260E",
+      Pi: "\u03A0",
+      pi: "\u03C0",
+      pitchfork: "\u22D4",
+      piv: "\u03D6",
+      planck: "\u210F",
+      planckh: "\u210E",
+      plankv: "\u210F",
+      plus: "+",
+      plusacir: "\u2A23",
+      plusb: "\u229E",
+      pluscir: "\u2A22",
+      plusdo: "\u2214",
+      plusdu: "\u2A25",
+      pluse: "\u2A72",
+      PlusMinus: "\xB1",
+      plusmn: "\xB1",
+      plussim: "\u2A26",
+      plustwo: "\u2A27",
+      pm: "\xB1",
+      Poincareplane: "\u210C",
+      pointint: "\u2A15",
+      Popf: "\u2119",
+      popf: "\u{1D561}",
+      pound: "\xA3",
+      Pr: "\u2ABB",
+      pr: "\u227A",
+      prap: "\u2AB7",
+      prcue: "\u227C",
+      prE: "\u2AB3",
+      pre: "\u2AAF",
+      prec: "\u227A",
+      precapprox: "\u2AB7",
+      preccurlyeq: "\u227C",
+      Precedes: "\u227A",
+      PrecedesEqual: "\u2AAF",
+      PrecedesSlantEqual: "\u227C",
+      PrecedesTilde: "\u227E",
+      preceq: "\u2AAF",
+      precnapprox: "\u2AB9",
+      precneqq: "\u2AB5",
+      precnsim: "\u22E8",
+      precsim: "\u227E",
+      Prime: "\u2033",
+      prime: "\u2032",
+      primes: "\u2119",
+      prnap: "\u2AB9",
+      prnE: "\u2AB5",
+      prnsim: "\u22E8",
+      prod: "\u220F",
+      Product: "\u220F",
+      profalar: "\u232E",
+      profline: "\u2312",
+      profsurf: "\u2313",
+      prop: "\u221D",
+      Proportion: "\u2237",
+      Proportional: "\u221D",
+      propto: "\u221D",
+      prsim: "\u227E",
+      prurel: "\u22B0",
+      Pscr: "\u{1D4AB}",
+      pscr: "\u{1D4C5}",
+      Psi: "\u03A8",
+      psi: "\u03C8",
+      puncsp: "\u2008",
+      Qfr: "\u{1D514}",
+      qfr: "\u{1D52E}",
+      qint: "\u2A0C",
+      Qopf: "\u211A",
+      qopf: "\u{1D562}",
+      qprime: "\u2057",
+      Qscr: "\u{1D4AC}",
+      qscr: "\u{1D4C6}",
+      quaternions: "\u210D",
+      quatint: "\u2A16",
+      quest: "?",
+      questeq: "\u225F",
+      QUOT: '"',
+      quot: '"',
+      rAarr: "\u21DB",
+      race: "\u223D\u0331",
+      Racute: "\u0154",
+      racute: "\u0155",
+      radic: "\u221A",
+      raemptyv: "\u29B3",
+      Rang: "\u27EB",
+      rang: "\u27E9",
+      rangd: "\u2992",
+      range: "\u29A5",
+      rangle: "\u27E9",
+      raquo: "\xBB",
+      Rarr: "\u21A0",
+      rArr: "\u21D2",
+      rarr: "\u2192",
+      rarrap: "\u2975",
+      rarrb: "\u21E5",
+      rarrbfs: "\u2920",
+      rarrc: "\u2933",
+      rarrfs: "\u291E",
+      rarrhk: "\u21AA",
+      rarrlp: "\u21AC",
+      rarrpl: "\u2945",
+      rarrsim: "\u2974",
+      Rarrtl: "\u2916",
+      rarrtl: "\u21A3",
+      rarrw: "\u219D",
+      rAtail: "\u291C",
+      ratail: "\u291A",
+      ratio: "\u2236",
+      rationals: "\u211A",
+      RBarr: "\u2910",
+      rBarr: "\u290F",
+      rbarr: "\u290D",
+      rbbrk: "\u2773",
+      rbrace: "}",
+      rbrack: "]",
+      rbrke: "\u298C",
+      rbrksld: "\u298E",
+      rbrkslu: "\u2990",
+      Rcaron: "\u0158",
+      rcaron: "\u0159",
+      Rcedil: "\u0156",
+      rcedil: "\u0157",
+      rceil: "\u2309",
+      rcub: "}",
+      Rcy: "\u0420",
+      rcy: "\u0440",
+      rdca: "\u2937",
+      rdldhar: "\u2969",
+      rdquo: "\u201D",
+      rdquor: "\u201D",
+      rdsh: "\u21B3",
+      Re: "\u211C",
+      real: "\u211C",
+      realine: "\u211B",
+      realpart: "\u211C",
+      reals: "\u211D",
+      rect: "\u25AD",
+      REG: "\xAE",
+      reg: "\xAE",
+      ReverseElement: "\u220B",
+      ReverseEquilibrium: "\u21CB",
+      ReverseUpEquilibrium: "\u296F",
+      rfisht: "\u297D",
+      rfloor: "\u230B",
+      Rfr: "\u211C",
+      rfr: "\u{1D52F}",
+      rHar: "\u2964",
+      rhard: "\u21C1",
+      rharu: "\u21C0",
+      rharul: "\u296C",
+      Rho: "\u03A1",
+      rho: "\u03C1",
+      rhov: "\u03F1",
+      RightAngleBracket: "\u27E9",
+      RightArrow: "\u2192",
+      Rightarrow: "\u21D2",
+      rightarrow: "\u2192",
+      RightArrowBar: "\u21E5",
+      RightArrowLeftArrow: "\u21C4",
+      rightarrowtail: "\u21A3",
+      RightCeiling: "\u2309",
+      RightDoubleBracket: "\u27E7",
+      RightDownTeeVector: "\u295D",
+      RightDownVector: "\u21C2",
+      RightDownVectorBar: "\u2955",
+      RightFloor: "\u230B",
+      rightharpoondown: "\u21C1",
+      rightharpoonup: "\u21C0",
+      rightleftarrows: "\u21C4",
+      rightleftharpoons: "\u21CC",
+      rightrightarrows: "\u21C9",
+      rightsquigarrow: "\u219D",
+      RightTee: "\u22A2",
+      RightTeeArrow: "\u21A6",
+      RightTeeVector: "\u295B",
+      rightthreetimes: "\u22CC",
+      RightTriangle: "\u22B3",
+      RightTriangleBar: "\u29D0",
+      RightTriangleEqual: "\u22B5",
+      RightUpDownVector: "\u294F",
+      RightUpTeeVector: "\u295C",
+      RightUpVector: "\u21BE",
+      RightUpVectorBar: "\u2954",
+      RightVector: "\u21C0",
+      RightVectorBar: "\u2953",
+      ring: "\u02DA",
+      risingdotseq: "\u2253",
+      rlarr: "\u21C4",
+      rlhar: "\u21CC",
+      rlm: "\u200F",
+      rmoust: "\u23B1",
+      rmoustache: "\u23B1",
+      rnmid: "\u2AEE",
+      roang: "\u27ED",
+      roarr: "\u21FE",
+      robrk: "\u27E7",
+      ropar: "\u2986",
+      Ropf: "\u211D",
+      ropf: "\u{1D563}",
+      roplus: "\u2A2E",
+      rotimes: "\u2A35",
+      RoundImplies: "\u2970",
+      rpar: ")",
+      rpargt: "\u2994",
+      rppolint: "\u2A12",
+      rrarr: "\u21C9",
+      Rrightarrow: "\u21DB",
+      rsaquo: "\u203A",
+      Rscr: "\u211B",
+      rscr: "\u{1D4C7}",
+      Rsh: "\u21B1",
+      rsh: "\u21B1",
+      rsqb: "]",
+      rsquo: "\u2019",
+      rsquor: "\u2019",
+      rthree: "\u22CC",
+      rtimes: "\u22CA",
+      rtri: "\u25B9",
+      rtrie: "\u22B5",
+      rtrif: "\u25B8",
+      rtriltri: "\u29CE",
+      RuleDelayed: "\u29F4",
+      ruluhar: "\u2968",
+      rx: "\u211E",
+      Sacute: "\u015A",
+      sacute: "\u015B",
+      sbquo: "\u201A",
+      Sc: "\u2ABC",
+      sc: "\u227B",
+      scap: "\u2AB8",
+      Scaron: "\u0160",
+      scaron: "\u0161",
+      sccue: "\u227D",
+      scE: "\u2AB4",
+      sce: "\u2AB0",
+      Scedil: "\u015E",
+      scedil: "\u015F",
+      Scirc: "\u015C",
+      scirc: "\u015D",
+      scnap: "\u2ABA",
+      scnE: "\u2AB6",
+      scnsim: "\u22E9",
+      scpolint: "\u2A13",
+      scsim: "\u227F",
+      Scy: "\u0421",
+      scy: "\u0441",
+      sdot: "\u22C5",
+      sdotb: "\u22A1",
+      sdote: "\u2A66",
+      searhk: "\u2925",
+      seArr: "\u21D8",
+      searr: "\u2198",
+      searrow: "\u2198",
+      sect: "\xA7",
+      semi: ";",
+      seswar: "\u2929",
+      setminus: "\u2216",
+      setmn: "\u2216",
+      sext: "\u2736",
+      Sfr: "\u{1D516}",
+      sfr: "\u{1D530}",
+      sfrown: "\u2322",
+      sharp: "\u266F",
+      SHCHcy: "\u0429",
+      shchcy: "\u0449",
+      SHcy: "\u0428",
+      shcy: "\u0448",
+      ShortDownArrow: "\u2193",
+      ShortLeftArrow: "\u2190",
+      shortmid: "\u2223",
+      shortparallel: "\u2225",
+      ShortRightArrow: "\u2192",
+      ShortUpArrow: "\u2191",
+      shy: "\xAD",
+      Sigma: "\u03A3",
+      sigma: "\u03C3",
+      sigmaf: "\u03C2",
+      sigmav: "\u03C2",
+      sim: "\u223C",
+      simdot: "\u2A6A",
+      sime: "\u2243",
+      simeq: "\u2243",
+      simg: "\u2A9E",
+      simgE: "\u2AA0",
+      siml: "\u2A9D",
+      simlE: "\u2A9F",
+      simne: "\u2246",
+      simplus: "\u2A24",
+      simrarr: "\u2972",
+      slarr: "\u2190",
+      SmallCircle: "\u2218",
+      smallsetminus: "\u2216",
+      smashp: "\u2A33",
+      smeparsl: "\u29E4",
+      smid: "\u2223",
+      smile: "\u2323",
+      smt: "\u2AAA",
+      smte: "\u2AAC",
+      smtes: "\u2AAC\uFE00",
+      SOFTcy: "\u042C",
+      softcy: "\u044C",
+      sol: "/",
+      solb: "\u29C4",
+      solbar: "\u233F",
+      Sopf: "\u{1D54A}",
+      sopf: "\u{1D564}",
+      spades: "\u2660",
+      spadesuit: "\u2660",
+      spar: "\u2225",
+      sqcap: "\u2293",
+      sqcaps: "\u2293\uFE00",
+      sqcup: "\u2294",
+      sqcups: "\u2294\uFE00",
+      Sqrt: "\u221A",
+      sqsub: "\u228F",
+      sqsube: "\u2291",
+      sqsubset: "\u228F",
+      sqsubseteq: "\u2291",
+      sqsup: "\u2290",
+      sqsupe: "\u2292",
+      sqsupset: "\u2290",
+      sqsupseteq: "\u2292",
+      squ: "\u25A1",
+      Square: "\u25A1",
+      square: "\u25A1",
+      SquareIntersection: "\u2293",
+      SquareSubset: "\u228F",
+      SquareSubsetEqual: "\u2291",
+      SquareSuperset: "\u2290",
+      SquareSupersetEqual: "\u2292",
+      SquareUnion: "\u2294",
+      squarf: "\u25AA",
+      squf: "\u25AA",
+      srarr: "\u2192",
+      Sscr: "\u{1D4AE}",
+      sscr: "\u{1D4C8}",
+      ssetmn: "\u2216",
+      ssmile: "\u2323",
+      sstarf: "\u22C6",
+      Star: "\u22C6",
+      star: "\u2606",
+      starf: "\u2605",
+      straightepsilon: "\u03F5",
+      straightphi: "\u03D5",
+      strns: "\xAF",
+      Sub: "\u22D0",
+      sub: "\u2282",
+      subdot: "\u2ABD",
+      subE: "\u2AC5",
+      sube: "\u2286",
+      subedot: "\u2AC3",
+      submult: "\u2AC1",
+      subnE: "\u2ACB",
+      subne: "\u228A",
+      subplus: "\u2ABF",
+      subrarr: "\u2979",
+      Subset: "\u22D0",
+      subset: "\u2282",
+      subseteq: "\u2286",
+      subseteqq: "\u2AC5",
+      SubsetEqual: "\u2286",
+      subsetneq: "\u228A",
+      subsetneqq: "\u2ACB",
+      subsim: "\u2AC7",
+      subsub: "\u2AD5",
+      subsup: "\u2AD3",
+      succ: "\u227B",
+      succapprox: "\u2AB8",
+      succcurlyeq: "\u227D",
+      Succeeds: "\u227B",
+      SucceedsEqual: "\u2AB0",
+      SucceedsSlantEqual: "\u227D",
+      SucceedsTilde: "\u227F",
+      succeq: "\u2AB0",
+      succnapprox: "\u2ABA",
+      succneqq: "\u2AB6",
+      succnsim: "\u22E9",
+      succsim: "\u227F",
+      SuchThat: "\u220B",
+      Sum: "\u2211",
+      sum: "\u2211",
+      sung: "\u266A",
+      Sup: "\u22D1",
+      sup: "\u2283",
+      sup1: "\xB9",
+      sup2: "\xB2",
+      sup3: "\xB3",
+      supdot: "\u2ABE",
+      supdsub: "\u2AD8",
+      supE: "\u2AC6",
+      supe: "\u2287",
+      supedot: "\u2AC4",
+      Superset: "\u2283",
+      SupersetEqual: "\u2287",
+      suphsol: "\u27C9",
+      suphsub: "\u2AD7",
+      suplarr: "\u297B",
+      supmult: "\u2AC2",
+      supnE: "\u2ACC",
+      supne: "\u228B",
+      supplus: "\u2AC0",
+      Supset: "\u22D1",
+      supset: "\u2283",
+      supseteq: "\u2287",
+      supseteqq: "\u2AC6",
+      supsetneq: "\u228B",
+      supsetneqq: "\u2ACC",
+      supsim: "\u2AC8",
+      supsub: "\u2AD4",
+      supsup: "\u2AD6",
+      swarhk: "\u2926",
+      swArr: "\u21D9",
+      swarr: "\u2199",
+      swarrow: "\u2199",
+      swnwar: "\u292A",
+      szlig: "\xDF",
+      Tab: "	",
+      target: "\u2316",
+      Tau: "\u03A4",
+      tau: "\u03C4",
+      tbrk: "\u23B4",
+      Tcaron: "\u0164",
+      tcaron: "\u0165",
+      Tcedil: "\u0162",
+      tcedil: "\u0163",
+      Tcy: "\u0422",
+      tcy: "\u0442",
+      tdot: "\u20DB",
+      telrec: "\u2315",
+      Tfr: "\u{1D517}",
+      tfr: "\u{1D531}",
+      there4: "\u2234",
+      Therefore: "\u2234",
+      therefore: "\u2234",
+      Theta: "\u0398",
+      theta: "\u03B8",
+      thetasym: "\u03D1",
+      thetav: "\u03D1",
+      thickapprox: "\u2248",
+      thicksim: "\u223C",
+      ThickSpace: "\u205F\u200A",
+      thinsp: "\u2009",
+      ThinSpace: "\u2009",
+      thkap: "\u2248",
+      thksim: "\u223C",
+      THORN: "\xDE",
+      thorn: "\xFE",
+      Tilde: "\u223C",
+      tilde: "\u02DC",
+      TildeEqual: "\u2243",
+      TildeFullEqual: "\u2245",
+      TildeTilde: "\u2248",
+      times: "\xD7",
+      timesb: "\u22A0",
+      timesbar: "\u2A31",
+      timesd: "\u2A30",
+      tint: "\u222D",
+      toea: "\u2928",
+      top: "\u22A4",
+      topbot: "\u2336",
+      topcir: "\u2AF1",
+      Topf: "\u{1D54B}",
+      topf: "\u{1D565}",
+      topfork: "\u2ADA",
+      tosa: "\u2929",
+      tprime: "\u2034",
+      TRADE: "\u2122",
+      trade: "\u2122",
+      triangle: "\u25B5",
+      triangledown: "\u25BF",
+      triangleleft: "\u25C3",
+      trianglelefteq: "\u22B4",
+      triangleq: "\u225C",
+      triangleright: "\u25B9",
+      trianglerighteq: "\u22B5",
+      tridot: "\u25EC",
+      trie: "\u225C",
+      triminus: "\u2A3A",
+      TripleDot: "\u20DB",
+      triplus: "\u2A39",
+      trisb: "\u29CD",
+      tritime: "\u2A3B",
+      trpezium: "\u23E2",
+      Tscr: "\u{1D4AF}",
+      tscr: "\u{1D4C9}",
+      TScy: "\u0426",
+      tscy: "\u0446",
+      TSHcy: "\u040B",
+      tshcy: "\u045B",
+      Tstrok: "\u0166",
+      tstrok: "\u0167",
+      twixt: "\u226C",
+      twoheadleftarrow: "\u219E",
+      twoheadrightarrow: "\u21A0",
+      Uacute: "\xDA",
+      uacute: "\xFA",
+      Uarr: "\u219F",
+      uArr: "\u21D1",
+      uarr: "\u2191",
+      Uarrocir: "\u2949",
+      Ubrcy: "\u040E",
+      ubrcy: "\u045E",
+      Ubreve: "\u016C",
+      ubreve: "\u016D",
+      Ucirc: "\xDB",
+      ucirc: "\xFB",
+      Ucy: "\u0423",
+      ucy: "\u0443",
+      udarr: "\u21C5",
+      Udblac: "\u0170",
+      udblac: "\u0171",
+      udhar: "\u296E",
+      ufisht: "\u297E",
+      Ufr: "\u{1D518}",
+      ufr: "\u{1D532}",
+      Ugrave: "\xD9",
+      ugrave: "\xF9",
+      uHar: "\u2963",
+      uharl: "\u21BF",
+      uharr: "\u21BE",
+      uhblk: "\u2580",
+      ulcorn: "\u231C",
+      ulcorner: "\u231C",
+      ulcrop: "\u230F",
+      ultri: "\u25F8",
+      Umacr: "\u016A",
+      umacr: "\u016B",
+      uml: "\xA8",
+      UnderBar: "_",
+      UnderBrace: "\u23DF",
+      UnderBracket: "\u23B5",
+      UnderParenthesis: "\u23DD",
+      Union: "\u22C3",
+      UnionPlus: "\u228E",
+      Uogon: "\u0172",
+      uogon: "\u0173",
+      Uopf: "\u{1D54C}",
+      uopf: "\u{1D566}",
+      UpArrow: "\u2191",
+      Uparrow: "\u21D1",
+      uparrow: "\u2191",
+      UpArrowBar: "\u2912",
+      UpArrowDownArrow: "\u21C5",
+      UpDownArrow: "\u2195",
+      Updownarrow: "\u21D5",
+      updownarrow: "\u2195",
+      UpEquilibrium: "\u296E",
+      upharpoonleft: "\u21BF",
+      upharpoonright: "\u21BE",
+      uplus: "\u228E",
+      UpperLeftArrow: "\u2196",
+      UpperRightArrow: "\u2197",
+      Upsi: "\u03D2",
+      upsi: "\u03C5",
+      upsih: "\u03D2",
+      Upsilon: "\u03A5",
+      upsilon: "\u03C5",
+      UpTee: "\u22A5",
+      UpTeeArrow: "\u21A5",
+      upuparrows: "\u21C8",
+      urcorn: "\u231D",
+      urcorner: "\u231D",
+      urcrop: "\u230E",
+      Uring: "\u016E",
+      uring: "\u016F",
+      urtri: "\u25F9",
+      Uscr: "\u{1D4B0}",
+      uscr: "\u{1D4CA}",
+      utdot: "\u22F0",
+      Utilde: "\u0168",
+      utilde: "\u0169",
+      utri: "\u25B5",
+      utrif: "\u25B4",
+      uuarr: "\u21C8",
+      Uuml: "\xDC",
+      uuml: "\xFC",
+      uwangle: "\u29A7",
+      vangrt: "\u299C",
+      varepsilon: "\u03F5",
+      varkappa: "\u03F0",
+      varnothing: "\u2205",
+      varphi: "\u03D5",
+      varpi: "\u03D6",
+      varpropto: "\u221D",
+      vArr: "\u21D5",
+      varr: "\u2195",
+      varrho: "\u03F1",
+      varsigma: "\u03C2",
+      varsubsetneq: "\u228A\uFE00",
+      varsubsetneqq: "\u2ACB\uFE00",
+      varsupsetneq: "\u228B\uFE00",
+      varsupsetneqq: "\u2ACC\uFE00",
+      vartheta: "\u03D1",
+      vartriangleleft: "\u22B2",
+      vartriangleright: "\u22B3",
+      Vbar: "\u2AEB",
+      vBar: "\u2AE8",
+      vBarv: "\u2AE9",
+      Vcy: "\u0412",
+      vcy: "\u0432",
+      VDash: "\u22AB",
+      Vdash: "\u22A9",
+      vDash: "\u22A8",
+      vdash: "\u22A2",
+      Vdashl: "\u2AE6",
+      Vee: "\u22C1",
+      vee: "\u2228",
+      veebar: "\u22BB",
+      veeeq: "\u225A",
+      vellip: "\u22EE",
+      Verbar: "\u2016",
+      verbar: "|",
+      Vert: "\u2016",
+      vert: "|",
+      VerticalBar: "\u2223",
+      VerticalLine: "|",
+      VerticalSeparator: "\u2758",
+      VerticalTilde: "\u2240",
+      VeryThinSpace: "\u200A",
+      Vfr: "\u{1D519}",
+      vfr: "\u{1D533}",
+      vltri: "\u22B2",
+      vnsub: "\u2282\u20D2",
+      vnsup: "\u2283\u20D2",
+      Vopf: "\u{1D54D}",
+      vopf: "\u{1D567}",
+      vprop: "\u221D",
+      vrtri: "\u22B3",
+      Vscr: "\u{1D4B1}",
+      vscr: "\u{1D4CB}",
+      vsubnE: "\u2ACB\uFE00",
+      vsubne: "\u228A\uFE00",
+      vsupnE: "\u2ACC\uFE00",
+      vsupne: "\u228B\uFE00",
+      Vvdash: "\u22AA",
+      vzigzag: "\u299A",
+      Wcirc: "\u0174",
+      wcirc: "\u0175",
+      wedbar: "\u2A5F",
+      Wedge: "\u22C0",
+      wedge: "\u2227",
+      wedgeq: "\u2259",
+      weierp: "\u2118",
+      Wfr: "\u{1D51A}",
+      wfr: "\u{1D534}",
+      Wopf: "\u{1D54E}",
+      wopf: "\u{1D568}",
+      wp: "\u2118",
+      wr: "\u2240",
+      wreath: "\u2240",
+      Wscr: "\u{1D4B2}",
+      wscr: "\u{1D4CC}",
+      xcap: "\u22C2",
+      xcirc: "\u25EF",
+      xcup: "\u22C3",
+      xdtri: "\u25BD",
+      Xfr: "\u{1D51B}",
+      xfr: "\u{1D535}",
+      xhArr: "\u27FA",
+      xharr: "\u27F7",
+      Xi: "\u039E",
+      xi: "\u03BE",
+      xlArr: "\u27F8",
+      xlarr: "\u27F5",
+      xmap: "\u27FC",
+      xnis: "\u22FB",
+      xodot: "\u2A00",
+      Xopf: "\u{1D54F}",
+      xopf: "\u{1D569}",
+      xoplus: "\u2A01",
+      xotime: "\u2A02",
+      xrArr: "\u27F9",
+      xrarr: "\u27F6",
+      Xscr: "\u{1D4B3}",
+      xscr: "\u{1D4CD}",
+      xsqcup: "\u2A06",
+      xuplus: "\u2A04",
+      xutri: "\u25B3",
+      xvee: "\u22C1",
+      xwedge: "\u22C0",
+      Yacute: "\xDD",
+      yacute: "\xFD",
+      YAcy: "\u042F",
+      yacy: "\u044F",
+      Ycirc: "\u0176",
+      ycirc: "\u0177",
+      Ycy: "\u042B",
+      ycy: "\u044B",
+      yen: "\xA5",
+      Yfr: "\u{1D51C}",
+      yfr: "\u{1D536}",
+      YIcy: "\u0407",
+      yicy: "\u0457",
+      Yopf: "\u{1D550}",
+      yopf: "\u{1D56A}",
+      Yscr: "\u{1D4B4}",
+      yscr: "\u{1D4CE}",
+      YUcy: "\u042E",
+      yucy: "\u044E",
+      Yuml: "\u0178",
+      yuml: "\xFF",
+      Zacute: "\u0179",
+      zacute: "\u017A",
+      Zcaron: "\u017D",
+      zcaron: "\u017E",
+      Zcy: "\u0417",
+      zcy: "\u0437",
+      Zdot: "\u017B",
+      zdot: "\u017C",
+      zeetrf: "\u2128",
+      ZeroWidthSpace: "\u200B",
+      Zeta: "\u0396",
+      zeta: "\u03B6",
+      Zfr: "\u2128",
+      zfr: "\u{1D537}",
+      ZHcy: "\u0416",
+      zhcy: "\u0436",
+      zigrarr: "\u21DD",
+      Zopf: "\u2124",
+      zopf: "\u{1D56B}",
+      Zscr: "\u{1D4B5}",
+      zscr: "\u{1D4CF}",
+      zwj: "\u200D",
+      zwnj: "\u200C"
+    });
+    exports.entityMap = exports.HTML_ENTITIES;
+  }
+});
+
+// node_modules/@xmldom/xmldom/lib/sax.js
+var require_sax = __commonJS({
+  "node_modules/@xmldom/xmldom/lib/sax.js"(exports) {
+    "use strict";
+    var conventions = require_conventions();
+    var g = require_grammar();
+    var errors = require_errors2();
+    var isHTMLEscapableRawTextElement = conventions.isHTMLEscapableRawTextElement;
+    var isHTMLMimeType = conventions.isHTMLMimeType;
+    var isHTMLRawTextElement = conventions.isHTMLRawTextElement;
+    var hasOwn = conventions.hasOwn;
+    var NAMESPACE = conventions.NAMESPACE;
+    var ParseError = errors.ParseError;
+    var DOMException = errors.DOMException;
+    var S_TAG = 0;
+    var S_ATTR = 1;
+    var S_ATTR_SPACE = 2;
+    var S_EQ = 3;
+    var S_ATTR_NOQUOT_VALUE = 4;
+    var S_ATTR_END = 5;
+    var S_TAG_SPACE = 6;
+    var S_TAG_CLOSE = 7;
+    function XMLReader() {
+    }
+    XMLReader.prototype = {
+      parse: function(source, defaultNSMap, entityMap) {
+        var domBuilder = this.domBuilder;
+        domBuilder.startDocument();
+        _copy(defaultNSMap, defaultNSMap = /* @__PURE__ */ Object.create(null));
+        parse4(source, defaultNSMap, entityMap, domBuilder, this.errorHandler);
+        domBuilder.endDocument();
+      }
+    };
+    var ENTITY_REG = /&#?\w+;?/g;
+    function parse4(source, defaultNSMapCopy, entityMap, domBuilder, errorHandler) {
+      var isHTML = isHTMLMimeType(domBuilder.mimeType);
+      if (source.indexOf(g.UNICODE_REPLACEMENT_CHARACTER) >= 0) {
+        errorHandler.warning("Unicode replacement character detected, source encoding issues?");
+      }
+      function fixedFromCharCode(code) {
+        if (code > 65535) {
+          code -= 65536;
+          var surrogate1 = 55296 + (code >> 10), surrogate2 = 56320 + (code & 1023);
+          return String.fromCharCode(surrogate1, surrogate2);
+        } else {
+          return String.fromCharCode(code);
+        }
+      }
+      function entityReplacer(a2) {
+        var complete = a2[a2.length - 1] === ";" ? a2 : a2 + ";";
+        if (!isHTML && complete !== a2) {
+          errorHandler.error("EntityRef: expecting ;");
+          return a2;
+        }
+        var match = g.Reference.exec(complete);
+        if (!match || match[0].length !== complete.length) {
+          errorHandler.error("entity not matching Reference production: " + a2);
+          return a2;
+        }
+        var k = complete.slice(1, -1);
+        if (hasOwn(entityMap, k)) {
+          return entityMap[k];
+        } else if (k.charAt(0) === "#") {
+          return fixedFromCharCode(parseInt(k.substring(1).replace("x", "0x")));
+        } else {
+          errorHandler.error("entity not found:" + a2);
+          return a2;
+        }
+      }
+      function appendText(end2) {
+        if (end2 > start) {
+          var xt = source.substring(start, end2).replace(ENTITY_REG, entityReplacer);
+          locator && position(start);
+          domBuilder.characters(xt, 0, end2 - start);
+          start = end2;
+        }
+      }
+      var lineStart = 0;
+      var lineEnd = 0;
+      var linePattern = /\r\n?|\n|$/g;
+      var locator = domBuilder.locator;
+      function position(p, m) {
+        while (p >= lineEnd && (m = linePattern.exec(source))) {
+          lineStart = lineEnd;
+          lineEnd = m.index + m[0].length;
+          locator.lineNumber++;
+        }
+        locator.columnNumber = p - lineStart + 1;
+      }
+      var parseStack = [{ currentNSMap: defaultNSMapCopy }];
+      var unclosedTags = [];
+      var start = 0;
+      while (true) {
+        try {
+          var tagStart = source.indexOf("<", start);
+          if (tagStart < 0) {
+            if (!isHTML && unclosedTags.length > 0) {
+              return errorHandler.fatalError("unclosed xml tag(s): " + unclosedTags.join(", "));
+            }
+            if (!source.substring(start).match(/^\s*$/)) {
+              var doc = domBuilder.doc;
+              var text = doc.createTextNode(source.substring(start));
+              if (doc.documentElement) {
+                return errorHandler.error("Extra content at the end of the document");
+              }
+              doc.appendChild(text);
+              domBuilder.currentElement = text;
+            }
+            return;
+          }
+          if (tagStart > start) {
+            var fromSource = source.substring(start, tagStart);
+            if (!isHTML && unclosedTags.length === 0) {
+              fromSource = fromSource.replace(new RegExp(g.S_OPT.source, "g"), "");
+              fromSource && errorHandler.error("Unexpected content outside root element: '" + fromSource + "'");
+            }
+            appendText(tagStart);
+          }
+          switch (source.charAt(tagStart + 1)) {
+            case "/":
+              var end = source.indexOf(">", tagStart + 2);
+              var tagNameRaw = source.substring(tagStart + 2, end > 0 ? end : void 0);
+              if (!tagNameRaw) {
+                return errorHandler.fatalError("end tag name missing");
+              }
+              var endTagNameStrict = g.reg("^", g.QName_group, g.S_OPT, "$");
+              var tagNameMatch = end > 0 && endTagNameStrict.exec(tagNameRaw);
+              if (!tagNameMatch) {
+                var leadingTagNameMatch = end > 0 && g.reg("^", g.QName_group).exec(tagNameRaw);
+                if (isHTML && leadingTagNameMatch) {
+                  errorHandler.warning('end tag name contains invalid trailing characters: "' + tagNameRaw + '"');
+                  tagNameMatch = leadingTagNameMatch;
+                } else if (
+                  // Backward compatibility, remove this whole `else if` arm in the next breaking release
+                  // (XML then falls through to the `fatalError` below, for a clean mode split: XML fatal,
+                  // HTML warning). A valid end-tag name followed by a line break and trailing content was
+                  // silently accepted while `reg` still used the `m` flag; re-adding `m` here matches exactly
+                  // those inputs, kept recoverable and reported.
+                  leadingTagNameMatch && new RegExp(endTagNameStrict.source, endTagNameStrict.flags + "m").test(tagNameRaw)
+                ) {
+                  errorHandler.error('end tag name is followed by a line break and trailing content: "' + tagNameRaw + '"');
+                  tagNameMatch = leadingTagNameMatch;
+                } else {
+                  return errorHandler.fatalError('end tag name contains invalid characters: "' + tagNameRaw + '"');
+                }
+              }
+              if (!domBuilder.currentElement && !domBuilder.doc.documentElement) {
+                return;
+              }
+              var currentTagName = unclosedTags[unclosedTags.length - 1] || domBuilder.currentElement.tagName || domBuilder.doc.documentElement.tagName || "";
+              if (currentTagName !== tagNameMatch[1]) {
+                var tagNameLower = tagNameMatch[1].toLowerCase();
+                if (!isHTML || currentTagName.toLowerCase() !== tagNameLower) {
+                  return errorHandler.fatalError('Opening and ending tag mismatch: "' + currentTagName + '" != "' + tagNameRaw + '"');
+                }
+              }
+              var config2 = parseStack.pop();
+              unclosedTags.pop();
+              var localNSMap = config2.localNSMap;
+              domBuilder.endElement(config2.uri, config2.localName, currentTagName);
+              if (localNSMap) {
+                for (var prefix in localNSMap) {
+                  if (hasOwn(localNSMap, prefix)) {
+                    domBuilder.endPrefixMapping(prefix);
+                  }
+                }
+              }
+              end++;
+              break;
+            // end element
+            case "?":
+              locator && position(tagStart);
+              end = parseProcessingInstruction(source, tagStart, domBuilder, errorHandler);
+              break;
+            case "!":
+              locator && position(tagStart);
+              end = parseDoctypeCommentOrCData(source, tagStart, domBuilder, errorHandler, isHTML);
+              break;
+            default:
+              locator && position(tagStart);
+              var el = new ElementAttributes();
+              var currentNSMap = parseStack[parseStack.length - 1].currentNSMap;
+              var end = parseElementStartPart(source, tagStart, el, currentNSMap, entityReplacer, errorHandler, isHTML);
+              var len = el.length;
+              if (!el.closed) {
+                if (isHTML && conventions.isHTMLVoidElement(el.tagName)) {
+                  el.closed = true;
+                } else {
+                  unclosedTags.push(el.tagName);
+                }
+              }
+              if (locator && len) {
+                var locator2 = copyLocator(locator, {});
+                for (var i = 0; i < len; i++) {
+                  var a = el[i];
+                  position(a.offset);
+                  a.locator = copyLocator(locator, {});
+                }
+                domBuilder.locator = locator2;
+                if (appendElement(el, domBuilder, currentNSMap)) {
+                  parseStack.push(el);
+                }
+                domBuilder.locator = locator;
+              } else {
+                if (appendElement(el, domBuilder, currentNSMap)) {
+                  parseStack.push(el);
+                }
+              }
+              if (isHTML && !el.closed) {
+                end = parseHtmlSpecialContent(source, end, el.tagName, entityReplacer, domBuilder);
+              } else {
+                end++;
+              }
+          }
+        } catch (e) {
+          if (e instanceof ParseError) {
+            throw e;
+          } else if (e instanceof DOMException) {
+            return errorHandler.fatalError("Error constructing the DOM: " + e.name + ": " + e.message, e);
+          }
+          errorHandler.error("element parse error: " + e);
+          end = -1;
+        }
+        if (end > start) {
+          start = end;
+        } else {
+          appendText(Math.max(tagStart, start) + 1);
+        }
+      }
+    }
+    function copyLocator(f, t) {
+      t.lineNumber = f.lineNumber;
+      t.columnNumber = f.columnNumber;
+      return t;
+    }
+    function parseElementStartPart(source, start, el, currentNSMap, entityReplacer, errorHandler, isHTML) {
+      function addAttribute(qname, value2, startIndex) {
+        if (hasOwn(el.attributeNames, qname)) {
+          return errorHandler.fatalError("Attribute " + qname + " redefined");
+        }
+        if (!isHTML && value2.indexOf("<") >= 0) {
+          return errorHandler.fatalError("Unescaped '<' not allowed in attributes values");
+        }
+        el.addValue(
+          qname,
+          // @see https://www.w3.org/TR/xml/#AVNormalize
+          // since the xmldom sax parser does not "interpret" DTD the following is not implemented:
+          // - recursive replacement of (DTD) entity references
+          // - trimming and collapsing multiple spaces into a single one for attributes that are not of type CDATA
+          value2.replace(/[\t\n\r]/g, " ").replace(ENTITY_REG, entityReplacer),
+          startIndex
+        );
+      }
+      var attrName;
+      var value;
+      var p = ++start;
+      var s = S_TAG;
+      while (true) {
+        var c = source.charAt(p);
+        if (s === S_TAG && c === "<") {
+          throw new Error("unexpected < in tag name: " + source.slice(start, p));
+        }
+        switch (c) {
+          case "=":
+            if (s === S_ATTR) {
+              attrName = source.slice(start, p);
+              s = S_EQ;
+            } else if (s === S_ATTR_SPACE) {
+              s = S_EQ;
+            } else {
+              throw new Error("attribute equal must after attrName");
+            }
+            break;
+          case "'":
+          case '"':
+            if (s === S_EQ || s === S_ATTR) {
+              if (s === S_ATTR) {
+                errorHandler.warning('attribute value must after "="');
+                attrName = source.slice(start, p);
+              }
+              start = p + 1;
+              p = source.indexOf(c, start);
+              if (p > 0) {
+                value = source.slice(start, p);
+                addAttribute(attrName, value, start - 1);
+                s = S_ATTR_END;
+              } else {
+                throw new Error("attribute value no end '" + c + "' match");
+              }
+            } else if (s == S_ATTR_NOQUOT_VALUE) {
+              value = source.slice(start, p);
+              addAttribute(attrName, value, start);
+              errorHandler.warning('attribute "' + attrName + '" missed start quot(' + c + ")!!");
+              start = p + 1;
+              s = S_ATTR_END;
+            } else {
+              throw new Error('attribute value must after "="');
+            }
+            break;
+          case "/":
+            switch (s) {
+              case S_TAG:
+                el.setTagName(source.slice(start, p));
+              case S_ATTR_END:
+              case S_TAG_SPACE:
+              case S_TAG_CLOSE:
+                s = S_TAG_CLOSE;
+                el.closed = true;
+              case S_ATTR_NOQUOT_VALUE:
+              case S_ATTR:
+                break;
+              case S_ATTR_SPACE:
+                el.closed = true;
+                break;
+              //case S_EQ:
+              default:
+                throw new Error("attribute invalid close char('/')");
+            }
+            break;
+          case "":
+            errorHandler.error("unexpected end of input");
+            if (s == S_TAG) {
+              el.setTagName(source.slice(start, p));
+            }
+            return p;
+          case ">":
+            switch (s) {
+              case S_TAG:
+                el.setTagName(source.slice(start, p));
+              case S_ATTR_END:
+              case S_TAG_SPACE:
+              case S_TAG_CLOSE:
+                break;
+              //normal
+              case S_ATTR_NOQUOT_VALUE:
+              //Compatible state
+              case S_ATTR:
+                value = source.slice(start, p);
+                if (value.slice(-1) === "/") {
+                  el.closed = true;
+                  value = value.slice(0, -1);
+                }
+              case S_ATTR_SPACE:
+                if (s === S_ATTR_SPACE) {
+                  value = attrName;
+                }
+                if (s == S_ATTR_NOQUOT_VALUE) {
+                  errorHandler.warning('attribute "' + value + '" missed quot(")!');
+                  addAttribute(attrName, value, start);
+                } else {
+                  if (!isHTML) {
+                    errorHandler.warning('attribute "' + value + '" missed value!! "' + value + '" instead!!');
+                  }
+                  addAttribute(value, value, start);
+                }
+                break;
+              case S_EQ:
+                if (!isHTML) {
+                  return errorHandler.fatalError(`AttValue: ' or " expected`);
+                }
+            }
+            return p;
+          /*xml space '\x20' | #x9 | #xD | #xA; */
+          case "\x80":
+            c = " ";
+          default:
+            if (c <= " ") {
+              switch (s) {
+                case S_TAG:
+                  el.setTagName(source.slice(start, p));
+                  s = S_TAG_SPACE;
+                  break;
+                case S_ATTR:
+                  attrName = source.slice(start, p);
+                  s = S_ATTR_SPACE;
+                  break;
+                case S_ATTR_NOQUOT_VALUE:
+                  var value = source.slice(start, p);
+                  errorHandler.warning('attribute "' + value + '" missed quot(")!!');
+                  addAttribute(attrName, value, start);
+                case S_ATTR_END:
+                  s = S_TAG_SPACE;
+                  break;
+              }
+            } else {
+              switch (s) {
+                //case S_TAG:void();break;
+                //case S_ATTR:void();break;
+                //case S_ATTR_NOQUOT_VALUE:void();break;
+                case S_ATTR_SPACE:
+                  if (!isHTML) {
+                    errorHandler.warning('attribute "' + attrName + '" missed value!! "' + attrName + '" instead2!!');
+                  }
+                  addAttribute(attrName, attrName, start);
+                  start = p;
+                  s = S_ATTR;
+                  break;
+                case S_ATTR_END:
+                  errorHandler.warning('attribute space is required"' + attrName + '"!!');
+                case S_TAG_SPACE:
+                  s = S_ATTR;
+                  start = p;
+                  break;
+                case S_EQ:
+                  s = S_ATTR_NOQUOT_VALUE;
+                  start = p;
+                  break;
+                case S_TAG_CLOSE:
+                  throw new Error("elements closed character '/' and '>' must be connected to");
+              }
+            }
+        }
+        p++;
+      }
+    }
+    function appendElement(el, domBuilder, currentNSMap) {
+      var tagName = el.tagName;
+      var localNSMap = null;
+      var i = el.length;
+      while (i--) {
+        var a = el[i];
+        var qName = a.qName;
+        var value = a.value;
+        var nsp = qName.indexOf(":");
+        if (nsp > 0) {
+          var prefix = a.prefix = qName.slice(0, nsp);
+          var localName = qName.slice(nsp + 1);
+          var nsPrefix = prefix === "xmlns" && localName;
+        } else {
+          localName = qName;
+          prefix = null;
+          nsPrefix = qName === "xmlns" && "";
+        }
+        a.localName = localName;
+        if (nsPrefix !== false) {
+          if (localNSMap == null) {
+            localNSMap = /* @__PURE__ */ Object.create(null);
+            currentNSMap = Object.create(currentNSMap);
+          }
+          currentNSMap[nsPrefix] = localNSMap[nsPrefix] = value;
+          a.uri = NAMESPACE.XMLNS;
+          domBuilder.startPrefixMapping(nsPrefix, value);
+        }
+      }
+      var i = el.length;
+      while (i--) {
+        a = el[i];
+        if (a.prefix) {
+          if (a.prefix === "xml") {
+            a.uri = NAMESPACE.XML;
+          }
+          if (a.prefix !== "xmlns") {
+            a.uri = currentNSMap[a.prefix];
+          }
+        }
+      }
+      var nsp = tagName.indexOf(":");
+      if (nsp > 0) {
+        prefix = el.prefix = tagName.slice(0, nsp);
+        localName = el.localName = tagName.slice(nsp + 1);
+      } else {
+        prefix = null;
+        localName = el.localName = tagName;
+      }
+      var ns = el.uri = currentNSMap[prefix || ""];
+      domBuilder.startElement(ns, localName, tagName, el);
+      if (el.closed) {
+        domBuilder.endElement(ns, localName, tagName);
+        if (localNSMap) {
+          for (prefix in localNSMap) {
+            if (hasOwn(localNSMap, prefix)) {
+              domBuilder.endPrefixMapping(prefix);
+            }
+          }
+        }
+      } else {
+        el.currentNSMap = currentNSMap;
+        el.localNSMap = localNSMap;
+        return true;
+      }
+    }
+    function parseHtmlSpecialContent(source, elStartEnd, tagName, entityReplacer, domBuilder) {
+      var isEscapableRaw = isHTMLEscapableRawTextElement(tagName);
+      if (isEscapableRaw || isHTMLRawTextElement(tagName)) {
+        var closeTag = new RegExp("</" + tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ">", "ig");
+        closeTag.lastIndex = elStartEnd;
+        var match = closeTag.exec(source);
+        var elEndStart = match ? match.index : -1;
+        if (elEndStart < 0) {
+          return elStartEnd + 1;
+        }
+        var text = source.substring(elStartEnd + 1, elEndStart);
+        if (isEscapableRaw) {
+          text = text.replace(ENTITY_REG, entityReplacer);
+        }
+        domBuilder.characters(text, 0, text.length);
+        return elEndStart;
+      }
+      return elStartEnd + 1;
+    }
+    function _copy(source, target) {
+      for (var n in source) {
+        if (hasOwn(source, n)) {
+          target[n] = source[n];
+        }
+      }
+    }
+    function parseUtils(source, start) {
+      var index = start;
+      function char(n) {
+        n = n || 0;
+        return source.charAt(index + n);
+      }
+      function skip(n) {
+        n = n || 1;
+        index += n;
+      }
+      function skipBlanks() {
+        var blanks = 0;
+        while (index < source.length) {
+          var c = char();
+          if (c !== " " && c !== "\n" && c !== "	" && c !== "\r") {
+            return blanks;
+          }
+          blanks++;
+          skip();
+        }
+        return -1;
+      }
+      function substringFromIndex() {
+        return source.substring(index);
+      }
+      function substringStartsWith(text) {
+        return source.substring(index, index + text.length) === text;
+      }
+      function substringStartsWithCaseInsensitive(text) {
+        return source.substring(index, index + text.length).toUpperCase() === text.toUpperCase();
+      }
+      function getMatch(args) {
+        var expr = g.reg("^", args);
+        var match = expr.exec(substringFromIndex());
+        if (match) {
+          skip(match[0].length);
+          return match[0];
+        }
+        return null;
+      }
+      return {
+        char,
+        getIndex: function() {
+          return index;
+        },
+        getMatch,
+        getSource: function() {
+          return source;
+        },
+        skip,
+        skipBlanks,
+        substringFromIndex,
+        substringStartsWith,
+        substringStartsWithCaseInsensitive
+      };
+    }
+    function parseDoctypeInternalSubset(p, errorHandler) {
+      function parsePI(p2, errorHandler2) {
+        var match = g.PI.exec(p2.substringFromIndex());
+        if (!match) {
+          return errorHandler2.fatalError("processing instruction is not well-formed at position " + p2.getIndex());
+        }
+        if (match[1].toLowerCase() === "xml") {
+          return errorHandler2.fatalError(
+            "xml declaration is only allowed at the start of the document, but found at position " + p2.getIndex()
+          );
+        }
+        p2.skip(match[0].length);
+        return match[0];
+      }
+      var source = p.getSource();
+      if (p.char() === "[") {
+        p.skip(1);
+        var intSubsetStart = p.getIndex();
+        while (p.getIndex() < source.length) {
+          p.skipBlanks();
+          if (p.char() === "]") {
+            var internalSubset = source.substring(intSubsetStart, p.getIndex());
+            p.skip(1);
+            return internalSubset;
+          }
+          var current = null;
+          if (p.char() === "<" && p.char(1) === "!") {
+            switch (p.char(2)) {
+              case "E":
+                if (p.char(3) === "L") {
+                  current = p.getMatch(g.elementdecl);
+                } else if (p.char(3) === "N") {
+                  current = p.getMatch(g.EntityDecl);
+                }
+                break;
+              case "A":
+                current = p.getMatch(g.AttlistDecl);
+                break;
+              case "N":
+                current = p.getMatch(g.NotationDecl);
+                break;
+              case "-":
+                current = p.getMatch(g.Comment);
+                break;
+            }
+          } else if (p.char() === "<" && p.char(1) === "?") {
+            current = parsePI(p, errorHandler);
+          } else if (p.char() === "%") {
+            current = p.getMatch(g.PEReference);
+          } else {
+            return errorHandler.fatalError("Error detected in Markup declaration");
+          }
+          if (!current) {
+            return errorHandler.fatalError("Error in internal subset at position " + p.getIndex());
+          }
+        }
+        return errorHandler.fatalError("doctype internal subset is not well-formed, missing ]");
+      }
+    }
+    function parseDoctypeCommentOrCData(source, start, domBuilder, errorHandler, isHTML) {
+      var p = parseUtils(source, start);
+      switch (isHTML ? p.char(2).toUpperCase() : p.char(2)) {
+        case "-":
+          var comment = p.getMatch(g.Comment);
+          if (comment) {
+            domBuilder.comment(comment, g.COMMENT_START.length, comment.length - g.COMMENT_START.length - g.COMMENT_END.length);
+            return p.getIndex();
+          } else {
+            return errorHandler.fatalError("comment is not well-formed at position " + p.getIndex());
+          }
+        case "[":
+          var cdata = p.getMatch(g.CDSect);
+          if (cdata) {
+            if (!isHTML && !domBuilder.currentElement) {
+              return errorHandler.fatalError("CDATA outside of element");
+            }
+            domBuilder.startCDATA();
+            domBuilder.characters(cdata, g.CDATA_START.length, cdata.length - g.CDATA_START.length - g.CDATA_END.length);
+            domBuilder.endCDATA();
+            return p.getIndex();
+          } else {
+            return errorHandler.fatalError("Invalid CDATA starting at position " + start);
+          }
+        case "D": {
+          if (domBuilder.doc && domBuilder.doc.documentElement) {
+            return errorHandler.fatalError("Doctype not allowed inside or after documentElement at position " + p.getIndex());
+          }
+          if (isHTML ? !p.substringStartsWithCaseInsensitive(g.DOCTYPE_DECL_START) : !p.substringStartsWith(g.DOCTYPE_DECL_START)) {
+            return errorHandler.fatalError("Expected " + g.DOCTYPE_DECL_START + " at position " + p.getIndex());
+          }
+          p.skip(g.DOCTYPE_DECL_START.length);
+          if (p.skipBlanks() < 1) {
+            return errorHandler.fatalError("Expected whitespace after " + g.DOCTYPE_DECL_START + " at position " + p.getIndex());
+          }
+          var doctype = {
+            name: void 0,
+            publicId: void 0,
+            systemId: void 0,
+            internalSubset: void 0
+          };
+          doctype.name = p.getMatch(g.Name);
+          if (!doctype.name)
+            return errorHandler.fatalError("doctype name missing or contains unexpected characters at position " + p.getIndex());
+          if (isHTML && doctype.name.toLowerCase() !== "html") {
+            errorHandler.warning("Unexpected DOCTYPE in HTML document at position " + p.getIndex());
+          }
+          p.skipBlanks();
+          if (p.substringStartsWith(g.PUBLIC) || p.substringStartsWith(g.SYSTEM)) {
+            var match = g.ExternalID_match.exec(p.substringFromIndex());
+            if (!match) {
+              return errorHandler.fatalError("doctype external id is not well-formed at position " + p.getIndex());
+            }
+            if (match.groups.SystemLiteralOnly !== void 0) {
+              doctype.systemId = match.groups.SystemLiteralOnly;
+            } else {
+              doctype.systemId = match.groups.SystemLiteral;
+              doctype.publicId = match.groups.PubidLiteral;
+            }
+            p.skip(match[0].length);
+          } else if (isHTML && p.substringStartsWithCaseInsensitive(g.SYSTEM)) {
+            p.skip(g.SYSTEM.length);
+            if (p.skipBlanks() < 1) {
+              return errorHandler.fatalError("Expected whitespace after " + g.SYSTEM + " at position " + p.getIndex());
+            }
+            doctype.systemId = p.getMatch(g.ABOUT_LEGACY_COMPAT_SystemLiteral);
+            if (!doctype.systemId) {
+              return errorHandler.fatalError(
+                "Expected " + g.ABOUT_LEGACY_COMPAT + " in single or double quotes after " + g.SYSTEM + " at position " + p.getIndex()
+              );
+            }
+          }
+          if (isHTML && doctype.systemId && !g.ABOUT_LEGACY_COMPAT_SystemLiteral.test(doctype.systemId)) {
+            errorHandler.warning("Unexpected doctype.systemId in HTML document at position " + p.getIndex());
+          }
+          if (!isHTML) {
+            p.skipBlanks();
+            doctype.internalSubset = parseDoctypeInternalSubset(p, errorHandler);
+          }
+          p.skipBlanks();
+          if (p.char() !== ">") {
+            return errorHandler.fatalError("doctype not terminated with > at position " + p.getIndex());
+          }
+          p.skip(1);
+          domBuilder.startDTD(doctype.name, doctype.publicId, doctype.systemId, doctype.internalSubset);
+          domBuilder.endDTD();
+          return p.getIndex();
+        }
+        default:
+          return errorHandler.fatalError('Not well-formed XML starting with "<!" at position ' + start);
+      }
+    }
+    function parseProcessingInstruction(source, start, domBuilder, errorHandler) {
+      var match = source.substring(start).match(g.PI);
+      if (!match) {
+        return errorHandler.fatalError("Invalid processing instruction starting at position " + start);
+      }
+      if (match[1].toLowerCase() === "xml") {
+        if (start > 0) {
+          return errorHandler.fatalError(
+            "processing instruction at position " + start + " is an xml declaration which is only at the start of the document"
+          );
+        }
+        if (!g.XMLDecl.test(source.substring(start))) {
+          return errorHandler.fatalError("xml declaration is not well-formed");
+        }
+      }
+      domBuilder.processingInstruction(match[1], match[2]);
+      return start + match[0].length;
+    }
+    function ElementAttributes() {
+      this.attributeNames = /* @__PURE__ */ Object.create(null);
+    }
+    ElementAttributes.prototype = {
+      setTagName: function(tagName) {
+        if (!g.QName_exact.test(tagName)) {
+          throw new Error("invalid tagName:" + tagName);
+        }
+        this.tagName = tagName;
+      },
+      addValue: function(qName, value, offset) {
+        if (!g.QName_exact.test(qName)) {
+          throw new Error("invalid attribute:" + qName);
+        }
+        this.attributeNames[qName] = this.length;
+        this[this.length++] = { qName, value, offset };
+      },
+      length: 0,
+      getLocalName: function(i) {
+        return this[i].localName;
+      },
+      getLocator: function(i) {
+        return this[i].locator;
+      },
+      getQName: function(i) {
+        return this[i].qName;
+      },
+      getURI: function(i) {
+        return this[i].uri;
+      },
+      getValue: function(i) {
+        return this[i].value;
+      }
+      //	,getIndex:function(uri, localName)){
+      //		if(localName){
+      //
+      //		}else{
+      //			var qName = uri
+      //		}
+      //	},
+      //	getValue:function(){return this.getValue(this.getIndex.apply(this,arguments))},
+      //	getType:function(uri,localName){}
+      //	getType:function(i){},
+    };
+    exports.XMLReader = XMLReader;
+    exports.parseUtils = parseUtils;
+    exports.parseDoctypeCommentOrCData = parseDoctypeCommentOrCData;
+  }
+});
+
+// node_modules/@xmldom/xmldom/lib/dom-parser.js
+var require_dom_parser = __commonJS({
+  "node_modules/@xmldom/xmldom/lib/dom-parser.js"(exports) {
+    "use strict";
+    var conventions = require_conventions();
+    var dom = require_dom();
+    var errors = require_errors2();
+    var entities = require_entities();
+    var sax = require_sax();
+    var DOMImplementation = dom.DOMImplementation;
+    var hasDefaultHTMLNamespace = conventions.hasDefaultHTMLNamespace;
+    var isHTMLMimeType = conventions.isHTMLMimeType;
+    var isValidMimeType = conventions.isValidMimeType;
+    var MIME_TYPE = conventions.MIME_TYPE;
+    var NAMESPACE = conventions.NAMESPACE;
+    var ParseError = errors.ParseError;
+    var XMLReader = sax.XMLReader;
+    function normalizeLineEndings(input2) {
+      return input2.replace(/\r[\n\u0085]/g, "\n").replace(/[\r\u0085\u2028\u2029]/g, "\n");
+    }
+    function DOMParser2(options) {
+      options = options || {};
+      if (options.locator === void 0) {
+        options.locator = true;
+      }
+      this.assign = options.assign || conventions.assign;
+      this.domHandler = options.domHandler || DOMHandler;
+      this.onError = options.onError || options.errorHandler;
+      if (options.errorHandler && typeof options.errorHandler !== "function") {
+        throw new TypeError("errorHandler object is no longer supported, switch to onError!");
+      } else if (options.errorHandler) {
+        options.errorHandler("warning", "The `errorHandler` option has been deprecated, use `onError` instead!", this);
+      }
+      this.normalizeLineEndings = options.normalizeLineEndings || normalizeLineEndings;
+      this.locator = !!options.locator;
+      this.xmlns = this.assign(/* @__PURE__ */ Object.create(null), options.xmlns);
+    }
+    DOMParser2.prototype.parseFromString = function(source, mimeType) {
+      if (!isValidMimeType(mimeType)) {
+        throw new TypeError('DOMParser.parseFromString: the provided mimeType "' + mimeType + '" is not valid.');
+      }
+      var defaultNSMap = this.assign(/* @__PURE__ */ Object.create(null), this.xmlns);
+      var entityMap = entities.XML_ENTITIES;
+      var defaultNamespace = defaultNSMap[""] || null;
+      if (hasDefaultHTMLNamespace(mimeType)) {
+        entityMap = entities.HTML_ENTITIES;
+        defaultNamespace = NAMESPACE.HTML;
+      } else if (mimeType === MIME_TYPE.XML_SVG_IMAGE) {
+        defaultNamespace = NAMESPACE.SVG;
+      }
+      defaultNSMap[""] = defaultNamespace;
+      defaultNSMap.xml = defaultNSMap.xml || NAMESPACE.XML;
+      var domBuilder = new this.domHandler({
+        mimeType,
+        defaultNamespace,
+        onError: this.onError
+      });
+      var locator = this.locator ? {} : void 0;
+      if (this.locator) {
+        domBuilder.setDocumentLocator(locator);
+      }
+      var sax2 = new XMLReader();
+      sax2.errorHandler = domBuilder;
+      sax2.domBuilder = domBuilder;
+      var isXml = !conventions.isHTMLMimeType(mimeType);
+      if (isXml && typeof source !== "string") {
+        sax2.errorHandler.fatalError("source is not a string");
+      }
+      sax2.parse(this.normalizeLineEndings(String(source)), defaultNSMap, entityMap);
+      if (!domBuilder.doc.documentElement) {
+        sax2.errorHandler.fatalError("missing root element");
+      }
+      return domBuilder.doc;
+    };
+    function DOMHandler(options) {
+      var opt = options || {};
+      this.mimeType = opt.mimeType || MIME_TYPE.XML_APPLICATION;
+      this.defaultNamespace = opt.defaultNamespace || null;
+      this.cdata = false;
+      this.currentElement = void 0;
+      this.doc = void 0;
+      this.locator = void 0;
+      this.onError = opt.onError;
+    }
+    function position(locator, node2) {
+      node2.lineNumber = locator.lineNumber;
+      node2.columnNumber = locator.columnNumber;
+    }
+    DOMHandler.prototype = {
+      /**
+       * Either creates an XML or an HTML document and stores it under `this.doc`.
+       * If it is an XML document, `this.defaultNamespace` is used to create it,
+       * and it will not contain any `childNodes`.
+       * If it is an HTML document, it will be created without any `childNodes`.
+       *
+       * @see http://www.saxproject.org/apidoc/org/xml/sax/ContentHandler.html
+       */
+      startDocument: function() {
+        var impl = new DOMImplementation();
+        this.doc = isHTMLMimeType(this.mimeType) ? impl.createHTMLDocument(false) : impl.createDocument(this.defaultNamespace, "");
+      },
+      startElement: function(namespaceURI, localName, qName, attrs) {
+        var doc = this.doc;
+        var el = doc.createElementNS(namespaceURI, qName || localName);
+        var len = attrs.length;
+        appendElement(this, el);
+        this.currentElement = el;
+        this.locator && position(this.locator, el);
+        for (var i = 0; i < len; i++) {
+          var namespaceURI = attrs.getURI(i);
+          var value = attrs.getValue(i);
+          var qName = attrs.getQName(i);
+          var attr = doc.createAttributeNS(namespaceURI, qName);
+          this.locator && position(attrs.getLocator(i), attr);
+          attr.value = attr.nodeValue = value;
+          el.setAttributeNode(attr);
+        }
+      },
+      endElement: function(namespaceURI, localName, qName) {
+        this.currentElement = this.currentElement.parentNode;
+      },
+      startPrefixMapping: function(prefix, uri) {
+      },
+      endPrefixMapping: function(prefix) {
+      },
+      processingInstruction: function(target, data) {
+        var ins = this.doc.createProcessingInstruction(target, data);
+        this.locator && position(this.locator, ins);
+        appendElement(this, ins);
+      },
+      ignorableWhitespace: function(ch, start, length) {
+      },
+      characters: function(chars, start, length) {
+        chars = _toString.apply(this, arguments);
+        if (chars) {
+          if (this.cdata) {
+            var charNode = this.doc.createCDATASection(chars);
+          } else {
+            var charNode = this.doc.createTextNode(chars);
+          }
+          if (this.currentElement) {
+            this.currentElement.appendChild(charNode);
+          } else if (/^\s*$/.test(chars)) {
+            this.doc.appendChild(charNode);
+          }
+          this.locator && position(this.locator, charNode);
+        }
+      },
+      skippedEntity: function(name) {
+      },
+      endDocument: function() {
+        this.doc.normalize();
+      },
+      /**
+       * Stores the locator to be able to set the `columnNumber` and `lineNumber`
+       * on the created DOM nodes.
+       *
+       * @param {Locator} locator
+       */
+      setDocumentLocator: function(locator) {
+        if (locator) {
+          locator.lineNumber = 0;
+        }
+        this.locator = locator;
+      },
+      //LexicalHandler
+      comment: function(chars, start, length) {
+        chars = _toString.apply(this, arguments);
+        var comm = this.doc.createComment(chars);
+        this.locator && position(this.locator, comm);
+        appendElement(this, comm);
+      },
+      startCDATA: function() {
+        this.cdata = true;
+      },
+      endCDATA: function() {
+        this.cdata = false;
+      },
+      startDTD: function(name, publicId, systemId, internalSubset) {
+        var impl = this.doc.implementation;
+        if (impl && impl.createDocumentType) {
+          var dt = impl.createDocumentType(name, publicId, systemId, internalSubset);
+          this.locator && position(this.locator, dt);
+          appendElement(this, dt);
+          this.doc.doctype = dt;
+        }
+      },
+      reportError: function(level, message2) {
+        if (typeof this.onError === "function") {
+          try {
+            this.onError(level, message2, this);
+          } catch (e) {
+            throw new ParseError("Reporting " + level + ' "' + message2 + '" caused ' + e, this.locator);
+          }
+        } else {
+          console.error("[xmldom " + level + "]	" + message2, _locator(this.locator));
+        }
+      },
+      /**
+       * @see http://www.saxproject.org/apidoc/org/xml/sax/ErrorHandler.html
+       */
+      warning: function(message2) {
+        this.reportError("warning", message2);
+      },
+      error: function(message2) {
+        this.reportError("error", message2);
+      },
+      /**
+       * This function reports a fatal error and throws a ParseError.
+       *
+       * @param {string} message
+       * - The message to be used for reporting and throwing the error.
+       * @param {Error} [cause]
+       * The error that caused this fatal error, preserved as the thrown `ParseError`'s `cause`.
+       * @returns {never}
+       * This function always throws an error and never returns a value.
+       * @throws {ParseError}
+       * Always throws a ParseError with the provided message.
+       */
+      fatalError: function(message2, cause) {
+        this.reportError("fatalError", message2);
+        throw new ParseError(message2, this.locator, cause);
+      }
+    };
+    function _locator(l) {
+      if (l) {
+        return "\n@#[line:" + l.lineNumber + ",col:" + l.columnNumber + "]";
+      }
+    }
+    function _toString(chars, start, length) {
+      if (typeof chars == "string") {
+        return chars.substr(start, length);
+      } else {
+        if (chars.length >= start + length || start) {
+          return new java.lang.String(chars, start, length) + "";
+        }
+        return chars;
+      }
+    }
+    "endDTD,startEntity,endEntity,attributeDecl,elementDecl,externalEntityDecl,internalEntityDecl,resolveEntity,getExternalSubset,notationDecl,unparsedEntityDecl".replace(
+      /\w+/g,
+      function(key) {
+        DOMHandler.prototype[key] = function() {
+          return null;
+        };
+      }
+    );
+    function appendElement(handler, node2) {
+      if (!handler.currentElement) {
+        handler.doc.appendChild(node2);
+      } else {
+        handler.currentElement.appendChild(node2);
+      }
+    }
+    function onErrorStopParsing(level) {
+      if (level === "error") throw "onErrorStopParsing";
+    }
+    function onWarningStopParsing() {
+      throw "onWarningStopParsing";
+    }
+    exports.__DOMHandler = DOMHandler;
+    exports.DOMParser = DOMParser2;
+    exports.normalizeLineEndings = normalizeLineEndings;
+    exports.onErrorStopParsing = onErrorStopParsing;
+    exports.onWarningStopParsing = onWarningStopParsing;
+  }
+});
+
+// node_modules/@xmldom/xmldom/lib/index.js
+var require_lib = __commonJS({
+  "node_modules/@xmldom/xmldom/lib/index.js"(exports) {
+    "use strict";
+    var conventions = require_conventions();
+    exports.assign = conventions.assign;
+    exports.hasDefaultHTMLNamespace = conventions.hasDefaultHTMLNamespace;
+    exports.isHTMLMimeType = conventions.isHTMLMimeType;
+    exports.isValidMimeType = conventions.isValidMimeType;
+    exports.MIME_TYPE = conventions.MIME_TYPE;
+    exports.NAMESPACE = conventions.NAMESPACE;
+    var errors = require_errors2();
+    exports.DOMException = errors.DOMException;
+    exports.DOMExceptionName = errors.DOMExceptionName;
+    exports.ExceptionCode = errors.ExceptionCode;
+    exports.ParseError = errors.ParseError;
+    var dom = require_dom();
+    exports.Attr = dom.Attr;
+    exports.CDATASection = dom.CDATASection;
+    exports.CharacterData = dom.CharacterData;
+    exports.Comment = dom.Comment;
+    exports.Document = dom.Document;
+    exports.DocumentFragment = dom.DocumentFragment;
+    exports.DocumentType = dom.DocumentType;
+    exports.DOMImplementation = dom.DOMImplementation;
+    exports.Element = dom.Element;
+    exports.Entity = dom.Entity;
+    exports.EntityReference = dom.EntityReference;
+    exports.LiveNodeList = dom.LiveNodeList;
+    exports.NamedNodeMap = dom.NamedNodeMap;
+    exports.Node = dom.Node;
+    exports.NodeList = dom.NodeList;
+    exports.Notation = dom.Notation;
+    exports.ProcessingInstruction = dom.ProcessingInstruction;
+    exports.Text = dom.Text;
+    exports.XMLSerializer = dom.XMLSerializer;
+    var domParser = require_dom_parser();
+    exports.DOMParser = domParser.DOMParser;
+    exports.normalizeLineEndings = domParser.normalizeLineEndings;
+    exports.onErrorStopParsing = domParser.onErrorStopParsing;
+    exports.onWarningStopParsing = domParser.onWarningStopParsing;
+  }
+});
+
+// node_modules/xmlbuilder/lib/Utility.js
+var require_Utility = __commonJS({
+  "node_modules/xmlbuilder/lib/Utility.js"(exports, module) {
+    "use strict";
+    (function() {
+      var assign, getValue, isArray, isEmpty, isFunction, isObject3, isPlainObject3, hasProp = {}.hasOwnProperty;
+      assign = function(target, ...sources) {
+        var i, key, len, source;
+        if (isFunction(Object.assign)) {
+          Object.assign.apply(null, arguments);
+        } else {
+          for (i = 0, len = sources.length; i < len; i++) {
+            source = sources[i];
+            if (source != null) {
+              for (key in source) {
+                if (!hasProp.call(source, key)) continue;
+                target[key] = source[key];
+              }
+            }
+          }
+        }
+        return target;
+      };
+      isFunction = function(val) {
+        return !!val && Object.prototype.toString.call(val) === "[object Function]";
+      };
+      isObject3 = function(val) {
+        var ref;
+        return !!val && ((ref = typeof val) === "function" || ref === "object");
+      };
+      isArray = function(val) {
+        if (isFunction(Array.isArray)) {
+          return Array.isArray(val);
+        } else {
+          return Object.prototype.toString.call(val) === "[object Array]";
+        }
+      };
+      isEmpty = function(val) {
+        var key;
+        if (isArray(val)) {
+          return !val.length;
+        } else {
+          for (key in val) {
+            if (!hasProp.call(val, key)) continue;
+            return false;
+          }
+          return true;
+        }
+      };
+      isPlainObject3 = function(val) {
+        var ctor, proto;
+        return isObject3(val) && (proto = Object.getPrototypeOf(val)) && (ctor = proto.constructor) && typeof ctor === "function" && ctor instanceof ctor && Function.prototype.toString.call(ctor) === Function.prototype.toString.call(Object);
+      };
+      getValue = function(obj) {
+        if (isFunction(obj.valueOf)) {
+          return obj.valueOf();
+        } else {
+          return obj;
+        }
+      };
+      module.exports.assign = assign;
+      module.exports.isFunction = isFunction;
+      module.exports.isObject = isObject3;
+      module.exports.isArray = isArray;
+      module.exports.isEmpty = isEmpty;
+      module.exports.isPlainObject = isPlainObject3;
+      module.exports.getValue = getValue;
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLDOMImplementation.js
+var require_XMLDOMImplementation = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLDOMImplementation.js"(exports, module) {
+    "use strict";
+    (function() {
+      var XMLDOMImplementation;
+      module.exports = XMLDOMImplementation = class XMLDOMImplementation {
+        // Tests if the DOM implementation implements a specific feature.
+        // `feature` package name of the feature to test. In Level 1, the
+        //           legal values are "HTML" and "XML" (case-insensitive).
+        // `version` version number of the package name to test. 
+        //           In Level 1, this is the string "1.0". If the version is 
+        //           not specified, supporting any version of the feature will 
+        //           cause the method to return true.
+        hasFeature(feature, version2) {
+          return true;
+        }
+        // Creates a new document type declaration.
+        // `qualifiedName` qualified name of the document type to be created
+        // `publicId` public identifier of the external subset
+        // `systemId` system identifier of the external subset
+        createDocumentType(qualifiedName, publicId, systemId) {
+          throw new Error("This DOM method is not implemented.");
+        }
+        // Creates a new document.
+        // `namespaceURI` namespace URI of the document element to create
+        // `qualifiedName` the qualified name of the document to be created
+        // `doctype` the type of document to be created or null
+        createDocument(namespaceURI, qualifiedName, doctype) {
+          throw new Error("This DOM method is not implemented.");
+        }
+        // Creates a new HTML document.
+        // `title` document title
+        createHTMLDocument(title) {
+          throw new Error("This DOM method is not implemented.");
+        }
+        // Returns a specialized object which implements the specialized APIs 
+        // of the specified feature and version.
+        // `feature` name of the feature requested.
+        // `version` version number of the feature to test
+        getFeature(feature, version2) {
+          throw new Error("This DOM method is not implemented.");
+        }
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLDOMErrorHandler.js
+var require_XMLDOMErrorHandler = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLDOMErrorHandler.js"(exports, module) {
+    "use strict";
+    (function() {
+      var XMLDOMErrorHandler;
+      module.exports = XMLDOMErrorHandler = class XMLDOMErrorHandler {
+        // Initializes a new instance of `XMLDOMErrorHandler`
+        constructor() {
+        }
+        // Called on the error handler when an error occurs.
+        // `error` the error message as a string
+        handleError(error62) {
+          throw new Error(error62);
+        }
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLDOMStringList.js
+var require_XMLDOMStringList = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLDOMStringList.js"(exports, module) {
+    "use strict";
+    (function() {
+      var XMLDOMStringList;
+      module.exports = XMLDOMStringList = (function() {
+        class XMLDOMStringList2 {
+          // Initializes a new instance of `XMLDOMStringList`
+          // This is just a wrapper around an ordinary
+          // JS array.
+          // `arr` the array of string values
+          constructor(arr) {
+            this.arr = arr || [];
+          }
+          // Returns the indexth item in the collection.
+          // `index` index into the collection
+          item(index) {
+            return this.arr[index] || null;
+          }
+          // Test if a string is part of this DOMStringList.
+          // `str` the string to look for
+          contains(str) {
+            return this.arr.indexOf(str) !== -1;
+          }
+        }
+        ;
+        Object.defineProperty(XMLDOMStringList2.prototype, "length", {
+          get: function() {
+            return this.arr.length;
+          }
+        });
+        return XMLDOMStringList2;
+      }).call(this);
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLDOMConfiguration.js
+var require_XMLDOMConfiguration = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLDOMConfiguration.js"(exports, module) {
+    "use strict";
+    (function() {
+      var XMLDOMConfiguration, XMLDOMErrorHandler, XMLDOMStringList;
+      XMLDOMErrorHandler = require_XMLDOMErrorHandler();
+      XMLDOMStringList = require_XMLDOMStringList();
+      module.exports = XMLDOMConfiguration = (function() {
+        class XMLDOMConfiguration2 {
+          constructor() {
+            var clonedSelf;
+            this.defaultParams = {
+              "canonical-form": false,
+              "cdata-sections": false,
+              "comments": false,
+              "datatype-normalization": false,
+              "element-content-whitespace": true,
+              "entities": true,
+              "error-handler": new XMLDOMErrorHandler(),
+              "infoset": true,
+              "validate-if-schema": false,
+              "namespaces": true,
+              "namespace-declarations": true,
+              "normalize-characters": false,
+              "schema-location": "",
+              "schema-type": "",
+              "split-cdata-sections": true,
+              "validate": false,
+              "well-formed": true
+            };
+            this.params = clonedSelf = Object.create(this.defaultParams);
+          }
+          // Gets the value of a parameter.
+          // `name` name of the parameter
+          getParameter(name) {
+            if (this.params.hasOwnProperty(name)) {
+              return this.params[name];
+            } else {
+              return null;
+            }
+          }
+          // Checks if setting a parameter to a specific value is supported.
+          // `name` name of the parameter
+          // `value` parameter value
+          canSetParameter(name, value) {
+            return true;
+          }
+          // Sets the value of a parameter.
+          // `name` name of the parameter
+          // `value` new value or null if the user wishes to unset the parameter
+          setParameter(name, value) {
+            if (value != null) {
+              return this.params[name] = value;
+            } else {
+              return delete this.params[name];
+            }
+          }
+        }
+        ;
+        Object.defineProperty(XMLDOMConfiguration2.prototype, "parameterNames", {
+          get: function() {
+            return new XMLDOMStringList(Object.keys(this.defaultParams));
+          }
+        });
+        return XMLDOMConfiguration2;
+      }).call(this);
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/NodeType.js
+var require_NodeType = __commonJS({
+  "node_modules/xmlbuilder/lib/NodeType.js"(exports, module) {
+    "use strict";
+    (function() {
+      module.exports = {
+        Element: 1,
+        Attribute: 2,
+        Text: 3,
+        CData: 4,
+        EntityReference: 5,
+        EntityDeclaration: 6,
+        ProcessingInstruction: 7,
+        Comment: 8,
+        Document: 9,
+        DocType: 10,
+        DocumentFragment: 11,
+        NotationDeclaration: 12,
+        // Numeric codes up to 200 are reserved to W3C for possible future use.
+        // Following are types internal to this library:
+        Declaration: 201,
+        Raw: 202,
+        AttributeDeclaration: 203,
+        ElementDeclaration: 204,
+        Dummy: 205
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLAttribute.js
+var require_XMLAttribute = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLAttribute.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, XMLAttribute, XMLNode;
+      NodeType = require_NodeType();
+      XMLNode = require_XMLNode();
+      module.exports = XMLAttribute = (function() {
+        class XMLAttribute2 {
+          // Initializes a new instance of `XMLAttribute`
+          // `parent` the parent node
+          // `name` attribute target
+          // `value` attribute value
+          constructor(parent, name, value) {
+            this.parent = parent;
+            if (this.parent) {
+              this.options = this.parent.options;
+              this.stringify = this.parent.stringify;
+            }
+            if (name == null) {
+              throw new Error("Missing attribute name. " + this.debugInfo(name));
+            }
+            this.name = this.stringify.name(name);
+            this.value = this.stringify.attValue(value);
+            this.type = NodeType.Attribute;
+            this.isId = false;
+            this.schemaTypeInfo = null;
+          }
+          // Creates and returns a deep clone of `this`
+          clone() {
+            return Object.create(this);
+          }
+          // Converts the XML fragment to string
+          // `options.pretty` pretty prints the result
+          // `options.indent` indentation for pretty print
+          // `options.offset` how many indentations to add to every line for pretty print
+          // `options.newline` newline sequence for pretty print
+          toString(options) {
+            return this.options.writer.attribute(this, this.options.writer.filterOptions(options));
+          }
+          // Returns debug string for this node
+          debugInfo(name) {
+            name = name || this.name;
+            if (name == null) {
+              return "parent: <" + this.parent.name + ">";
+            } else {
+              return "attribute: {" + name + "}, parent: <" + this.parent.name + ">";
+            }
+          }
+          isEqualNode(node2) {
+            if (node2.namespaceURI !== this.namespaceURI) {
+              return false;
+            }
+            if (node2.prefix !== this.prefix) {
+              return false;
+            }
+            if (node2.localName !== this.localName) {
+              return false;
+            }
+            if (node2.value !== this.value) {
+              return false;
+            }
+            return true;
+          }
+        }
+        ;
+        Object.defineProperty(XMLAttribute2.prototype, "nodeType", {
+          get: function() {
+            return this.type;
+          }
+        });
+        Object.defineProperty(XMLAttribute2.prototype, "ownerElement", {
+          get: function() {
+            return this.parent;
+          }
+        });
+        Object.defineProperty(XMLAttribute2.prototype, "textContent", {
+          get: function() {
+            return this.value;
+          },
+          set: function(value) {
+            return this.value = value || "";
+          }
+        });
+        Object.defineProperty(XMLAttribute2.prototype, "namespaceURI", {
+          get: function() {
+            return "";
+          }
+        });
+        Object.defineProperty(XMLAttribute2.prototype, "prefix", {
+          get: function() {
+            return "";
+          }
+        });
+        Object.defineProperty(XMLAttribute2.prototype, "localName", {
+          get: function() {
+            return this.name;
+          }
+        });
+        Object.defineProperty(XMLAttribute2.prototype, "specified", {
+          get: function() {
+            return true;
+          }
+        });
+        return XMLAttribute2;
+      }).call(this);
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLNamedNodeMap.js
+var require_XMLNamedNodeMap = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLNamedNodeMap.js"(exports, module) {
+    "use strict";
+    (function() {
+      var XMLNamedNodeMap;
+      module.exports = XMLNamedNodeMap = (function() {
+        class XMLNamedNodeMap2 {
+          // Initializes a new instance of `XMLNamedNodeMap`
+          // This is just a wrapper around an ordinary
+          // JS object.
+          // `nodes` the object containing nodes.
+          constructor(nodes) {
+            this.nodes = nodes;
+          }
+          // Creates and returns a deep clone of `this`
+          clone() {
+            return this.nodes = null;
+          }
+          // DOM Level 1
+          getNamedItem(name) {
+            return this.nodes[name];
+          }
+          setNamedItem(node2) {
+            var oldNode;
+            oldNode = this.nodes[node2.nodeName];
+            this.nodes[node2.nodeName] = node2;
+            return oldNode || null;
+          }
+          removeNamedItem(name) {
+            var oldNode;
+            oldNode = this.nodes[name];
+            delete this.nodes[name];
+            return oldNode || null;
+          }
+          item(index) {
+            return this.nodes[Object.keys(this.nodes)[index]] || null;
+          }
+          // DOM level 2 functions to be implemented later
+          getNamedItemNS(namespaceURI, localName) {
+            throw new Error("This DOM method is not implemented.");
+          }
+          setNamedItemNS(node2) {
+            throw new Error("This DOM method is not implemented.");
+          }
+          removeNamedItemNS(namespaceURI, localName) {
+            throw new Error("This DOM method is not implemented.");
+          }
+        }
+        ;
+        Object.defineProperty(XMLNamedNodeMap2.prototype, "length", {
+          get: function() {
+            return Object.keys(this.nodes).length || 0;
+          }
+        });
+        return XMLNamedNodeMap2;
+      }).call(this);
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLElement.js
+var require_XMLElement = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLElement.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, XMLAttribute, XMLElement, XMLNamedNodeMap, XMLNode, getValue, isFunction, isObject3, hasProp = {}.hasOwnProperty;
+      ({ isObject: isObject3, isFunction, getValue } = require_Utility());
+      XMLNode = require_XMLNode();
+      NodeType = require_NodeType();
+      XMLAttribute = require_XMLAttribute();
+      XMLNamedNodeMap = require_XMLNamedNodeMap();
+      module.exports = XMLElement = (function() {
+        class XMLElement2 extends XMLNode {
+          // Initializes a new instance of `XMLElement`
+          // `parent` the parent node
+          // `name` element name
+          // `attributes` an object containing name/value pairs of attributes
+          constructor(parent, name, attributes) {
+            var child, j, len, ref;
+            super(parent);
+            if (name == null) {
+              throw new Error("Missing element name. " + this.debugInfo());
+            }
+            this.name = this.stringify.name(name);
+            this.type = NodeType.Element;
+            this.attribs = {};
+            this.schemaTypeInfo = null;
+            if (attributes != null) {
+              this.attribute(attributes);
+            }
+            if (parent.type === NodeType.Document) {
+              this.isRoot = true;
+              this.documentObject = parent;
+              parent.rootObject = this;
+              if (parent.children) {
+                ref = parent.children;
+                for (j = 0, len = ref.length; j < len; j++) {
+                  child = ref[j];
+                  if (child.type === NodeType.DocType) {
+                    child.name = this.name;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          // Creates and returns a deep clone of `this`
+          clone() {
+            var att, attName, clonedSelf, ref;
+            clonedSelf = Object.create(this);
+            if (clonedSelf.isRoot) {
+              clonedSelf.documentObject = null;
+            }
+            clonedSelf.attribs = {};
+            ref = this.attribs;
+            for (attName in ref) {
+              if (!hasProp.call(ref, attName)) continue;
+              att = ref[attName];
+              clonedSelf.attribs[attName] = att.clone();
+            }
+            clonedSelf.children = [];
+            this.children.forEach(function(child) {
+              var clonedChild;
+              clonedChild = child.clone();
+              clonedChild.parent = clonedSelf;
+              return clonedSelf.children.push(clonedChild);
+            });
+            return clonedSelf;
+          }
+          // Adds or modifies an attribute
+          // `name` attribute name
+          // `value` attribute value
+          attribute(name, value) {
+            var attName, attValue;
+            if (name != null) {
+              name = getValue(name);
+            }
+            if (isObject3(name)) {
+              for (attName in name) {
+                if (!hasProp.call(name, attName)) continue;
+                attValue = name[attName];
+                this.attribute(attName, attValue);
+              }
+            } else {
+              if (isFunction(value)) {
+                value = value.apply();
+              }
+              if (this.options.keepNullAttributes && value == null) {
+                this.attribs[name] = new XMLAttribute(this, name, "");
+              } else if (value != null) {
+                this.attribs[name] = new XMLAttribute(this, name, value);
+              }
+            }
+            return this;
+          }
+          // Removes an attribute
+          // `name` attribute name
+          removeAttribute(name) {
+            var attName, j, len;
+            if (name == null) {
+              throw new Error("Missing attribute name. " + this.debugInfo());
+            }
+            name = getValue(name);
+            if (Array.isArray(name)) {
+              for (j = 0, len = name.length; j < len; j++) {
+                attName = name[j];
+                delete this.attribs[attName];
+              }
+            } else {
+              delete this.attribs[name];
+            }
+            return this;
+          }
+          // Converts the XML fragment to string
+          // `options.pretty` pretty prints the result
+          // `options.indent` indentation for pretty print
+          // `options.offset` how many indentations to add to every line for pretty print
+          // `options.newline` newline sequence for pretty print
+          // `options.allowEmpty` do not self close empty element tags
+          toString(options) {
+            return this.options.writer.element(this, this.options.writer.filterOptions(options));
+          }
+          // Aliases
+          att(name, value) {
+            return this.attribute(name, value);
+          }
+          a(name, value) {
+            return this.attribute(name, value);
+          }
+          // DOM Level 1
+          getAttribute(name) {
+            if (this.attribs.hasOwnProperty(name)) {
+              return this.attribs[name].value;
+            } else {
+              return null;
+            }
+          }
+          setAttribute(name, value) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          getAttributeNode(name) {
+            if (this.attribs.hasOwnProperty(name)) {
+              return this.attribs[name];
+            } else {
+              return null;
+            }
+          }
+          setAttributeNode(newAttr) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          removeAttributeNode(oldAttr) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          getElementsByTagName(name) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          // DOM Level 2
+          getAttributeNS(namespaceURI, localName) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          setAttributeNS(namespaceURI, qualifiedName, value) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          removeAttributeNS(namespaceURI, localName) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          getAttributeNodeNS(namespaceURI, localName) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          setAttributeNodeNS(newAttr) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          getElementsByTagNameNS(namespaceURI, localName) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          hasAttribute(name) {
+            return this.attribs.hasOwnProperty(name);
+          }
+          hasAttributeNS(namespaceURI, localName) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          // DOM Level 3
+          setIdAttribute(name, isId) {
+            if (this.attribs.hasOwnProperty(name)) {
+              return this.attribs[name].isId;
+            } else {
+              return isId;
+            }
+          }
+          setIdAttributeNS(namespaceURI, localName, isId) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          setIdAttributeNode(idAttr, isId) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          // DOM Level 4
+          getElementsByTagName(tagname) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          getElementsByTagNameNS(namespaceURI, localName) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          getElementsByClassName(classNames) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          isEqualNode(node2) {
+            var i, j, ref;
+            if (!super.isEqualNode(node2)) {
+              return false;
+            }
+            if (node2.namespaceURI !== this.namespaceURI) {
+              return false;
+            }
+            if (node2.prefix !== this.prefix) {
+              return false;
+            }
+            if (node2.localName !== this.localName) {
+              return false;
+            }
+            if (node2.attribs.length !== this.attribs.length) {
+              return false;
+            }
+            for (i = j = 0, ref = this.attribs.length - 1; 0 <= ref ? j <= ref : j >= ref; i = 0 <= ref ? ++j : --j) {
+              if (!this.attribs[i].isEqualNode(node2.attribs[i])) {
+                return false;
+              }
+            }
+            return true;
+          }
+        }
+        ;
+        Object.defineProperty(XMLElement2.prototype, "tagName", {
+          get: function() {
+            return this.name;
+          }
+        });
+        Object.defineProperty(XMLElement2.prototype, "namespaceURI", {
+          get: function() {
+            return "";
+          }
+        });
+        Object.defineProperty(XMLElement2.prototype, "prefix", {
+          get: function() {
+            return "";
+          }
+        });
+        Object.defineProperty(XMLElement2.prototype, "localName", {
+          get: function() {
+            return this.name;
+          }
+        });
+        Object.defineProperty(XMLElement2.prototype, "id", {
+          get: function() {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+        });
+        Object.defineProperty(XMLElement2.prototype, "className", {
+          get: function() {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+        });
+        Object.defineProperty(XMLElement2.prototype, "classList", {
+          get: function() {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+        });
+        Object.defineProperty(XMLElement2.prototype, "attributes", {
+          get: function() {
+            if (!this.attributeMap || !this.attributeMap.nodes) {
+              this.attributeMap = new XMLNamedNodeMap(this.attribs);
+            }
+            return this.attributeMap;
+          }
+        });
+        return XMLElement2;
+      }).call(this);
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLCharacterData.js
+var require_XMLCharacterData = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLCharacterData.js"(exports, module) {
+    "use strict";
+    (function() {
+      var XMLCharacterData, XMLNode;
+      XMLNode = require_XMLNode();
+      module.exports = XMLCharacterData = (function() {
+        class XMLCharacterData2 extends XMLNode {
+          // Initializes a new instance of `XMLCharacterData`
+          constructor(parent) {
+            super(parent);
+            this.value = "";
+          }
+          // Creates and returns a deep clone of `this`
+          clone() {
+            return Object.create(this);
+          }
+          // DOM level 1 functions to be implemented later
+          substringData(offset, count) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          appendData(arg) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          insertData(offset, arg) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          deleteData(offset, count) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          replaceData(offset, count, arg) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          isEqualNode(node2) {
+            if (!super.isEqualNode(node2)) {
+              return false;
+            }
+            if (node2.data !== this.data) {
+              return false;
+            }
+            return true;
+          }
+        }
+        ;
+        Object.defineProperty(XMLCharacterData2.prototype, "data", {
+          get: function() {
+            return this.value;
+          },
+          set: function(value) {
+            return this.value = value || "";
+          }
+        });
+        Object.defineProperty(XMLCharacterData2.prototype, "length", {
+          get: function() {
+            return this.value.length;
+          }
+        });
+        Object.defineProperty(XMLCharacterData2.prototype, "textContent", {
+          get: function() {
+            return this.value;
+          },
+          set: function(value) {
+            return this.value = value || "";
+          }
+        });
+        return XMLCharacterData2;
+      }).call(this);
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLCData.js
+var require_XMLCData = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLCData.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, XMLCData, XMLCharacterData;
+      NodeType = require_NodeType();
+      XMLCharacterData = require_XMLCharacterData();
+      module.exports = XMLCData = class XMLCData extends XMLCharacterData {
+        // Initializes a new instance of `XMLCData`
+        // `text` CDATA text
+        constructor(parent, text) {
+          super(parent);
+          if (text == null) {
+            throw new Error("Missing CDATA text. " + this.debugInfo());
+          }
+          this.name = "#cdata-section";
+          this.type = NodeType.CData;
+          this.value = this.stringify.cdata(text);
+        }
+        // Creates and returns a deep clone of `this`
+        clone() {
+          return Object.create(this);
+        }
+        // Converts the XML fragment to string
+        // `options.pretty` pretty prints the result
+        // `options.indent` indentation for pretty print
+        // `options.offset` how many indentations to add to every line for pretty print
+        // `options.newline` newline sequence for pretty print
+        toString(options) {
+          return this.options.writer.cdata(this, this.options.writer.filterOptions(options));
+        }
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLComment.js
+var require_XMLComment = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLComment.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, XMLCharacterData, XMLComment;
+      NodeType = require_NodeType();
+      XMLCharacterData = require_XMLCharacterData();
+      module.exports = XMLComment = class XMLComment extends XMLCharacterData {
+        // Initializes a new instance of `XMLComment`
+        // `text` comment text
+        constructor(parent, text) {
+          super(parent);
+          if (text == null) {
+            throw new Error("Missing comment text. " + this.debugInfo());
+          }
+          this.name = "#comment";
+          this.type = NodeType.Comment;
+          this.value = this.stringify.comment(text);
+        }
+        // Creates and returns a deep clone of `this`
+        clone() {
+          return Object.create(this);
+        }
+        // Converts the XML fragment to string
+        // `options.pretty` pretty prints the result
+        // `options.indent` indentation for pretty print
+        // `options.offset` how many indentations to add to every line for pretty print
+        // `options.newline` newline sequence for pretty print
+        toString(options) {
+          return this.options.writer.comment(this, this.options.writer.filterOptions(options));
+        }
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLDeclaration.js
+var require_XMLDeclaration = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLDeclaration.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, XMLDeclaration, XMLNode, isObject3;
+      ({ isObject: isObject3 } = require_Utility());
+      XMLNode = require_XMLNode();
+      NodeType = require_NodeType();
+      module.exports = XMLDeclaration = class XMLDeclaration extends XMLNode {
+        // Initializes a new instance of `XMLDeclaration`
+        // `parent` the document object
+        // `version` A version number string, e.g. 1.0
+        // `encoding` Encoding declaration, e.g. UTF-8
+        // `standalone` standalone document declaration: true or false
+        constructor(parent, version2, encoding, standalone) {
+          super(parent);
+          if (isObject3(version2)) {
+            ({ version: version2, encoding, standalone } = version2);
+          }
+          if (!version2) {
+            version2 = "1.0";
+          }
+          this.type = NodeType.Declaration;
+          this.version = this.stringify.xmlVersion(version2);
+          if (encoding != null) {
+            this.encoding = this.stringify.xmlEncoding(encoding);
+          }
+          if (standalone != null) {
+            this.standalone = this.stringify.xmlStandalone(standalone);
+          }
+        }
+        // Converts to string
+        // `options.pretty` pretty prints the result
+        // `options.indent` indentation for pretty print
+        // `options.offset` how many indentations to add to every line for pretty print
+        // `options.newline` newline sequence for pretty print
+        toString(options) {
+          return this.options.writer.declaration(this, this.options.writer.filterOptions(options));
+        }
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLDTDAttList.js
+var require_XMLDTDAttList = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLDTDAttList.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, XMLDTDAttList, XMLNode;
+      XMLNode = require_XMLNode();
+      NodeType = require_NodeType();
+      module.exports = XMLDTDAttList = class XMLDTDAttList extends XMLNode {
+        // Initializes a new instance of `XMLDTDAttList`
+        // `parent` the parent `XMLDocType` element
+        // `elementName` the name of the element containing this attribute
+        // `attributeName` attribute name
+        // `attributeType` type of the attribute
+        // `defaultValueType` default value type (either #REQUIRED, #IMPLIED,
+        //                    #FIXED or #DEFAULT)
+        // `defaultValue` default value of the attribute
+        //                (only used for #FIXED or #DEFAULT)
+        constructor(parent, elementName, attributeName, attributeType, defaultValueType, defaultValue) {
+          super(parent);
+          if (elementName == null) {
+            throw new Error("Missing DTD element name. " + this.debugInfo());
+          }
+          if (attributeName == null) {
+            throw new Error("Missing DTD attribute name. " + this.debugInfo(elementName));
+          }
+          if (!attributeType) {
+            throw new Error("Missing DTD attribute type. " + this.debugInfo(elementName));
+          }
+          if (!defaultValueType) {
+            throw new Error("Missing DTD attribute default. " + this.debugInfo(elementName));
+          }
+          if (defaultValueType.indexOf("#") !== 0) {
+            defaultValueType = "#" + defaultValueType;
+          }
+          if (!defaultValueType.match(/^(#REQUIRED|#IMPLIED|#FIXED|#DEFAULT)$/)) {
+            throw new Error("Invalid default value type; expected: #REQUIRED, #IMPLIED, #FIXED or #DEFAULT. " + this.debugInfo(elementName));
+          }
+          if (defaultValue && !defaultValueType.match(/^(#FIXED|#DEFAULT)$/)) {
+            throw new Error("Default value only applies to #FIXED or #DEFAULT. " + this.debugInfo(elementName));
+          }
+          this.elementName = this.stringify.name(elementName);
+          this.type = NodeType.AttributeDeclaration;
+          this.attributeName = this.stringify.name(attributeName);
+          this.attributeType = this.stringify.dtdAttType(attributeType);
+          if (defaultValue) {
+            this.defaultValue = this.stringify.dtdAttDefault(defaultValue);
+          }
+          this.defaultValueType = defaultValueType;
+        }
+        // Converts the XML fragment to string
+        // `options.pretty` pretty prints the result
+        // `options.indent` indentation for pretty print
+        // `options.offset` how many indentations to add to every line for pretty print
+        // `options.newline` newline sequence for pretty print
+        toString(options) {
+          return this.options.writer.dtdAttList(this, this.options.writer.filterOptions(options));
+        }
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLDTDEntity.js
+var require_XMLDTDEntity = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLDTDEntity.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, XMLDTDEntity, XMLNode, isObject3;
+      ({ isObject: isObject3 } = require_Utility());
+      XMLNode = require_XMLNode();
+      NodeType = require_NodeType();
+      module.exports = XMLDTDEntity = (function() {
+        class XMLDTDEntity2 extends XMLNode {
+          // Initializes a new instance of `XMLDTDEntity`
+          // `parent` the parent `XMLDocType` element
+          // `pe` whether this is a parameter entity or a general entity
+          //      defaults to `false` (general entity)
+          // `name` the name of the entity
+          // `value` internal entity value or an object with external entity details
+          // `value.pubID` public identifier
+          // `value.sysID` system identifier
+          // `value.nData` notation declaration
+          constructor(parent, pe, name, value) {
+            super(parent);
+            if (name == null) {
+              throw new Error("Missing DTD entity name. " + this.debugInfo(name));
+            }
+            if (value == null) {
+              throw new Error("Missing DTD entity value. " + this.debugInfo(name));
+            }
+            this.pe = !!pe;
+            this.name = this.stringify.name(name);
+            this.type = NodeType.EntityDeclaration;
+            if (!isObject3(value)) {
+              this.value = this.stringify.dtdEntityValue(value);
+              this.internal = true;
+            } else {
+              if (!value.pubID && !value.sysID) {
+                throw new Error("Public and/or system identifiers are required for an external entity. " + this.debugInfo(name));
+              }
+              if (value.pubID && !value.sysID) {
+                throw new Error("System identifier is required for a public external entity. " + this.debugInfo(name));
+              }
+              this.internal = false;
+              if (value.pubID != null) {
+                this.pubID = this.stringify.dtdPubID(value.pubID);
+              }
+              if (value.sysID != null) {
+                this.sysID = this.stringify.dtdSysID(value.sysID);
+              }
+              if (value.nData != null) {
+                this.nData = this.stringify.dtdNData(value.nData);
+              }
+              if (this.pe && this.nData) {
+                throw new Error("Notation declaration is not allowed in a parameter entity. " + this.debugInfo(name));
+              }
+            }
+          }
+          // Converts the XML fragment to string
+          // `options.pretty` pretty prints the result
+          // `options.indent` indentation for pretty print
+          // `options.offset` how many indentations to add to every line for pretty print
+          // `options.newline` newline sequence for pretty print
+          toString(options) {
+            return this.options.writer.dtdEntity(this, this.options.writer.filterOptions(options));
+          }
+        }
+        ;
+        Object.defineProperty(XMLDTDEntity2.prototype, "publicId", {
+          get: function() {
+            return this.pubID;
+          }
+        });
+        Object.defineProperty(XMLDTDEntity2.prototype, "systemId", {
+          get: function() {
+            return this.sysID;
+          }
+        });
+        Object.defineProperty(XMLDTDEntity2.prototype, "notationName", {
+          get: function() {
+            return this.nData || null;
+          }
+        });
+        Object.defineProperty(XMLDTDEntity2.prototype, "inputEncoding", {
+          get: function() {
+            return null;
+          }
+        });
+        Object.defineProperty(XMLDTDEntity2.prototype, "xmlEncoding", {
+          get: function() {
+            return null;
+          }
+        });
+        Object.defineProperty(XMLDTDEntity2.prototype, "xmlVersion", {
+          get: function() {
+            return null;
+          }
+        });
+        return XMLDTDEntity2;
+      }).call(this);
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLDTDElement.js
+var require_XMLDTDElement = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLDTDElement.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, XMLDTDElement, XMLNode;
+      XMLNode = require_XMLNode();
+      NodeType = require_NodeType();
+      module.exports = XMLDTDElement = class XMLDTDElement extends XMLNode {
+        // Initializes a new instance of `XMLDTDElement`
+        // `parent` the parent `XMLDocType` element
+        // `name` element name
+        // `value` element content (defaults to #PCDATA)
+        constructor(parent, name, value) {
+          super(parent);
+          if (name == null) {
+            throw new Error("Missing DTD element name. " + this.debugInfo());
+          }
+          if (!value) {
+            value = "(#PCDATA)";
+          }
+          if (Array.isArray(value)) {
+            value = "(" + value.join(",") + ")";
+          }
+          this.name = this.stringify.name(name);
+          this.type = NodeType.ElementDeclaration;
+          this.value = this.stringify.dtdElementValue(value);
+        }
+        // Converts the XML fragment to string
+        // `options.pretty` pretty prints the result
+        // `options.indent` indentation for pretty print
+        // `options.offset` how many indentations to add to every line for pretty print
+        // `options.newline` newline sequence for pretty print
+        toString(options) {
+          return this.options.writer.dtdElement(this, this.options.writer.filterOptions(options));
+        }
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLDTDNotation.js
+var require_XMLDTDNotation = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLDTDNotation.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, XMLDTDNotation, XMLNode;
+      XMLNode = require_XMLNode();
+      NodeType = require_NodeType();
+      module.exports = XMLDTDNotation = (function() {
+        class XMLDTDNotation2 extends XMLNode {
+          // Initializes a new instance of `XMLDTDNotation`
+          // `parent` the parent `XMLDocType` element
+          // `name` the name of the notation
+          // `value` an object with external entity details
+          // `value.pubID` public identifier
+          // `value.sysID` system identifier
+          constructor(parent, name, value) {
+            super(parent);
+            if (name == null) {
+              throw new Error("Missing DTD notation name. " + this.debugInfo(name));
+            }
+            if (!value.pubID && !value.sysID) {
+              throw new Error("Public or system identifiers are required for an external entity. " + this.debugInfo(name));
+            }
+            this.name = this.stringify.name(name);
+            this.type = NodeType.NotationDeclaration;
+            if (value.pubID != null) {
+              this.pubID = this.stringify.dtdPubID(value.pubID);
+            }
+            if (value.sysID != null) {
+              this.sysID = this.stringify.dtdSysID(value.sysID);
+            }
+          }
+          // Converts the XML fragment to string
+          // `options.pretty` pretty prints the result
+          // `options.indent` indentation for pretty print
+          // `options.offset` how many indentations to add to every line for pretty print
+          // `options.newline` newline sequence for pretty print
+          toString(options) {
+            return this.options.writer.dtdNotation(this, this.options.writer.filterOptions(options));
+          }
+        }
+        ;
+        Object.defineProperty(XMLDTDNotation2.prototype, "publicId", {
+          get: function() {
+            return this.pubID;
+          }
+        });
+        Object.defineProperty(XMLDTDNotation2.prototype, "systemId", {
+          get: function() {
+            return this.sysID;
+          }
+        });
+        return XMLDTDNotation2;
+      }).call(this);
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLDocType.js
+var require_XMLDocType = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLDocType.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDocType, XMLNamedNodeMap, XMLNode, isObject3;
+      ({ isObject: isObject3 } = require_Utility());
+      XMLNode = require_XMLNode();
+      NodeType = require_NodeType();
+      XMLDTDAttList = require_XMLDTDAttList();
+      XMLDTDEntity = require_XMLDTDEntity();
+      XMLDTDElement = require_XMLDTDElement();
+      XMLDTDNotation = require_XMLDTDNotation();
+      XMLNamedNodeMap = require_XMLNamedNodeMap();
+      module.exports = XMLDocType = (function() {
+        class XMLDocType2 extends XMLNode {
+          // Initializes a new instance of `XMLDocType`
+          // `parent` the document object
+          // `pubID` public identifier of the external subset
+          // `sysID` system identifier of the external subset
+          constructor(parent, pubID, sysID) {
+            var child, i, len, ref;
+            super(parent);
+            this.type = NodeType.DocType;
+            if (parent.children) {
+              ref = parent.children;
+              for (i = 0, len = ref.length; i < len; i++) {
+                child = ref[i];
+                if (child.type === NodeType.Element) {
+                  this.name = child.name;
+                  break;
+                }
+              }
+            }
+            this.documentObject = parent;
+            if (isObject3(pubID)) {
+              ({ pubID, sysID } = pubID);
+            }
+            if (sysID == null) {
+              [sysID, pubID] = [pubID, sysID];
+            }
+            if (pubID != null) {
+              this.pubID = this.stringify.dtdPubID(pubID);
+            }
+            if (sysID != null) {
+              this.sysID = this.stringify.dtdSysID(sysID);
+            }
+          }
+          // Creates an element type declaration
+          // `name` element name
+          // `value` element content (defaults to #PCDATA)
+          element(name, value) {
+            var child;
+            child = new XMLDTDElement(this, name, value);
+            this.children.push(child);
+            return this;
+          }
+          // Creates an attribute declaration
+          // `elementName` the name of the element containing this attribute
+          // `attributeName` attribute name
+          // `attributeType` type of the attribute (defaults to CDATA)
+          // `defaultValueType` default value type (either #REQUIRED, #IMPLIED, #FIXED or
+          //                    #DEFAULT) (defaults to #IMPLIED)
+          // `defaultValue` default value of the attribute
+          //                (only used for #FIXED or #DEFAULT)
+          attList(elementName, attributeName, attributeType, defaultValueType, defaultValue) {
+            var child;
+            child = new XMLDTDAttList(this, elementName, attributeName, attributeType, defaultValueType, defaultValue);
+            this.children.push(child);
+            return this;
+          }
+          // Creates a general entity declaration
+          // `name` the name of the entity
+          // `value` internal entity value or an object with external entity details
+          // `value.pubID` public identifier
+          // `value.sysID` system identifier
+          // `value.nData` notation declaration
+          entity(name, value) {
+            var child;
+            child = new XMLDTDEntity(this, false, name, value);
+            this.children.push(child);
+            return this;
+          }
+          // Creates a parameter entity declaration
+          // `name` the name of the entity
+          // `value` internal entity value or an object with external entity details
+          // `value.pubID` public identifier
+          // `value.sysID` system identifier
+          pEntity(name, value) {
+            var child;
+            child = new XMLDTDEntity(this, true, name, value);
+            this.children.push(child);
+            return this;
+          }
+          // Creates a NOTATION declaration
+          // `name` the name of the notation
+          // `value` an object with external entity details
+          // `value.pubID` public identifier
+          // `value.sysID` system identifier
+          notation(name, value) {
+            var child;
+            child = new XMLDTDNotation(this, name, value);
+            this.children.push(child);
+            return this;
+          }
+          // Converts to string
+          // `options.pretty` pretty prints the result
+          // `options.indent` indentation for pretty print
+          // `options.offset` how many indentations to add to every line for pretty print
+          // `options.newline` newline sequence for pretty print
+          toString(options) {
+            return this.options.writer.docType(this, this.options.writer.filterOptions(options));
+          }
+          // Aliases
+          ele(name, value) {
+            return this.element(name, value);
+          }
+          att(elementName, attributeName, attributeType, defaultValueType, defaultValue) {
+            return this.attList(elementName, attributeName, attributeType, defaultValueType, defaultValue);
+          }
+          ent(name, value) {
+            return this.entity(name, value);
+          }
+          pent(name, value) {
+            return this.pEntity(name, value);
+          }
+          not(name, value) {
+            return this.notation(name, value);
+          }
+          up() {
+            return this.root() || this.documentObject;
+          }
+          isEqualNode(node2) {
+            if (!super.isEqualNode(node2)) {
+              return false;
+            }
+            if (node2.name !== this.name) {
+              return false;
+            }
+            if (node2.publicId !== this.publicId) {
+              return false;
+            }
+            if (node2.systemId !== this.systemId) {
+              return false;
+            }
+            return true;
+          }
+        }
+        ;
+        Object.defineProperty(XMLDocType2.prototype, "entities", {
+          get: function() {
+            var child, i, len, nodes, ref;
+            nodes = {};
+            ref = this.children;
+            for (i = 0, len = ref.length; i < len; i++) {
+              child = ref[i];
+              if (child.type === NodeType.EntityDeclaration && !child.pe) {
+                nodes[child.name] = child;
+              }
+            }
+            return new XMLNamedNodeMap(nodes);
+          }
+        });
+        Object.defineProperty(XMLDocType2.prototype, "notations", {
+          get: function() {
+            var child, i, len, nodes, ref;
+            nodes = {};
+            ref = this.children;
+            for (i = 0, len = ref.length; i < len; i++) {
+              child = ref[i];
+              if (child.type === NodeType.NotationDeclaration) {
+                nodes[child.name] = child;
+              }
+            }
+            return new XMLNamedNodeMap(nodes);
+          }
+        });
+        Object.defineProperty(XMLDocType2.prototype, "publicId", {
+          get: function() {
+            return this.pubID;
+          }
+        });
+        Object.defineProperty(XMLDocType2.prototype, "systemId", {
+          get: function() {
+            return this.sysID;
+          }
+        });
+        Object.defineProperty(XMLDocType2.prototype, "internalSubset", {
+          get: function() {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+        });
+        return XMLDocType2;
+      }).call(this);
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLRaw.js
+var require_XMLRaw = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLRaw.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, XMLNode, XMLRaw;
+      NodeType = require_NodeType();
+      XMLNode = require_XMLNode();
+      module.exports = XMLRaw = class XMLRaw extends XMLNode {
+        // Initializes a new instance of `XMLRaw`
+        // `text` raw text
+        constructor(parent, text) {
+          super(parent);
+          if (text == null) {
+            throw new Error("Missing raw text. " + this.debugInfo());
+          }
+          this.type = NodeType.Raw;
+          this.value = this.stringify.raw(text);
+        }
+        // Creates and returns a deep clone of `this`
+        clone() {
+          return Object.create(this);
+        }
+        // Converts the XML fragment to string
+        // `options.pretty` pretty prints the result
+        // `options.indent` indentation for pretty print
+        // `options.offset` how many indentations to add to every line for pretty print
+        // `options.newline` newline sequence for pretty print
+        toString(options) {
+          return this.options.writer.raw(this, this.options.writer.filterOptions(options));
+        }
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLText.js
+var require_XMLText = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLText.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, XMLCharacterData, XMLText;
+      NodeType = require_NodeType();
+      XMLCharacterData = require_XMLCharacterData();
+      module.exports = XMLText = (function() {
+        class XMLText2 extends XMLCharacterData {
+          // Initializes a new instance of `XMLText`
+          // `text` element text
+          constructor(parent, text) {
+            super(parent);
+            if (text == null) {
+              throw new Error("Missing element text. " + this.debugInfo());
+            }
+            this.name = "#text";
+            this.type = NodeType.Text;
+            this.value = this.stringify.text(text);
+          }
+          // Creates and returns a deep clone of `this`
+          clone() {
+            return Object.create(this);
+          }
+          // Converts the XML fragment to string
+          // `options.pretty` pretty prints the result
+          // `options.indent` indentation for pretty print
+          // `options.offset` how many indentations to add to every line for pretty print
+          // `options.newline` newline sequence for pretty print
+          toString(options) {
+            return this.options.writer.text(this, this.options.writer.filterOptions(options));
+          }
+          // DOM level 1 functions to be implemented later
+          splitText(offset) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          // DOM level 3 functions to be implemented later
+          replaceWholeText(content) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+        }
+        ;
+        Object.defineProperty(XMLText2.prototype, "isElementContentWhitespace", {
+          get: function() {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+        });
+        Object.defineProperty(XMLText2.prototype, "wholeText", {
+          get: function() {
+            var next, prev, str;
+            str = "";
+            prev = this.previousSibling;
+            while (prev) {
+              str = prev.data + str;
+              prev = prev.previousSibling;
+            }
+            str += this.data;
+            next = this.nextSibling;
+            while (next) {
+              str = str + next.data;
+              next = next.nextSibling;
+            }
+            return str;
+          }
+        });
+        return XMLText2;
+      }).call(this);
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLProcessingInstruction.js
+var require_XMLProcessingInstruction = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLProcessingInstruction.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, XMLCharacterData, XMLProcessingInstruction;
+      NodeType = require_NodeType();
+      XMLCharacterData = require_XMLCharacterData();
+      module.exports = XMLProcessingInstruction = class XMLProcessingInstruction extends XMLCharacterData {
+        // Initializes a new instance of `XMLProcessingInstruction`
+        // `parent` the parent node
+        // `target` instruction target
+        // `value` instruction value
+        constructor(parent, target, value) {
+          super(parent);
+          if (target == null) {
+            throw new Error("Missing instruction target. " + this.debugInfo());
+          }
+          this.type = NodeType.ProcessingInstruction;
+          this.target = this.stringify.insTarget(target);
+          this.name = this.target;
+          if (value) {
+            this.value = this.stringify.insValue(value);
+          }
+        }
+        // Creates and returns a deep clone of `this`
+        clone() {
+          return Object.create(this);
+        }
+        // Converts the XML fragment to string
+        // `options.pretty` pretty prints the result
+        // `options.indent` indentation for pretty print
+        // `options.offset` how many indentations to add to every line for pretty print
+        // `options.newline` newline sequence for pretty print
+        toString(options) {
+          return this.options.writer.processingInstruction(this, this.options.writer.filterOptions(options));
+        }
+        isEqualNode(node2) {
+          if (!super.isEqualNode(node2)) {
+            return false;
+          }
+          if (node2.target !== this.target) {
+            return false;
+          }
+          return true;
+        }
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLDummy.js
+var require_XMLDummy = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLDummy.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, XMLDummy, XMLNode;
+      XMLNode = require_XMLNode();
+      NodeType = require_NodeType();
+      module.exports = XMLDummy = class XMLDummy extends XMLNode {
+        // Initializes a new instance of `XMLDummy`
+        // `XMLDummy` is a special node representing a node with 
+        // a null value. Dummy nodes are created while recursively
+        // building the XML tree. Simply skipping null values doesn't
+        // work because that would break the recursive chain.
+        constructor(parent) {
+          super(parent);
+          this.type = NodeType.Dummy;
+        }
+        // Creates and returns a deep clone of `this`
+        clone() {
+          return Object.create(this);
+        }
+        // Converts the XML fragment to string
+        // `options.pretty` pretty prints the result
+        // `options.indent` indentation for pretty print
+        // `options.offset` how many indentations to add to every line for pretty print
+        // `options.newline` newline sequence for pretty print
+        toString(options) {
+          return "";
+        }
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLNodeList.js
+var require_XMLNodeList = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLNodeList.js"(exports, module) {
+    "use strict";
+    (function() {
+      var XMLNodeList;
+      module.exports = XMLNodeList = (function() {
+        class XMLNodeList2 {
+          // Initializes a new instance of `XMLNodeList`
+          // This is just a wrapper around an ordinary
+          // JS array.
+          // `nodes` the array containing nodes.
+          constructor(nodes) {
+            this.nodes = nodes;
+          }
+          // Creates and returns a deep clone of `this`
+          clone() {
+            return this.nodes = null;
+          }
+          // DOM Level 1
+          item(index) {
+            return this.nodes[index] || null;
+          }
+        }
+        ;
+        Object.defineProperty(XMLNodeList2.prototype, "length", {
+          get: function() {
+            return this.nodes.length || 0;
+          }
+        });
+        return XMLNodeList2;
+      }).call(this);
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/DocumentPosition.js
+var require_DocumentPosition = __commonJS({
+  "node_modules/xmlbuilder/lib/DocumentPosition.js"(exports, module) {
+    "use strict";
+    (function() {
+      module.exports = {
+        Disconnected: 1,
+        Preceding: 2,
+        Following: 4,
+        Contains: 8,
+        ContainedBy: 16,
+        ImplementationSpecific: 32
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLNode.js
+var require_XMLNode = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLNode.js"(exports, module) {
+    "use strict";
+    (function() {
+      var DocumentPosition, NodeType, XMLCData, XMLComment, XMLDeclaration, XMLDocType, XMLDummy, XMLElement, XMLNamedNodeMap, XMLNode, XMLNodeList, XMLProcessingInstruction, XMLRaw, XMLText, getValue, isEmpty, isFunction, isObject3, hasProp = {}.hasOwnProperty, splice = [].splice;
+      ({ isObject: isObject3, isFunction, isEmpty, getValue } = require_Utility());
+      XMLElement = null;
+      XMLCData = null;
+      XMLComment = null;
+      XMLDeclaration = null;
+      XMLDocType = null;
+      XMLRaw = null;
+      XMLText = null;
+      XMLProcessingInstruction = null;
+      XMLDummy = null;
+      NodeType = null;
+      XMLNodeList = null;
+      XMLNamedNodeMap = null;
+      DocumentPosition = null;
+      module.exports = XMLNode = (function() {
+        class XMLNode2 {
+          // Initializes a new instance of `XMLNode`
+          // `parent` the parent node
+          constructor(parent1) {
+            this.parent = parent1;
+            if (this.parent) {
+              this.options = this.parent.options;
+              this.stringify = this.parent.stringify;
+            }
+            this.value = null;
+            this.children = [];
+            this.baseURI = null;
+            if (!XMLElement) {
+              XMLElement = require_XMLElement();
+              XMLCData = require_XMLCData();
+              XMLComment = require_XMLComment();
+              XMLDeclaration = require_XMLDeclaration();
+              XMLDocType = require_XMLDocType();
+              XMLRaw = require_XMLRaw();
+              XMLText = require_XMLText();
+              XMLProcessingInstruction = require_XMLProcessingInstruction();
+              XMLDummy = require_XMLDummy();
+              NodeType = require_NodeType();
+              XMLNodeList = require_XMLNodeList();
+              XMLNamedNodeMap = require_XMLNamedNodeMap();
+              DocumentPosition = require_DocumentPosition();
+            }
+          }
+          // Sets the parent node of this node and its children recursively
+          // `parent` the parent node
+          setParent(parent) {
+            var child, j, len, ref1, results;
+            this.parent = parent;
+            if (parent) {
+              this.options = parent.options;
+              this.stringify = parent.stringify;
+            }
+            ref1 = this.children;
+            results = [];
+            for (j = 0, len = ref1.length; j < len; j++) {
+              child = ref1[j];
+              results.push(child.setParent(this));
+            }
+            return results;
+          }
+          // Creates a child element node
+          // `name` node name or an object describing the XML tree
+          // `attributes` an object containing name/value pairs of attributes
+          // `text` element text
+          element(name, attributes, text) {
+            var childNode, item, j, k, key, lastChild, len, len1, val;
+            lastChild = null;
+            if (attributes === null && text == null) {
+              [attributes, text] = [{}, null];
+            }
+            if (attributes == null) {
+              attributes = {};
+            }
+            attributes = getValue(attributes);
+            if (!isObject3(attributes)) {
+              [text, attributes] = [attributes, text];
+            }
+            if (name != null) {
+              name = getValue(name);
+            }
+            if (Array.isArray(name)) {
+              for (j = 0, len = name.length; j < len; j++) {
+                item = name[j];
+                lastChild = this.element(item);
+              }
+            } else if (isFunction(name)) {
+              lastChild = this.element(name.apply());
+            } else if (isObject3(name)) {
+              for (key in name) {
+                if (!hasProp.call(name, key)) continue;
+                val = name[key];
+                if (isFunction(val)) {
+                  val = val.apply();
+                }
+                if (!this.options.ignoreDecorators && this.stringify.convertAttKey && key.indexOf(this.stringify.convertAttKey) === 0) {
+                  lastChild = this.attribute(key.substr(this.stringify.convertAttKey.length), val);
+                } else if (!this.options.separateArrayItems && Array.isArray(val) && isEmpty(val)) {
+                  lastChild = this.dummy();
+                } else if (isObject3(val) && isEmpty(val)) {
+                  lastChild = this.element(key);
+                } else if (!this.options.keepNullNodes && val == null) {
+                  lastChild = this.dummy();
+                } else if (!this.options.separateArrayItems && Array.isArray(val)) {
+                  for (k = 0, len1 = val.length; k < len1; k++) {
+                    item = val[k];
+                    childNode = {};
+                    childNode[key] = item;
+                    lastChild = this.element(childNode);
+                  }
+                } else if (isObject3(val)) {
+                  if (!this.options.ignoreDecorators && this.stringify.convertTextKey && key.indexOf(this.stringify.convertTextKey) === 0) {
+                    lastChild = this.element(val);
+                  } else {
+                    lastChild = this.element(key);
+                    lastChild.element(val);
+                  }
+                } else {
+                  lastChild = this.element(key, val);
+                }
+              }
+            } else if (!this.options.keepNullNodes && text === null) {
+              lastChild = this.dummy();
+            } else {
+              if (!this.options.ignoreDecorators && this.stringify.convertTextKey && name.indexOf(this.stringify.convertTextKey) === 0) {
+                lastChild = this.text(text);
+              } else if (!this.options.ignoreDecorators && this.stringify.convertCDataKey && name.indexOf(this.stringify.convertCDataKey) === 0) {
+                lastChild = this.cdata(text);
+              } else if (!this.options.ignoreDecorators && this.stringify.convertCommentKey && name.indexOf(this.stringify.convertCommentKey) === 0) {
+                lastChild = this.comment(text);
+              } else if (!this.options.ignoreDecorators && this.stringify.convertRawKey && name.indexOf(this.stringify.convertRawKey) === 0) {
+                lastChild = this.raw(text);
+              } else if (!this.options.ignoreDecorators && this.stringify.convertPIKey && name.indexOf(this.stringify.convertPIKey) === 0) {
+                lastChild = this.instruction(name.substr(this.stringify.convertPIKey.length), text);
+              } else {
+                lastChild = this.node(name, attributes, text);
+              }
+            }
+            if (lastChild == null) {
+              throw new Error("Could not create any elements with: " + name + ". " + this.debugInfo());
+            }
+            return lastChild;
+          }
+          // Creates a child element node before the current node
+          // `name` node name or an object describing the XML tree
+          // `attributes` an object containing name/value pairs of attributes
+          // `text` element text
+          insertBefore(name, attributes, text) {
+            var child, i, newChild, refChild, removed;
+            if (name != null ? name.type : void 0) {
+              newChild = name;
+              refChild = attributes;
+              newChild.setParent(this);
+              if (refChild) {
+                i = children.indexOf(refChild);
+                removed = children.splice(i);
+                children.push(newChild);
+                Array.prototype.push.apply(children, removed);
+              } else {
+                children.push(newChild);
+              }
+              return newChild;
+            } else {
+              if (this.isRoot) {
+                throw new Error("Cannot insert elements at root level. " + this.debugInfo(name));
+              }
+              i = this.parent.children.indexOf(this);
+              removed = this.parent.children.splice(i);
+              child = this.parent.element(name, attributes, text);
+              Array.prototype.push.apply(this.parent.children, removed);
+              return child;
+            }
+          }
+          // Creates a child element node after the current node
+          // `name` node name or an object describing the XML tree
+          // `attributes` an object containing name/value pairs of attributes
+          // `text` element text
+          insertAfter(name, attributes, text) {
+            var child, i, removed;
+            if (this.isRoot) {
+              throw new Error("Cannot insert elements at root level. " + this.debugInfo(name));
+            }
+            i = this.parent.children.indexOf(this);
+            removed = this.parent.children.splice(i + 1);
+            child = this.parent.element(name, attributes, text);
+            Array.prototype.push.apply(this.parent.children, removed);
+            return child;
+          }
+          // Deletes a child element node
+          remove() {
+            var i, ref1;
+            if (this.isRoot) {
+              throw new Error("Cannot remove the root element. " + this.debugInfo());
+            }
+            i = this.parent.children.indexOf(this);
+            splice.apply(this.parent.children, [i, i - i + 1].concat(ref1 = [])), ref1;
+            return this.parent;
+          }
+          // Creates a node
+          // `name` name of the node
+          // `attributes` an object containing name/value pairs of attributes
+          // `text` element text
+          node(name, attributes, text) {
+            var child;
+            if (name != null) {
+              name = getValue(name);
+            }
+            attributes || (attributes = {});
+            attributes = getValue(attributes);
+            if (!isObject3(attributes)) {
+              [text, attributes] = [attributes, text];
+            }
+            child = new XMLElement(this, name, attributes);
+            if (text != null) {
+              child.text(text);
+            }
+            this.children.push(child);
+            return child;
+          }
+          // Creates a text node
+          // `value` element text
+          text(value) {
+            var child;
+            if (isObject3(value)) {
+              this.element(value);
+            }
+            child = new XMLText(this, value);
+            this.children.push(child);
+            return this;
+          }
+          // Creates a CDATA node
+          // `value` element text without CDATA delimiters
+          cdata(value) {
+            var child;
+            child = new XMLCData(this, value);
+            this.children.push(child);
+            return this;
+          }
+          // Creates a comment node
+          // `value` comment text
+          comment(value) {
+            var child;
+            child = new XMLComment(this, value);
+            this.children.push(child);
+            return this;
+          }
+          // Creates a comment node before the current node
+          // `value` comment text
+          commentBefore(value) {
+            var child, i, removed;
+            i = this.parent.children.indexOf(this);
+            removed = this.parent.children.splice(i);
+            child = this.parent.comment(value);
+            Array.prototype.push.apply(this.parent.children, removed);
+            return this;
+          }
+          // Creates a comment node after the current node
+          // `value` comment text
+          commentAfter(value) {
+            var child, i, removed;
+            i = this.parent.children.indexOf(this);
+            removed = this.parent.children.splice(i + 1);
+            child = this.parent.comment(value);
+            Array.prototype.push.apply(this.parent.children, removed);
+            return this;
+          }
+          // Adds unescaped raw text
+          // `value` text
+          raw(value) {
+            var child;
+            child = new XMLRaw(this, value);
+            this.children.push(child);
+            return this;
+          }
+          // Adds a dummy node
+          dummy() {
+            var child;
+            child = new XMLDummy(this);
+            return child;
+          }
+          // Adds a processing instruction
+          // `target` instruction target
+          // `value` instruction value
+          instruction(target, value) {
+            var insTarget, insValue, instruction, j, len;
+            if (target != null) {
+              target = getValue(target);
+            }
+            if (value != null) {
+              value = getValue(value);
+            }
+            if (Array.isArray(target)) {
+              for (j = 0, len = target.length; j < len; j++) {
+                insTarget = target[j];
+                this.instruction(insTarget);
+              }
+            } else if (isObject3(target)) {
+              for (insTarget in target) {
+                if (!hasProp.call(target, insTarget)) continue;
+                insValue = target[insTarget];
+                this.instruction(insTarget, insValue);
+              }
+            } else {
+              if (isFunction(value)) {
+                value = value.apply();
+              }
+              instruction = new XMLProcessingInstruction(this, target, value);
+              this.children.push(instruction);
+            }
+            return this;
+          }
+          // Creates a processing instruction node before the current node
+          // `target` instruction target
+          // `value` instruction value
+          instructionBefore(target, value) {
+            var child, i, removed;
+            i = this.parent.children.indexOf(this);
+            removed = this.parent.children.splice(i);
+            child = this.parent.instruction(target, value);
+            Array.prototype.push.apply(this.parent.children, removed);
+            return this;
+          }
+          // Creates a processing instruction node after the current node
+          // `target` instruction target
+          // `value` instruction value
+          instructionAfter(target, value) {
+            var child, i, removed;
+            i = this.parent.children.indexOf(this);
+            removed = this.parent.children.splice(i + 1);
+            child = this.parent.instruction(target, value);
+            Array.prototype.push.apply(this.parent.children, removed);
+            return this;
+          }
+          // Creates the xml declaration
+          // `version` A version number string, e.g. 1.0
+          // `encoding` Encoding declaration, e.g. UTF-8
+          // `standalone` standalone document declaration: true or false
+          declaration(version2, encoding, standalone) {
+            var doc, xmldec;
+            doc = this.document();
+            xmldec = new XMLDeclaration(doc, version2, encoding, standalone);
+            if (doc.children.length === 0) {
+              doc.children.unshift(xmldec);
+            } else if (doc.children[0].type === NodeType.Declaration) {
+              doc.children[0] = xmldec;
+            } else {
+              doc.children.unshift(xmldec);
+            }
+            return doc.root() || doc;
+          }
+          // Creates the document type declaration
+          // `pubID` the public identifier of the external subset
+          // `sysID` the system identifier of the external subset
+          dtd(pubID, sysID) {
+            var child, doc, doctype, i, j, k, len, len1, ref1, ref2;
+            doc = this.document();
+            doctype = new XMLDocType(doc, pubID, sysID);
+            ref1 = doc.children;
+            for (i = j = 0, len = ref1.length; j < len; i = ++j) {
+              child = ref1[i];
+              if (child.type === NodeType.DocType) {
+                doc.children[i] = doctype;
+                return doctype;
+              }
+            }
+            ref2 = doc.children;
+            for (i = k = 0, len1 = ref2.length; k < len1; i = ++k) {
+              child = ref2[i];
+              if (child.isRoot) {
+                doc.children.splice(i, 0, doctype);
+                return doctype;
+              }
+            }
+            doc.children.push(doctype);
+            return doctype;
+          }
+          // Gets the parent node
+          up() {
+            if (this.isRoot) {
+              throw new Error("The root node has no parent. Use doc() if you need to get the document object.");
+            }
+            return this.parent;
+          }
+          // Gets the root node
+          root() {
+            var node2;
+            node2 = this;
+            while (node2) {
+              if (node2.type === NodeType.Document) {
+                return node2.rootObject;
+              } else if (node2.isRoot) {
+                return node2;
+              } else {
+                node2 = node2.parent;
+              }
+            }
+          }
+          // Gets the node representing the XML document
+          document() {
+            var node2;
+            node2 = this;
+            while (node2) {
+              if (node2.type === NodeType.Document) {
+                return node2;
+              } else {
+                node2 = node2.parent;
+              }
+            }
+          }
+          // Ends the document and converts string
+          end(options) {
+            return this.document().end(options);
+          }
+          // Gets the previous node
+          prev() {
+            var i;
+            i = this.parent.children.indexOf(this);
+            if (i < 1) {
+              throw new Error("Already at the first node. " + this.debugInfo());
+            }
+            return this.parent.children[i - 1];
+          }
+          // Gets the next node
+          next() {
+            var i;
+            i = this.parent.children.indexOf(this);
+            if (i === -1 || i === this.parent.children.length - 1) {
+              throw new Error("Already at the last node. " + this.debugInfo());
+            }
+            return this.parent.children[i + 1];
+          }
+          // Imports cloned root from another XML document
+          // `doc` the XML document to insert nodes from
+          importDocument(doc) {
+            var child, clonedRoot, j, len, ref1;
+            clonedRoot = doc.root().clone();
+            clonedRoot.parent = this;
+            clonedRoot.isRoot = false;
+            this.children.push(clonedRoot);
+            if (this.type === NodeType.Document) {
+              clonedRoot.isRoot = true;
+              clonedRoot.documentObject = this;
+              this.rootObject = clonedRoot;
+              if (this.children) {
+                ref1 = this.children;
+                for (j = 0, len = ref1.length; j < len; j++) {
+                  child = ref1[j];
+                  if (child.type === NodeType.DocType) {
+                    child.name = clonedRoot.name;
+                    break;
+                  }
+                }
+              }
+            }
+            return this;
+          }
+          // Returns debug string for this node
+          debugInfo(name) {
+            var ref1, ref2;
+            name = name || this.name;
+            if (name == null && !((ref1 = this.parent) != null ? ref1.name : void 0)) {
+              return "";
+            } else if (name == null) {
+              return "parent: <" + this.parent.name + ">";
+            } else if (!((ref2 = this.parent) != null ? ref2.name : void 0)) {
+              return "node: <" + name + ">";
+            } else {
+              return "node: <" + name + ">, parent: <" + this.parent.name + ">";
+            }
+          }
+          // Aliases
+          ele(name, attributes, text) {
+            return this.element(name, attributes, text);
+          }
+          nod(name, attributes, text) {
+            return this.node(name, attributes, text);
+          }
+          txt(value) {
+            return this.text(value);
+          }
+          dat(value) {
+            return this.cdata(value);
+          }
+          com(value) {
+            return this.comment(value);
+          }
+          ins(target, value) {
+            return this.instruction(target, value);
+          }
+          doc() {
+            return this.document();
+          }
+          dec(version2, encoding, standalone) {
+            return this.declaration(version2, encoding, standalone);
+          }
+          e(name, attributes, text) {
+            return this.element(name, attributes, text);
+          }
+          n(name, attributes, text) {
+            return this.node(name, attributes, text);
+          }
+          t(value) {
+            return this.text(value);
+          }
+          d(value) {
+            return this.cdata(value);
+          }
+          c(value) {
+            return this.comment(value);
+          }
+          r(value) {
+            return this.raw(value);
+          }
+          i(target, value) {
+            return this.instruction(target, value);
+          }
+          u() {
+            return this.up();
+          }
+          // can be deprecated in a future release
+          importXMLBuilder(doc) {
+            return this.importDocument(doc);
+          }
+          // Adds or modifies an attribute.
+          // `name` attribute name
+          // `value` attribute value
+          attribute(name, value) {
+            throw new Error("attribute() applies to element nodes only.");
+          }
+          att(name, value) {
+            return this.attribute(name, value);
+          }
+          a(name, value) {
+            return this.attribute(name, value);
+          }
+          // Removes an attribute
+          // `name` attribute name
+          removeAttribute(name) {
+            throw new Error("attribute() applies to element nodes only.");
+          }
+          // DOM level 1 functions to be implemented later
+          replaceChild(newChild, oldChild) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          removeChild(oldChild) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          appendChild(newChild) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          hasChildNodes() {
+            return this.children.length !== 0;
+          }
+          cloneNode(deep) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          normalize() {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          // DOM level 2
+          isSupported(feature, version2) {
+            return true;
+          }
+          hasAttributes() {
+            return this.attribs.length !== 0;
+          }
+          // DOM level 3 functions to be implemented later
+          compareDocumentPosition(other) {
+            var ref, res;
+            ref = this;
+            if (ref === other) {
+              return 0;
+            } else if (this.document() !== other.document()) {
+              res = DocumentPosition.Disconnected | DocumentPosition.ImplementationSpecific;
+              if (Math.random() < 0.5) {
+                res |= DocumentPosition.Preceding;
+              } else {
+                res |= DocumentPosition.Following;
+              }
+              return res;
+            } else if (ref.isAncestor(other)) {
+              return DocumentPosition.Contains | DocumentPosition.Preceding;
+            } else if (ref.isDescendant(other)) {
+              return DocumentPosition.Contains | DocumentPosition.Following;
+            } else if (ref.isPreceding(other)) {
+              return DocumentPosition.Preceding;
+            } else {
+              return DocumentPosition.Following;
+            }
+          }
+          isSameNode(other) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          lookupPrefix(namespaceURI) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          isDefaultNamespace(namespaceURI) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          lookupNamespaceURI(prefix) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          isEqualNode(node2) {
+            var i, j, ref1;
+            if (node2.nodeType !== this.nodeType) {
+              return false;
+            }
+            if (node2.children.length !== this.children.length) {
+              return false;
+            }
+            for (i = j = 0, ref1 = this.children.length - 1; 0 <= ref1 ? j <= ref1 : j >= ref1; i = 0 <= ref1 ? ++j : --j) {
+              if (!this.children[i].isEqualNode(node2.children[i])) {
+                return false;
+              }
+            }
+            return true;
+          }
+          getFeature(feature, version2) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          setUserData(key, data, handler) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          getUserData(key) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          // Returns true if other is an inclusive descendant of node,
+          // and false otherwise.
+          contains(other) {
+            if (!other) {
+              return false;
+            }
+            return other === this || this.isDescendant(other);
+          }
+          // An object A is called a descendant of an object B, if either A is 
+          // a child of B or A is a child of an object C that is a descendant of B.
+          isDescendant(node2) {
+            var child, isDescendantChild, j, len, ref1;
+            ref1 = this.children;
+            for (j = 0, len = ref1.length; j < len; j++) {
+              child = ref1[j];
+              if (node2 === child) {
+                return true;
+              }
+              isDescendantChild = child.isDescendant(node2);
+              if (isDescendantChild) {
+                return true;
+              }
+            }
+            return false;
+          }
+          // An object A is called an ancestor of an object B if and only if
+          // B is a descendant of A.
+          isAncestor(node2) {
+            return node2.isDescendant(this);
+          }
+          // An object A is preceding an object B if A and B are in the 
+          // same tree and A comes before B in tree order.
+          isPreceding(node2) {
+            var nodePos, thisPos;
+            nodePos = this.treePosition(node2);
+            thisPos = this.treePosition(this);
+            if (nodePos === -1 || thisPos === -1) {
+              return false;
+            } else {
+              return nodePos < thisPos;
+            }
+          }
+          // An object A is folllowing an object B if A and B are in the 
+          // same tree and A comes after B in tree order.
+          isFollowing(node2) {
+            var nodePos, thisPos;
+            nodePos = this.treePosition(node2);
+            thisPos = this.treePosition(this);
+            if (nodePos === -1 || thisPos === -1) {
+              return false;
+            } else {
+              return nodePos > thisPos;
+            }
+          }
+          // Returns the preorder position of the given node in the tree, or -1
+          // if the node is not in the tree.
+          treePosition(node2) {
+            var found, pos;
+            pos = 0;
+            found = false;
+            this.foreachTreeNode(this.document(), function(childNode) {
+              pos++;
+              if (!found && childNode === node2) {
+                return found = true;
+              }
+            });
+            if (found) {
+              return pos;
+            } else {
+              return -1;
+            }
+          }
+          // Depth-first preorder traversal through the XML tree
+          foreachTreeNode(node2, func) {
+            var child, j, len, ref1, res;
+            node2 || (node2 = this.document());
+            ref1 = node2.children;
+            for (j = 0, len = ref1.length; j < len; j++) {
+              child = ref1[j];
+              if (res = func(child)) {
+                return res;
+              } else {
+                res = this.foreachTreeNode(child, func);
+                if (res) {
+                  return res;
+                }
+              }
+            }
+          }
+        }
+        ;
+        Object.defineProperty(XMLNode2.prototype, "nodeName", {
+          get: function() {
+            return this.name;
+          }
+        });
+        Object.defineProperty(XMLNode2.prototype, "nodeType", {
+          get: function() {
+            return this.type;
+          }
+        });
+        Object.defineProperty(XMLNode2.prototype, "nodeValue", {
+          get: function() {
+            return this.value;
+          }
+        });
+        Object.defineProperty(XMLNode2.prototype, "parentNode", {
+          get: function() {
+            return this.parent;
+          }
+        });
+        Object.defineProperty(XMLNode2.prototype, "childNodes", {
+          get: function() {
+            if (!this.childNodeList || !this.childNodeList.nodes) {
+              this.childNodeList = new XMLNodeList(this.children);
+            }
+            return this.childNodeList;
+          }
+        });
+        Object.defineProperty(XMLNode2.prototype, "firstChild", {
+          get: function() {
+            return this.children[0] || null;
+          }
+        });
+        Object.defineProperty(XMLNode2.prototype, "lastChild", {
+          get: function() {
+            return this.children[this.children.length - 1] || null;
+          }
+        });
+        Object.defineProperty(XMLNode2.prototype, "previousSibling", {
+          get: function() {
+            var i;
+            i = this.parent.children.indexOf(this);
+            return this.parent.children[i - 1] || null;
+          }
+        });
+        Object.defineProperty(XMLNode2.prototype, "nextSibling", {
+          get: function() {
+            var i;
+            i = this.parent.children.indexOf(this);
+            return this.parent.children[i + 1] || null;
+          }
+        });
+        Object.defineProperty(XMLNode2.prototype, "ownerDocument", {
+          get: function() {
+            return this.document() || null;
+          }
+        });
+        Object.defineProperty(XMLNode2.prototype, "textContent", {
+          get: function() {
+            var child, j, len, ref1, str;
+            if (this.nodeType === NodeType.Element || this.nodeType === NodeType.DocumentFragment) {
+              str = "";
+              ref1 = this.children;
+              for (j = 0, len = ref1.length; j < len; j++) {
+                child = ref1[j];
+                if (child.textContent) {
+                  str += child.textContent;
+                }
+              }
+              return str;
+            } else {
+              return null;
+            }
+          },
+          set: function(value) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+        });
+        return XMLNode2;
+      }).call(this);
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLStringifier.js
+var require_XMLStringifier = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLStringifier.js"(exports, module) {
+    "use strict";
+    (function() {
+      var XMLStringifier, hasProp = {}.hasOwnProperty;
+      module.exports = XMLStringifier = (function() {
+        class XMLStringifier2 {
+          // Initializes a new instance of `XMLStringifier`
+          // `options.version` The version number string of the XML spec to validate against, e.g. 1.0
+          // `options.noDoubleEncoding` whether existing html entities are encoded: true or false
+          // `options.stringify` a set of functions to use for converting values to strings
+          // `options.noValidation` whether values will be validated and escaped or returned as is
+          // `options.invalidCharReplacement` a character to replace invalid characters and disable character validation
+          constructor(options) {
+            var key, ref, value;
+            this.assertLegalChar = this.assertLegalChar.bind(this);
+            this.assertLegalName = this.assertLegalName.bind(this);
+            options || (options = {});
+            this.options = options;
+            if (!this.options.version) {
+              this.options.version = "1.0";
+            }
+            ref = options.stringify || {};
+            for (key in ref) {
+              if (!hasProp.call(ref, key)) continue;
+              value = ref[key];
+              this[key] = value;
+            }
+          }
+          // Defaults
+          name(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            return this.assertLegalName("" + val || "");
+          }
+          text(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            return this.assertLegalChar(this.textEscape("" + val || ""));
+          }
+          cdata(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            val = "" + val || "";
+            val = val.replace("]]>", "]]]]><![CDATA[>");
+            return this.assertLegalChar(val);
+          }
+          comment(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            val = "" + val || "";
+            if (val.match(/--/)) {
+              throw new Error("Comment text cannot contain double-hypen: " + val);
+            }
+            return this.assertLegalChar(val);
+          }
+          raw(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            return "" + val || "";
+          }
+          attValue(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            return this.assertLegalChar(this.attEscape(val = "" + val || ""));
+          }
+          insTarget(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            return this.assertLegalChar("" + val || "");
+          }
+          insValue(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            val = "" + val || "";
+            if (val.match(/\?>/)) {
+              throw new Error("Invalid processing instruction value: " + val);
+            }
+            return this.assertLegalChar(val);
+          }
+          xmlVersion(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            val = "" + val || "";
+            if (!val.match(/1\.[0-9]+/)) {
+              throw new Error("Invalid version number: " + val);
+            }
+            return val;
+          }
+          xmlEncoding(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            val = "" + val || "";
+            if (!val.match(/^[A-Za-z](?:[A-Za-z0-9._-])*$/)) {
+              throw new Error("Invalid encoding: " + val);
+            }
+            return this.assertLegalChar(val);
+          }
+          xmlStandalone(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            if (val) {
+              return "yes";
+            } else {
+              return "no";
+            }
+          }
+          dtdPubID(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            return this.assertLegalChar("" + val || "");
+          }
+          dtdSysID(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            return this.assertLegalChar("" + val || "");
+          }
+          dtdElementValue(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            return this.assertLegalChar("" + val || "");
+          }
+          dtdAttType(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            return this.assertLegalChar("" + val || "");
+          }
+          dtdAttDefault(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            return this.assertLegalChar("" + val || "");
+          }
+          dtdEntityValue(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            return this.assertLegalChar("" + val || "");
+          }
+          dtdNData(val) {
+            if (this.options.noValidation) {
+              return val;
+            }
+            return this.assertLegalChar("" + val || "");
+          }
+          assertLegalChar(str) {
+            var regex, res;
+            if (this.options.noValidation) {
+              return str;
+            }
+            if (this.options.version === "1.0") {
+              regex = /[\0-\x08\x0B\f\x0E-\x1F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]/g;
+              if (this.options.invalidCharReplacement !== void 0) {
+                str = str.replace(regex, this.options.invalidCharReplacement);
+              } else if (res = str.match(regex)) {
+                throw new Error(`Invalid character in string: ${str} at index ${res.index}`);
+              }
+            } else if (this.options.version === "1.1") {
+              regex = /[\0\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]/g;
+              if (this.options.invalidCharReplacement !== void 0) {
+                str = str.replace(regex, this.options.invalidCharReplacement);
+              } else if (res = str.match(regex)) {
+                throw new Error(`Invalid character in string: ${str} at index ${res.index}`);
+              }
+            }
+            return str;
+          }
+          assertLegalName(str) {
+            var regex;
+            if (this.options.noValidation) {
+              return str;
+            }
+            str = this.assertLegalChar(str);
+            regex = /^([:A-Z_a-z\xC0-\xD6\xD8-\xF6\xF8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]|[\uD800-\uDB7F][\uDC00-\uDFFF])([\x2D\.0-:A-Z_a-z\xB7\xC0-\xD6\xD8-\xF6\xF8-\u037D\u037F-\u1FFF\u200C\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]|[\uD800-\uDB7F][\uDC00-\uDFFF])*$/;
+            if (!str.match(regex)) {
+              throw new Error(`Invalid character in name: ${str}`);
+            }
+            return str;
+          }
+          // Escapes special characters in text
+          // See http://www.w3.org/TR/2000/WD-xml-c14n-20000119.html#charescaping
+          // `str` the string to escape
+          textEscape(str) {
+            var ampregex;
+            if (this.options.noValidation) {
+              return str;
+            }
+            ampregex = this.options.noDoubleEncoding ? /(?!&(lt|gt|amp|apos|quot);)&/g : /&/g;
+            return str.replace(ampregex, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\r/g, "&#xD;");
+          }
+          // Escapes special characters in attribute values
+          // See http://www.w3.org/TR/2000/WD-xml-c14n-20000119.html#charescaping
+          // `str` the string to escape
+          attEscape(str) {
+            var ampregex;
+            if (this.options.noValidation) {
+              return str;
+            }
+            ampregex = this.options.noDoubleEncoding ? /(?!&(lt|gt|amp|apos|quot);)&/g : /&/g;
+            return str.replace(ampregex, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;").replace(/\t/g, "&#x9;").replace(/\n/g, "&#xA;").replace(/\r/g, "&#xD;");
+          }
+        }
+        ;
+        XMLStringifier2.prototype.convertAttKey = "@";
+        XMLStringifier2.prototype.convertPIKey = "?";
+        XMLStringifier2.prototype.convertTextKey = "#text";
+        XMLStringifier2.prototype.convertCDataKey = "#cdata";
+        XMLStringifier2.prototype.convertCommentKey = "#comment";
+        XMLStringifier2.prototype.convertRawKey = "#raw";
+        return XMLStringifier2;
+      }).call(this);
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/WriterState.js
+var require_WriterState = __commonJS({
+  "node_modules/xmlbuilder/lib/WriterState.js"(exports, module) {
+    "use strict";
+    (function() {
+      module.exports = {
+        None: 0,
+        OpenTag: 1,
+        InsideTag: 2,
+        CloseTag: 3
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLWriterBase.js
+var require_XMLWriterBase = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLWriterBase.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, WriterState, XMLCData, XMLComment, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDeclaration, XMLDocType, XMLDummy, XMLElement, XMLProcessingInstruction, XMLRaw, XMLText, XMLWriterBase, assign, hasProp = {}.hasOwnProperty;
+      ({ assign } = require_Utility());
+      NodeType = require_NodeType();
+      XMLDeclaration = require_XMLDeclaration();
+      XMLDocType = require_XMLDocType();
+      XMLCData = require_XMLCData();
+      XMLComment = require_XMLComment();
+      XMLElement = require_XMLElement();
+      XMLRaw = require_XMLRaw();
+      XMLText = require_XMLText();
+      XMLProcessingInstruction = require_XMLProcessingInstruction();
+      XMLDummy = require_XMLDummy();
+      XMLDTDAttList = require_XMLDTDAttList();
+      XMLDTDElement = require_XMLDTDElement();
+      XMLDTDEntity = require_XMLDTDEntity();
+      XMLDTDNotation = require_XMLDTDNotation();
+      WriterState = require_WriterState();
+      module.exports = XMLWriterBase = class XMLWriterBase {
+        // Initializes a new instance of `XMLWriterBase`
+        // `options.pretty` pretty prints the result
+        // `options.indent` indentation string
+        // `options.newline` newline sequence
+        // `options.offset` a fixed number of indentations to add to every line
+        // `options.width` maximum column width
+        // `options.allowEmpty` do not self close empty element tags
+        // 'options.dontPrettyTextNodes' if any text is present in node, don't indent or LF
+        // `options.spaceBeforeSlash` add a space before the closing slash of empty elements
+        constructor(options) {
+          var key, ref, value;
+          options || (options = {});
+          this.options = options;
+          ref = options.writer || {};
+          for (key in ref) {
+            if (!hasProp.call(ref, key)) continue;
+            value = ref[key];
+            this["_" + key] = this[key];
+            this[key] = value;
+          }
+        }
+        // Filters writer options and provides defaults
+        // `options` writer options
+        filterOptions(options) {
+          var filteredOptions, ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7;
+          options || (options = {});
+          options = assign({}, this.options, options);
+          filteredOptions = {
+            writer: this
+          };
+          filteredOptions.pretty = options.pretty || false;
+          filteredOptions.allowEmpty = options.allowEmpty || false;
+          filteredOptions.indent = (ref = options.indent) != null ? ref : "  ";
+          filteredOptions.newline = (ref1 = options.newline) != null ? ref1 : "\n";
+          filteredOptions.offset = (ref2 = options.offset) != null ? ref2 : 0;
+          filteredOptions.width = (ref3 = options.width) != null ? ref3 : 0;
+          filteredOptions.dontPrettyTextNodes = (ref4 = (ref5 = options.dontPrettyTextNodes) != null ? ref5 : options.dontprettytextnodes) != null ? ref4 : 0;
+          filteredOptions.spaceBeforeSlash = (ref6 = (ref7 = options.spaceBeforeSlash) != null ? ref7 : options.spacebeforeslash) != null ? ref6 : "";
+          if (filteredOptions.spaceBeforeSlash === true) {
+            filteredOptions.spaceBeforeSlash = " ";
+          }
+          filteredOptions.suppressPrettyCount = 0;
+          filteredOptions.user = {};
+          filteredOptions.state = WriterState.None;
+          return filteredOptions;
+        }
+        // Returns the indentation string for the current level
+        // `node` current node
+        // `options` writer options
+        // `level` current indentation level
+        indent(node2, options, level) {
+          var indentLevel;
+          if (!options.pretty || options.suppressPrettyCount) {
+            return "";
+          } else if (options.pretty) {
+            indentLevel = (level || 0) + options.offset + 1;
+            if (indentLevel > 0) {
+              return new Array(indentLevel).join(options.indent);
+            }
+          }
+          return "";
+        }
+        // Returns the newline string
+        // `node` current node
+        // `options` writer options
+        // `level` current indentation level
+        endline(node2, options, level) {
+          if (!options.pretty || options.suppressPrettyCount) {
+            return "";
+          } else {
+            return options.newline;
+          }
+        }
+        attribute(att, options, level) {
+          var r;
+          this.openAttribute(att, options, level);
+          if (options.pretty && options.width > 0) {
+            r = att.name + '="' + att.value + '"';
+          } else {
+            r = " " + att.name + '="' + att.value + '"';
+          }
+          this.closeAttribute(att, options, level);
+          return r;
+        }
+        cdata(node2, options, level) {
+          var r;
+          this.openNode(node2, options, level);
+          options.state = WriterState.OpenTag;
+          r = this.indent(node2, options, level) + "<![CDATA[";
+          options.state = WriterState.InsideTag;
+          r += node2.value;
+          options.state = WriterState.CloseTag;
+          r += "]]>" + this.endline(node2, options, level);
+          options.state = WriterState.None;
+          this.closeNode(node2, options, level);
+          return r;
+        }
+        comment(node2, options, level) {
+          var r;
+          this.openNode(node2, options, level);
+          options.state = WriterState.OpenTag;
+          r = this.indent(node2, options, level) + "<!-- ";
+          options.state = WriterState.InsideTag;
+          r += node2.value;
+          options.state = WriterState.CloseTag;
+          r += " -->" + this.endline(node2, options, level);
+          options.state = WriterState.None;
+          this.closeNode(node2, options, level);
+          return r;
+        }
+        declaration(node2, options, level) {
+          var r;
+          this.openNode(node2, options, level);
+          options.state = WriterState.OpenTag;
+          r = this.indent(node2, options, level) + "<?xml";
+          options.state = WriterState.InsideTag;
+          r += ' version="' + node2.version + '"';
+          if (node2.encoding != null) {
+            r += ' encoding="' + node2.encoding + '"';
+          }
+          if (node2.standalone != null) {
+            r += ' standalone="' + node2.standalone + '"';
+          }
+          options.state = WriterState.CloseTag;
+          r += options.spaceBeforeSlash + "?>";
+          r += this.endline(node2, options, level);
+          options.state = WriterState.None;
+          this.closeNode(node2, options, level);
+          return r;
+        }
+        docType(node2, options, level) {
+          var child, i, len1, r, ref;
+          level || (level = 0);
+          this.openNode(node2, options, level);
+          options.state = WriterState.OpenTag;
+          r = this.indent(node2, options, level);
+          r += "<!DOCTYPE " + node2.root().name;
+          if (node2.pubID && node2.sysID) {
+            r += ' PUBLIC "' + node2.pubID + '" "' + node2.sysID + '"';
+          } else if (node2.sysID) {
+            r += ' SYSTEM "' + node2.sysID + '"';
+          }
+          if (node2.children.length > 0) {
+            r += " [";
+            r += this.endline(node2, options, level);
+            options.state = WriterState.InsideTag;
+            ref = node2.children;
+            for (i = 0, len1 = ref.length; i < len1; i++) {
+              child = ref[i];
+              r += this.writeChildNode(child, options, level + 1);
+            }
+            options.state = WriterState.CloseTag;
+            r += "]";
+          }
+          options.state = WriterState.CloseTag;
+          r += options.spaceBeforeSlash + ">";
+          r += this.endline(node2, options, level);
+          options.state = WriterState.None;
+          this.closeNode(node2, options, level);
+          return r;
+        }
+        element(node2, options, level) {
+          var att, attLen, child, childNodeCount, firstChildNode, i, j, len, len1, len2, name, prettySuppressed, r, ratt, ref, ref1, ref2, ref3, rline;
+          level || (level = 0);
+          prettySuppressed = false;
+          this.openNode(node2, options, level);
+          options.state = WriterState.OpenTag;
+          r = this.indent(node2, options, level) + "<" + node2.name;
+          if (options.pretty && options.width > 0) {
+            len = r.length;
+            ref = node2.attribs;
+            for (name in ref) {
+              if (!hasProp.call(ref, name)) continue;
+              att = ref[name];
+              ratt = this.attribute(att, options, level);
+              attLen = ratt.length;
+              if (len + attLen > options.width) {
+                rline = this.indent(node2, options, level + 1) + ratt;
+                r += this.endline(node2, options, level) + rline;
+                len = rline.length;
+              } else {
+                rline = " " + ratt;
+                r += rline;
+                len += rline.length;
+              }
+            }
+          } else {
+            ref1 = node2.attribs;
+            for (name in ref1) {
+              if (!hasProp.call(ref1, name)) continue;
+              att = ref1[name];
+              r += this.attribute(att, options, level);
+            }
+          }
+          childNodeCount = node2.children.length;
+          firstChildNode = childNodeCount === 0 ? null : node2.children[0];
+          if (childNodeCount === 0 || node2.children.every(function(e) {
+            return (e.type === NodeType.Text || e.type === NodeType.Raw || e.type === NodeType.CData) && e.value === "";
+          })) {
+            if (options.allowEmpty) {
+              r += ">";
+              options.state = WriterState.CloseTag;
+              r += "</" + node2.name + ">" + this.endline(node2, options, level);
+            } else {
+              options.state = WriterState.CloseTag;
+              r += options.spaceBeforeSlash + "/>" + this.endline(node2, options, level);
+            }
+          } else if (options.pretty && childNodeCount === 1 && (firstChildNode.type === NodeType.Text || firstChildNode.type === NodeType.Raw || firstChildNode.type === NodeType.CData) && firstChildNode.value != null) {
+            r += ">";
+            options.state = WriterState.InsideTag;
+            options.suppressPrettyCount++;
+            prettySuppressed = true;
+            r += this.writeChildNode(firstChildNode, options, level + 1);
+            options.suppressPrettyCount--;
+            prettySuppressed = false;
+            options.state = WriterState.CloseTag;
+            r += "</" + node2.name + ">" + this.endline(node2, options, level);
+          } else {
+            if (options.dontPrettyTextNodes) {
+              ref2 = node2.children;
+              for (i = 0, len1 = ref2.length; i < len1; i++) {
+                child = ref2[i];
+                if ((child.type === NodeType.Text || child.type === NodeType.Raw || child.type === NodeType.CData) && child.value != null) {
+                  options.suppressPrettyCount++;
+                  prettySuppressed = true;
+                  break;
+                }
+              }
+            }
+            r += ">" + this.endline(node2, options, level);
+            options.state = WriterState.InsideTag;
+            ref3 = node2.children;
+            for (j = 0, len2 = ref3.length; j < len2; j++) {
+              child = ref3[j];
+              r += this.writeChildNode(child, options, level + 1);
+            }
+            options.state = WriterState.CloseTag;
+            r += this.indent(node2, options, level) + "</" + node2.name + ">";
+            if (prettySuppressed) {
+              options.suppressPrettyCount--;
+            }
+            r += this.endline(node2, options, level);
+            options.state = WriterState.None;
+          }
+          this.closeNode(node2, options, level);
+          return r;
+        }
+        writeChildNode(node2, options, level) {
+          switch (node2.type) {
+            case NodeType.CData:
+              return this.cdata(node2, options, level);
+            case NodeType.Comment:
+              return this.comment(node2, options, level);
+            case NodeType.Element:
+              return this.element(node2, options, level);
+            case NodeType.Raw:
+              return this.raw(node2, options, level);
+            case NodeType.Text:
+              return this.text(node2, options, level);
+            case NodeType.ProcessingInstruction:
+              return this.processingInstruction(node2, options, level);
+            case NodeType.Dummy:
+              return "";
+            case NodeType.Declaration:
+              return this.declaration(node2, options, level);
+            case NodeType.DocType:
+              return this.docType(node2, options, level);
+            case NodeType.AttributeDeclaration:
+              return this.dtdAttList(node2, options, level);
+            case NodeType.ElementDeclaration:
+              return this.dtdElement(node2, options, level);
+            case NodeType.EntityDeclaration:
+              return this.dtdEntity(node2, options, level);
+            case NodeType.NotationDeclaration:
+              return this.dtdNotation(node2, options, level);
+            default:
+              throw new Error("Unknown XML node type: " + node2.constructor.name);
+          }
+        }
+        processingInstruction(node2, options, level) {
+          var r;
+          this.openNode(node2, options, level);
+          options.state = WriterState.OpenTag;
+          r = this.indent(node2, options, level) + "<?";
+          options.state = WriterState.InsideTag;
+          r += node2.target;
+          if (node2.value) {
+            r += " " + node2.value;
+          }
+          options.state = WriterState.CloseTag;
+          r += options.spaceBeforeSlash + "?>";
+          r += this.endline(node2, options, level);
+          options.state = WriterState.None;
+          this.closeNode(node2, options, level);
+          return r;
+        }
+        raw(node2, options, level) {
+          var r;
+          this.openNode(node2, options, level);
+          options.state = WriterState.OpenTag;
+          r = this.indent(node2, options, level);
+          options.state = WriterState.InsideTag;
+          r += node2.value;
+          options.state = WriterState.CloseTag;
+          r += this.endline(node2, options, level);
+          options.state = WriterState.None;
+          this.closeNode(node2, options, level);
+          return r;
+        }
+        text(node2, options, level) {
+          var r;
+          this.openNode(node2, options, level);
+          options.state = WriterState.OpenTag;
+          r = this.indent(node2, options, level);
+          options.state = WriterState.InsideTag;
+          r += node2.value;
+          options.state = WriterState.CloseTag;
+          r += this.endline(node2, options, level);
+          options.state = WriterState.None;
+          this.closeNode(node2, options, level);
+          return r;
+        }
+        dtdAttList(node2, options, level) {
+          var r;
+          this.openNode(node2, options, level);
+          options.state = WriterState.OpenTag;
+          r = this.indent(node2, options, level) + "<!ATTLIST";
+          options.state = WriterState.InsideTag;
+          r += " " + node2.elementName + " " + node2.attributeName + " " + node2.attributeType;
+          if (node2.defaultValueType !== "#DEFAULT") {
+            r += " " + node2.defaultValueType;
+          }
+          if (node2.defaultValue) {
+            r += ' "' + node2.defaultValue + '"';
+          }
+          options.state = WriterState.CloseTag;
+          r += options.spaceBeforeSlash + ">" + this.endline(node2, options, level);
+          options.state = WriterState.None;
+          this.closeNode(node2, options, level);
+          return r;
+        }
+        dtdElement(node2, options, level) {
+          var r;
+          this.openNode(node2, options, level);
+          options.state = WriterState.OpenTag;
+          r = this.indent(node2, options, level) + "<!ELEMENT";
+          options.state = WriterState.InsideTag;
+          r += " " + node2.name + " " + node2.value;
+          options.state = WriterState.CloseTag;
+          r += options.spaceBeforeSlash + ">" + this.endline(node2, options, level);
+          options.state = WriterState.None;
+          this.closeNode(node2, options, level);
+          return r;
+        }
+        dtdEntity(node2, options, level) {
+          var r;
+          this.openNode(node2, options, level);
+          options.state = WriterState.OpenTag;
+          r = this.indent(node2, options, level) + "<!ENTITY";
+          options.state = WriterState.InsideTag;
+          if (node2.pe) {
+            r += " %";
+          }
+          r += " " + node2.name;
+          if (node2.value) {
+            r += ' "' + node2.value + '"';
+          } else {
+            if (node2.pubID && node2.sysID) {
+              r += ' PUBLIC "' + node2.pubID + '" "' + node2.sysID + '"';
+            } else if (node2.sysID) {
+              r += ' SYSTEM "' + node2.sysID + '"';
+            }
+            if (node2.nData) {
+              r += " NDATA " + node2.nData;
+            }
+          }
+          options.state = WriterState.CloseTag;
+          r += options.spaceBeforeSlash + ">" + this.endline(node2, options, level);
+          options.state = WriterState.None;
+          this.closeNode(node2, options, level);
+          return r;
+        }
+        dtdNotation(node2, options, level) {
+          var r;
+          this.openNode(node2, options, level);
+          options.state = WriterState.OpenTag;
+          r = this.indent(node2, options, level) + "<!NOTATION";
+          options.state = WriterState.InsideTag;
+          r += " " + node2.name;
+          if (node2.pubID && node2.sysID) {
+            r += ' PUBLIC "' + node2.pubID + '" "' + node2.sysID + '"';
+          } else if (node2.pubID) {
+            r += ' PUBLIC "' + node2.pubID + '"';
+          } else if (node2.sysID) {
+            r += ' SYSTEM "' + node2.sysID + '"';
+          }
+          options.state = WriterState.CloseTag;
+          r += options.spaceBeforeSlash + ">" + this.endline(node2, options, level);
+          options.state = WriterState.None;
+          this.closeNode(node2, options, level);
+          return r;
+        }
+        openNode(node2, options, level) {
+        }
+        closeNode(node2, options, level) {
+        }
+        openAttribute(att, options, level) {
+        }
+        closeAttribute(att, options, level) {
+        }
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLStringWriter.js
+var require_XMLStringWriter = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLStringWriter.js"(exports, module) {
+    "use strict";
+    (function() {
+      var XMLStringWriter, XMLWriterBase;
+      XMLWriterBase = require_XMLWriterBase();
+      module.exports = XMLStringWriter = class XMLStringWriter extends XMLWriterBase {
+        // Initializes a new instance of `XMLStringWriter`
+        // `options.pretty` pretty prints the result
+        // `options.indent` indentation string
+        // `options.newline` newline sequence
+        // `options.offset` a fixed number of indentations to add to every line
+        // `options.allowEmpty` do not self close empty element tags
+        // 'options.dontPrettyTextNodes' if any text is present in node, don't indent or LF
+        // `options.spaceBeforeSlash` add a space before the closing slash of empty elements
+        constructor(options) {
+          super(options);
+        }
+        document(doc, options) {
+          var child, i, len, r, ref;
+          options = this.filterOptions(options);
+          r = "";
+          ref = doc.children;
+          for (i = 0, len = ref.length; i < len; i++) {
+            child = ref[i];
+            r += this.writeChildNode(child, options, 0);
+          }
+          if (options.pretty && r.slice(-options.newline.length) === options.newline) {
+            r = r.slice(0, -options.newline.length);
+          }
+          return r;
+        }
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLDocument.js
+var require_XMLDocument = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLDocument.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, XMLDOMConfiguration, XMLDOMImplementation, XMLDocument, XMLNode, XMLStringWriter, XMLStringifier, isPlainObject3;
+      ({ isPlainObject: isPlainObject3 } = require_Utility());
+      XMLDOMImplementation = require_XMLDOMImplementation();
+      XMLDOMConfiguration = require_XMLDOMConfiguration();
+      XMLNode = require_XMLNode();
+      NodeType = require_NodeType();
+      XMLStringifier = require_XMLStringifier();
+      XMLStringWriter = require_XMLStringWriter();
+      module.exports = XMLDocument = (function() {
+        class XMLDocument2 extends XMLNode {
+          // Initializes a new instance of `XMLDocument`
+          // `options.keepNullNodes` whether nodes with null values will be kept
+          //     or ignored: true or false
+          // `options.keepNullAttributes` whether attributes with null values will be
+          //     kept or ignored: true or false
+          // `options.ignoreDecorators` whether decorator strings will be ignored when
+          //     converting JS objects: true or false
+          // `options.separateArrayItems` whether array items are created as separate
+          //     nodes when passed as an object value: true or false
+          // `options.noDoubleEncoding` whether existing html entities are encoded:
+          //     true or false
+          // `options.stringify` a set of functions to use for converting values to
+          //     strings
+          // `options.writer` the default XML writer to use for converting nodes to
+          //     string. If the default writer is not set, the built-in XMLStringWriter
+          //     will be used instead.
+          constructor(options) {
+            super(null);
+            this.name = "#document";
+            this.type = NodeType.Document;
+            this.documentURI = null;
+            this.domConfig = new XMLDOMConfiguration();
+            options || (options = {});
+            if (!options.writer) {
+              options.writer = new XMLStringWriter();
+            }
+            this.options = options;
+            this.stringify = new XMLStringifier(options);
+          }
+          // Ends the document and passes it to the given XML writer
+          // `writer` is either an XML writer or a plain object to pass to the
+          // constructor of the default XML writer. The default writer is assigned when
+          // creating the XML document. Following flags are recognized by the
+          // built-in XMLStringWriter:
+          //   `writer.pretty` pretty prints the result
+          //   `writer.indent` indentation for pretty print
+          //   `writer.offset` how many indentations to add to every line for pretty print
+          //   `writer.newline` newline sequence for pretty print
+          end(writer) {
+            var writerOptions;
+            writerOptions = {};
+            if (!writer) {
+              writer = this.options.writer;
+            } else if (isPlainObject3(writer)) {
+              writerOptions = writer;
+              writer = this.options.writer;
+            }
+            return writer.document(this, writer.filterOptions(writerOptions));
+          }
+          // Converts the XML document to string
+          // `options.pretty` pretty prints the result
+          // `options.indent` indentation for pretty print
+          // `options.offset` how many indentations to add to every line for pretty print
+          // `options.newline` newline sequence for pretty print
+          toString(options) {
+            return this.options.writer.document(this, this.options.writer.filterOptions(options));
+          }
+          // DOM level 1 functions to be implemented later
+          createElement(tagName) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          createDocumentFragment() {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          createTextNode(data) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          createComment(data) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          createCDATASection(data) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          createProcessingInstruction(target, data) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          createAttribute(name) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          createEntityReference(name) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          getElementsByTagName(tagname) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          // DOM level 2 functions to be implemented later
+          importNode(importedNode, deep) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          createElementNS(namespaceURI, qualifiedName) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          createAttributeNS(namespaceURI, qualifiedName) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          getElementsByTagNameNS(namespaceURI, localName) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          getElementById(elementId) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          // DOM level 3 functions to be implemented later
+          adoptNode(source) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          normalizeDocument() {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          renameNode(node2, namespaceURI, qualifiedName) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          // DOM level 4 functions to be implemented later
+          getElementsByClassName(classNames) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          createEvent(eventInterface) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          createRange() {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          createNodeIterator(root, whatToShow, filter) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+          createTreeWalker(root, whatToShow, filter) {
+            throw new Error("This DOM method is not implemented." + this.debugInfo());
+          }
+        }
+        ;
+        Object.defineProperty(XMLDocument2.prototype, "implementation", {
+          value: new XMLDOMImplementation()
+        });
+        Object.defineProperty(XMLDocument2.prototype, "doctype", {
+          get: function() {
+            var child, i, len, ref;
+            ref = this.children;
+            for (i = 0, len = ref.length; i < len; i++) {
+              child = ref[i];
+              if (child.type === NodeType.DocType) {
+                return child;
+              }
+            }
+            return null;
+          }
+        });
+        Object.defineProperty(XMLDocument2.prototype, "documentElement", {
+          get: function() {
+            return this.rootObject || null;
+          }
+        });
+        Object.defineProperty(XMLDocument2.prototype, "inputEncoding", {
+          get: function() {
+            return null;
+          }
+        });
+        Object.defineProperty(XMLDocument2.prototype, "strictErrorChecking", {
+          get: function() {
+            return false;
+          }
+        });
+        Object.defineProperty(XMLDocument2.prototype, "xmlEncoding", {
+          get: function() {
+            if (this.children.length !== 0 && this.children[0].type === NodeType.Declaration) {
+              return this.children[0].encoding;
+            } else {
+              return null;
+            }
+          }
+        });
+        Object.defineProperty(XMLDocument2.prototype, "xmlStandalone", {
+          get: function() {
+            if (this.children.length !== 0 && this.children[0].type === NodeType.Declaration) {
+              return this.children[0].standalone === "yes";
+            } else {
+              return false;
+            }
+          }
+        });
+        Object.defineProperty(XMLDocument2.prototype, "xmlVersion", {
+          get: function() {
+            if (this.children.length !== 0 && this.children[0].type === NodeType.Declaration) {
+              return this.children[0].version;
+            } else {
+              return "1.0";
+            }
+          }
+        });
+        Object.defineProperty(XMLDocument2.prototype, "URL", {
+          get: function() {
+            return this.documentURI;
+          }
+        });
+        Object.defineProperty(XMLDocument2.prototype, "origin", {
+          get: function() {
+            return null;
+          }
+        });
+        Object.defineProperty(XMLDocument2.prototype, "compatMode", {
+          get: function() {
+            return null;
+          }
+        });
+        Object.defineProperty(XMLDocument2.prototype, "characterSet", {
+          get: function() {
+            return null;
+          }
+        });
+        Object.defineProperty(XMLDocument2.prototype, "contentType", {
+          get: function() {
+            return null;
+          }
+        });
+        return XMLDocument2;
+      }).call(this);
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLDocumentCB.js
+var require_XMLDocumentCB = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLDocumentCB.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, WriterState, XMLAttribute, XMLCData, XMLComment, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDeclaration, XMLDocType, XMLDocument, XMLDocumentCB, XMLElement, XMLProcessingInstruction, XMLRaw, XMLStringWriter, XMLStringifier, XMLText, getValue, isFunction, isObject3, isPlainObject3, hasProp = {}.hasOwnProperty;
+      ({ isObject: isObject3, isFunction, isPlainObject: isPlainObject3, getValue } = require_Utility());
+      NodeType = require_NodeType();
+      XMLDocument = require_XMLDocument();
+      XMLElement = require_XMLElement();
+      XMLCData = require_XMLCData();
+      XMLComment = require_XMLComment();
+      XMLRaw = require_XMLRaw();
+      XMLText = require_XMLText();
+      XMLProcessingInstruction = require_XMLProcessingInstruction();
+      XMLDeclaration = require_XMLDeclaration();
+      XMLDocType = require_XMLDocType();
+      XMLDTDAttList = require_XMLDTDAttList();
+      XMLDTDEntity = require_XMLDTDEntity();
+      XMLDTDElement = require_XMLDTDElement();
+      XMLDTDNotation = require_XMLDTDNotation();
+      XMLAttribute = require_XMLAttribute();
+      XMLStringifier = require_XMLStringifier();
+      XMLStringWriter = require_XMLStringWriter();
+      WriterState = require_WriterState();
+      module.exports = XMLDocumentCB = class XMLDocumentCB {
+        // Initializes a new instance of `XMLDocumentCB`
+        // `options.keepNullNodes` whether nodes with null values will be kept
+        //     or ignored: true or false
+        // `options.keepNullAttributes` whether attributes with null values will be
+        //     kept or ignored: true or false
+        // `options.ignoreDecorators` whether decorator strings will be ignored when
+        //     converting JS objects: true or false
+        // `options.separateArrayItems` whether array items are created as separate
+        //     nodes when passed as an object value: true or false
+        // `options.noDoubleEncoding` whether existing html entities are encoded:
+        //     true or false
+        // `options.stringify` a set of functions to use for converting values to
+        //     strings
+        // `options.writer` the default XML writer to use for converting nodes to
+        //     string. If the default writer is not set, the built-in XMLStringWriter
+        //     will be used instead.
+        // `onData` the function to be called when a new chunk of XML is output. The
+        //          string containing the XML chunk is passed to `onData` as its first
+        //          argument, and the current indentation level as its second argument.
+        // `onEnd`  the function to be called when the XML document is completed with
+        //          `end`. `onEnd` does not receive any arguments.
+        constructor(options, onData, onEnd) {
+          var writerOptions;
+          this.name = "?xml";
+          this.type = NodeType.Document;
+          options || (options = {});
+          writerOptions = {};
+          if (!options.writer) {
+            options.writer = new XMLStringWriter();
+          } else if (isPlainObject3(options.writer)) {
+            writerOptions = options.writer;
+            options.writer = new XMLStringWriter();
+          }
+          this.options = options;
+          this.writer = options.writer;
+          this.writerOptions = this.writer.filterOptions(writerOptions);
+          this.stringify = new XMLStringifier(options);
+          this.onDataCallback = onData || function() {
+          };
+          this.onEndCallback = onEnd || function() {
+          };
+          this.currentNode = null;
+          this.currentLevel = -1;
+          this.openTags = {};
+          this.documentStarted = false;
+          this.documentCompleted = false;
+          this.root = null;
+        }
+        // Creates a child element node from the given XMLNode
+        // `node` the child node
+        createChildNode(node2) {
+          var att, attName, attributes, child, i, len, ref, ref1;
+          switch (node2.type) {
+            case NodeType.CData:
+              this.cdata(node2.value);
+              break;
+            case NodeType.Comment:
+              this.comment(node2.value);
+              break;
+            case NodeType.Element:
+              attributes = {};
+              ref = node2.attribs;
+              for (attName in ref) {
+                if (!hasProp.call(ref, attName)) continue;
+                att = ref[attName];
+                attributes[attName] = att.value;
+              }
+              this.node(node2.name, attributes);
+              break;
+            case NodeType.Dummy:
+              this.dummy();
+              break;
+            case NodeType.Raw:
+              this.raw(node2.value);
+              break;
+            case NodeType.Text:
+              this.text(node2.value);
+              break;
+            case NodeType.ProcessingInstruction:
+              this.instruction(node2.target, node2.value);
+              break;
+            default:
+              throw new Error("This XML node type is not supported in a JS object: " + node2.constructor.name);
+          }
+          ref1 = node2.children;
+          for (i = 0, len = ref1.length; i < len; i++) {
+            child = ref1[i];
+            this.createChildNode(child);
+            if (child.type === NodeType.Element) {
+              this.up();
+            }
+          }
+          return this;
+        }
+        // Creates a dummy node
+        dummy() {
+          return this;
+        }
+        // Creates a node
+        // `name` name of the node
+        // `attributes` an object containing name/value pairs of attributes
+        // `text` element text
+        node(name, attributes, text) {
+          if (name == null) {
+            throw new Error("Missing node name.");
+          }
+          if (this.root && this.currentLevel === -1) {
+            throw new Error("Document can only have one root node. " + this.debugInfo(name));
+          }
+          this.openCurrent();
+          name = getValue(name);
+          if (attributes == null) {
+            attributes = {};
+          }
+          attributes = getValue(attributes);
+          if (!isObject3(attributes)) {
+            [text, attributes] = [attributes, text];
+          }
+          this.currentNode = new XMLElement(this, name, attributes);
+          this.currentNode.children = false;
+          this.currentLevel++;
+          this.openTags[this.currentLevel] = this.currentNode;
+          if (text != null) {
+            this.text(text);
+          }
+          return this;
+        }
+        // Creates a child element node or an element type declaration when called
+        // inside the DTD
+        // `name` name of the node
+        // `attributes` an object containing name/value pairs of attributes
+        // `text` element text
+        element(name, attributes, text) {
+          var child, i, len, oldValidationFlag, ref, root;
+          if (this.currentNode && this.currentNode.type === NodeType.DocType) {
+            this.dtdElement(...arguments);
+          } else {
+            if (Array.isArray(name) || isObject3(name) || isFunction(name)) {
+              oldValidationFlag = this.options.noValidation;
+              this.options.noValidation = true;
+              root = new XMLDocument(this.options).element("TEMP_ROOT");
+              root.element(name);
+              this.options.noValidation = oldValidationFlag;
+              ref = root.children;
+              for (i = 0, len = ref.length; i < len; i++) {
+                child = ref[i];
+                this.createChildNode(child);
+                if (child.type === NodeType.Element) {
+                  this.up();
+                }
+              }
+            } else {
+              this.node(name, attributes, text);
+            }
+          }
+          return this;
+        }
+        // Adds or modifies an attribute
+        // `name` attribute name
+        // `value` attribute value
+        attribute(name, value) {
+          var attName, attValue;
+          if (!this.currentNode || this.currentNode.children) {
+            throw new Error("att() can only be used immediately after an ele() call in callback mode. " + this.debugInfo(name));
+          }
+          if (name != null) {
+            name = getValue(name);
+          }
+          if (isObject3(name)) {
+            for (attName in name) {
+              if (!hasProp.call(name, attName)) continue;
+              attValue = name[attName];
+              this.attribute(attName, attValue);
+            }
+          } else {
+            if (isFunction(value)) {
+              value = value.apply();
+            }
+            if (this.options.keepNullAttributes && value == null) {
+              this.currentNode.attribs[name] = new XMLAttribute(this, name, "");
+            } else if (value != null) {
+              this.currentNode.attribs[name] = new XMLAttribute(this, name, value);
+            }
+          }
+          return this;
+        }
+        // Creates a text node
+        // `value` element text
+        text(value) {
+          var node2;
+          this.openCurrent();
+          node2 = new XMLText(this, value);
+          this.onData(this.writer.text(node2, this.writerOptions, this.currentLevel + 1), this.currentLevel + 1);
+          return this;
+        }
+        // Creates a CDATA node
+        // `value` element text without CDATA delimiters
+        cdata(value) {
+          var node2;
+          this.openCurrent();
+          node2 = new XMLCData(this, value);
+          this.onData(this.writer.cdata(node2, this.writerOptions, this.currentLevel + 1), this.currentLevel + 1);
+          return this;
+        }
+        // Creates a comment node
+        // `value` comment text
+        comment(value) {
+          var node2;
+          this.openCurrent();
+          node2 = new XMLComment(this, value);
+          this.onData(this.writer.comment(node2, this.writerOptions, this.currentLevel + 1), this.currentLevel + 1);
+          return this;
+        }
+        // Adds unescaped raw text
+        // `value` text
+        raw(value) {
+          var node2;
+          this.openCurrent();
+          node2 = new XMLRaw(this, value);
+          this.onData(this.writer.raw(node2, this.writerOptions, this.currentLevel + 1), this.currentLevel + 1);
+          return this;
+        }
+        // Adds a processing instruction
+        // `target` instruction target
+        // `value` instruction value
+        instruction(target, value) {
+          var i, insTarget, insValue, len, node2;
+          this.openCurrent();
+          if (target != null) {
+            target = getValue(target);
+          }
+          if (value != null) {
+            value = getValue(value);
+          }
+          if (Array.isArray(target)) {
+            for (i = 0, len = target.length; i < len; i++) {
+              insTarget = target[i];
+              this.instruction(insTarget);
+            }
+          } else if (isObject3(target)) {
+            for (insTarget in target) {
+              if (!hasProp.call(target, insTarget)) continue;
+              insValue = target[insTarget];
+              this.instruction(insTarget, insValue);
+            }
+          } else {
+            if (isFunction(value)) {
+              value = value.apply();
+            }
+            node2 = new XMLProcessingInstruction(this, target, value);
+            this.onData(this.writer.processingInstruction(node2, this.writerOptions, this.currentLevel + 1), this.currentLevel + 1);
+          }
+          return this;
+        }
+        // Creates the xml declaration
+        // `version` A version number string, e.g. 1.0
+        // `encoding` Encoding declaration, e.g. UTF-8
+        // `standalone` standalone document declaration: true or false
+        declaration(version2, encoding, standalone) {
+          var node2;
+          this.openCurrent();
+          if (this.documentStarted) {
+            throw new Error("declaration() must be the first node.");
+          }
+          node2 = new XMLDeclaration(this, version2, encoding, standalone);
+          this.onData(this.writer.declaration(node2, this.writerOptions, this.currentLevel + 1), this.currentLevel + 1);
+          return this;
+        }
+        // Creates the document type declaration
+        // `root`  the name of the root node
+        // `pubID` the public identifier of the external subset
+        // `sysID` the system identifier of the external subset
+        doctype(root, pubID, sysID) {
+          this.openCurrent();
+          if (root == null) {
+            throw new Error("Missing root node name.");
+          }
+          if (this.root) {
+            throw new Error("dtd() must come before the root node.");
+          }
+          this.currentNode = new XMLDocType(this, pubID, sysID);
+          this.currentNode.rootNodeName = root;
+          this.currentNode.children = false;
+          this.currentLevel++;
+          this.openTags[this.currentLevel] = this.currentNode;
+          return this;
+        }
+        // Creates an element type declaration
+        // `name` element name
+        // `value` element content (defaults to #PCDATA)
+        dtdElement(name, value) {
+          var node2;
+          this.openCurrent();
+          node2 = new XMLDTDElement(this, name, value);
+          this.onData(this.writer.dtdElement(node2, this.writerOptions, this.currentLevel + 1), this.currentLevel + 1);
+          return this;
+        }
+        // Creates an attribute declaration
+        // `elementName` the name of the element containing this attribute
+        // `attributeName` attribute name
+        // `attributeType` type of the attribute (defaults to CDATA)
+        // `defaultValueType` default value type (either #REQUIRED, #IMPLIED, #FIXED or
+        //                    #DEFAULT) (defaults to #IMPLIED)
+        // `defaultValue` default value of the attribute
+        //                (only used for #FIXED or #DEFAULT)
+        attList(elementName, attributeName, attributeType, defaultValueType, defaultValue) {
+          var node2;
+          this.openCurrent();
+          node2 = new XMLDTDAttList(this, elementName, attributeName, attributeType, defaultValueType, defaultValue);
+          this.onData(this.writer.dtdAttList(node2, this.writerOptions, this.currentLevel + 1), this.currentLevel + 1);
+          return this;
+        }
+        // Creates a general entity declaration
+        // `name` the name of the entity
+        // `value` internal entity value or an object with external entity details
+        // `value.pubID` public identifier
+        // `value.sysID` system identifier
+        // `value.nData` notation declaration
+        entity(name, value) {
+          var node2;
+          this.openCurrent();
+          node2 = new XMLDTDEntity(this, false, name, value);
+          this.onData(this.writer.dtdEntity(node2, this.writerOptions, this.currentLevel + 1), this.currentLevel + 1);
+          return this;
+        }
+        // Creates a parameter entity declaration
+        // `name` the name of the entity
+        // `value` internal entity value or an object with external entity details
+        // `value.pubID` public identifier
+        // `value.sysID` system identifier
+        pEntity(name, value) {
+          var node2;
+          this.openCurrent();
+          node2 = new XMLDTDEntity(this, true, name, value);
+          this.onData(this.writer.dtdEntity(node2, this.writerOptions, this.currentLevel + 1), this.currentLevel + 1);
+          return this;
+        }
+        // Creates a NOTATION declaration
+        // `name` the name of the notation
+        // `value` an object with external entity details
+        // `value.pubID` public identifier
+        // `value.sysID` system identifier
+        notation(name, value) {
+          var node2;
+          this.openCurrent();
+          node2 = new XMLDTDNotation(this, name, value);
+          this.onData(this.writer.dtdNotation(node2, this.writerOptions, this.currentLevel + 1), this.currentLevel + 1);
+          return this;
+        }
+        // Gets the parent node
+        up() {
+          if (this.currentLevel < 0) {
+            throw new Error("The document node has no parent.");
+          }
+          if (this.currentNode) {
+            if (this.currentNode.children) {
+              this.closeNode(this.currentNode);
+            } else {
+              this.openNode(this.currentNode);
+            }
+            this.currentNode = null;
+          } else {
+            this.closeNode(this.openTags[this.currentLevel]);
+          }
+          delete this.openTags[this.currentLevel];
+          this.currentLevel--;
+          return this;
+        }
+        // Ends the document
+        end() {
+          while (this.currentLevel >= 0) {
+            this.up();
+          }
+          return this.onEnd();
+        }
+        // Opens the current parent node
+        openCurrent() {
+          if (this.currentNode) {
+            this.currentNode.children = true;
+            return this.openNode(this.currentNode);
+          }
+        }
+        // Writes the opening tag of the current node or the entire node if it has
+        // no child nodes
+        openNode(node2) {
+          var att, chunk, name, ref;
+          if (!node2.isOpen) {
+            if (!this.root && this.currentLevel === 0 && node2.type === NodeType.Element) {
+              this.root = node2;
+            }
+            chunk = "";
+            if (node2.type === NodeType.Element) {
+              this.writerOptions.state = WriterState.OpenTag;
+              chunk = this.writer.indent(node2, this.writerOptions, this.currentLevel) + "<" + node2.name;
+              ref = node2.attribs;
+              for (name in ref) {
+                if (!hasProp.call(ref, name)) continue;
+                att = ref[name];
+                chunk += this.writer.attribute(att, this.writerOptions, this.currentLevel);
+              }
+              chunk += (node2.children ? ">" : "/>") + this.writer.endline(node2, this.writerOptions, this.currentLevel);
+              this.writerOptions.state = WriterState.InsideTag;
+            } else {
+              this.writerOptions.state = WriterState.OpenTag;
+              chunk = this.writer.indent(node2, this.writerOptions, this.currentLevel) + "<!DOCTYPE " + node2.rootNodeName;
+              if (node2.pubID && node2.sysID) {
+                chunk += ' PUBLIC "' + node2.pubID + '" "' + node2.sysID + '"';
+              } else if (node2.sysID) {
+                chunk += ' SYSTEM "' + node2.sysID + '"';
+              }
+              if (node2.children) {
+                chunk += " [";
+                this.writerOptions.state = WriterState.InsideTag;
+              } else {
+                this.writerOptions.state = WriterState.CloseTag;
+                chunk += ">";
+              }
+              chunk += this.writer.endline(node2, this.writerOptions, this.currentLevel);
+            }
+            this.onData(chunk, this.currentLevel);
+            return node2.isOpen = true;
+          }
+        }
+        // Writes the closing tag of the current node
+        closeNode(node2) {
+          var chunk;
+          if (!node2.isClosed) {
+            chunk = "";
+            this.writerOptions.state = WriterState.CloseTag;
+            if (node2.type === NodeType.Element) {
+              chunk = this.writer.indent(node2, this.writerOptions, this.currentLevel) + "</" + node2.name + ">" + this.writer.endline(node2, this.writerOptions, this.currentLevel);
+            } else {
+              chunk = this.writer.indent(node2, this.writerOptions, this.currentLevel) + "]>" + this.writer.endline(node2, this.writerOptions, this.currentLevel);
+            }
+            this.writerOptions.state = WriterState.None;
+            this.onData(chunk, this.currentLevel);
+            return node2.isClosed = true;
+          }
+        }
+        // Called when a new chunk of XML is output
+        // `chunk` a string containing the XML chunk
+        // `level` current indentation level
+        onData(chunk, level) {
+          this.documentStarted = true;
+          return this.onDataCallback(chunk, level + 1);
+        }
+        // Called when the XML document is completed
+        onEnd() {
+          this.documentCompleted = true;
+          return this.onEndCallback();
+        }
+        // Returns debug string
+        debugInfo(name) {
+          if (name == null) {
+            return "";
+          } else {
+            return "node: <" + name + ">";
+          }
+        }
+        // Node aliases
+        ele() {
+          return this.element(...arguments);
+        }
+        nod(name, attributes, text) {
+          return this.node(name, attributes, text);
+        }
+        txt(value) {
+          return this.text(value);
+        }
+        dat(value) {
+          return this.cdata(value);
+        }
+        com(value) {
+          return this.comment(value);
+        }
+        ins(target, value) {
+          return this.instruction(target, value);
+        }
+        dec(version2, encoding, standalone) {
+          return this.declaration(version2, encoding, standalone);
+        }
+        dtd(root, pubID, sysID) {
+          return this.doctype(root, pubID, sysID);
+        }
+        e(name, attributes, text) {
+          return this.element(name, attributes, text);
+        }
+        n(name, attributes, text) {
+          return this.node(name, attributes, text);
+        }
+        t(value) {
+          return this.text(value);
+        }
+        d(value) {
+          return this.cdata(value);
+        }
+        c(value) {
+          return this.comment(value);
+        }
+        r(value) {
+          return this.raw(value);
+        }
+        i(target, value) {
+          return this.instruction(target, value);
+        }
+        // Attribute aliases
+        att() {
+          if (this.currentNode && this.currentNode.type === NodeType.DocType) {
+            return this.attList(...arguments);
+          } else {
+            return this.attribute(...arguments);
+          }
+        }
+        a() {
+          if (this.currentNode && this.currentNode.type === NodeType.DocType) {
+            return this.attList(...arguments);
+          } else {
+            return this.attribute(...arguments);
+          }
+        }
+        // DTD aliases
+        // att() and ele() are defined above
+        ent(name, value) {
+          return this.entity(name, value);
+        }
+        pent(name, value) {
+          return this.pEntity(name, value);
+        }
+        not(name, value) {
+          return this.notation(name, value);
+        }
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/XMLStreamWriter.js
+var require_XMLStreamWriter = __commonJS({
+  "node_modules/xmlbuilder/lib/XMLStreamWriter.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, WriterState, XMLStreamWriter, XMLWriterBase, hasProp = {}.hasOwnProperty;
+      NodeType = require_NodeType();
+      XMLWriterBase = require_XMLWriterBase();
+      WriterState = require_WriterState();
+      module.exports = XMLStreamWriter = class XMLStreamWriter extends XMLWriterBase {
+        // Initializes a new instance of `XMLStreamWriter`
+        // `stream` output stream
+        // `options.pretty` pretty prints the result
+        // `options.indent` indentation string
+        // `options.newline` newline sequence
+        // `options.offset` a fixed number of indentations to add to every line
+        // `options.allowEmpty` do not self close empty element tags
+        // 'options.dontPrettyTextNodes' if any text is present in node, don't indent or LF
+        // `options.spaceBeforeSlash` add a space before the closing slash of empty elements
+        constructor(stream, options) {
+          super(options);
+          this.stream = stream;
+        }
+        endline(node2, options, level) {
+          if (node2.isLastRootNode && options.state === WriterState.CloseTag) {
+            return "";
+          } else {
+            return super.endline(node2, options, level);
+          }
+        }
+        document(doc, options) {
+          var child, i, j, k, len1, len2, ref, ref1, results;
+          ref = doc.children;
+          for (i = j = 0, len1 = ref.length; j < len1; i = ++j) {
+            child = ref[i];
+            child.isLastRootNode = i === doc.children.length - 1;
+          }
+          options = this.filterOptions(options);
+          ref1 = doc.children;
+          results = [];
+          for (k = 0, len2 = ref1.length; k < len2; k++) {
+            child = ref1[k];
+            results.push(this.writeChildNode(child, options, 0));
+          }
+          return results;
+        }
+        cdata(node2, options, level) {
+          return this.stream.write(super.cdata(node2, options, level));
+        }
+        comment(node2, options, level) {
+          return this.stream.write(super.comment(node2, options, level));
+        }
+        declaration(node2, options, level) {
+          return this.stream.write(super.declaration(node2, options, level));
+        }
+        docType(node2, options, level) {
+          var child, j, len1, ref;
+          level || (level = 0);
+          this.openNode(node2, options, level);
+          options.state = WriterState.OpenTag;
+          this.stream.write(this.indent(node2, options, level));
+          this.stream.write("<!DOCTYPE " + node2.root().name);
+          if (node2.pubID && node2.sysID) {
+            this.stream.write(' PUBLIC "' + node2.pubID + '" "' + node2.sysID + '"');
+          } else if (node2.sysID) {
+            this.stream.write(' SYSTEM "' + node2.sysID + '"');
+          }
+          if (node2.children.length > 0) {
+            this.stream.write(" [");
+            this.stream.write(this.endline(node2, options, level));
+            options.state = WriterState.InsideTag;
+            ref = node2.children;
+            for (j = 0, len1 = ref.length; j < len1; j++) {
+              child = ref[j];
+              this.writeChildNode(child, options, level + 1);
+            }
+            options.state = WriterState.CloseTag;
+            this.stream.write("]");
+          }
+          options.state = WriterState.CloseTag;
+          this.stream.write(options.spaceBeforeSlash + ">");
+          this.stream.write(this.endline(node2, options, level));
+          options.state = WriterState.None;
+          return this.closeNode(node2, options, level);
+        }
+        element(node2, options, level) {
+          var att, attLen, child, childNodeCount, firstChildNode, j, len, len1, name, prettySuppressed, r, ratt, ref, ref1, ref2, rline;
+          level || (level = 0);
+          this.openNode(node2, options, level);
+          options.state = WriterState.OpenTag;
+          r = this.indent(node2, options, level) + "<" + node2.name;
+          if (options.pretty && options.width > 0) {
+            len = r.length;
+            ref = node2.attribs;
+            for (name in ref) {
+              if (!hasProp.call(ref, name)) continue;
+              att = ref[name];
+              ratt = this.attribute(att, options, level);
+              attLen = ratt.length;
+              if (len + attLen > options.width) {
+                rline = this.indent(node2, options, level + 1) + ratt;
+                r += this.endline(node2, options, level) + rline;
+                len = rline.length;
+              } else {
+                rline = " " + ratt;
+                r += rline;
+                len += rline.length;
+              }
+            }
+          } else {
+            ref1 = node2.attribs;
+            for (name in ref1) {
+              if (!hasProp.call(ref1, name)) continue;
+              att = ref1[name];
+              r += this.attribute(att, options, level);
+            }
+          }
+          this.stream.write(r);
+          childNodeCount = node2.children.length;
+          firstChildNode = childNodeCount === 0 ? null : node2.children[0];
+          if (childNodeCount === 0 || node2.children.every(function(e) {
+            return (e.type === NodeType.Text || e.type === NodeType.Raw || e.type === NodeType.CData) && e.value === "";
+          })) {
+            if (options.allowEmpty) {
+              this.stream.write(">");
+              options.state = WriterState.CloseTag;
+              this.stream.write("</" + node2.name + ">");
+            } else {
+              options.state = WriterState.CloseTag;
+              this.stream.write(options.spaceBeforeSlash + "/>");
+            }
+          } else if (options.pretty && childNodeCount === 1 && (firstChildNode.type === NodeType.Text || firstChildNode.type === NodeType.Raw || firstChildNode.type === NodeType.CData) && firstChildNode.value != null) {
+            this.stream.write(">");
+            options.state = WriterState.InsideTag;
+            options.suppressPrettyCount++;
+            prettySuppressed = true;
+            this.writeChildNode(firstChildNode, options, level + 1);
+            options.suppressPrettyCount--;
+            prettySuppressed = false;
+            options.state = WriterState.CloseTag;
+            this.stream.write("</" + node2.name + ">");
+          } else {
+            this.stream.write(">" + this.endline(node2, options, level));
+            options.state = WriterState.InsideTag;
+            ref2 = node2.children;
+            for (j = 0, len1 = ref2.length; j < len1; j++) {
+              child = ref2[j];
+              this.writeChildNode(child, options, level + 1);
+            }
+            options.state = WriterState.CloseTag;
+            this.stream.write(this.indent(node2, options, level) + "</" + node2.name + ">");
+          }
+          this.stream.write(this.endline(node2, options, level));
+          options.state = WriterState.None;
+          return this.closeNode(node2, options, level);
+        }
+        processingInstruction(node2, options, level) {
+          return this.stream.write(super.processingInstruction(node2, options, level));
+        }
+        raw(node2, options, level) {
+          return this.stream.write(super.raw(node2, options, level));
+        }
+        text(node2, options, level) {
+          return this.stream.write(super.text(node2, options, level));
+        }
+        dtdAttList(node2, options, level) {
+          return this.stream.write(super.dtdAttList(node2, options, level));
+        }
+        dtdElement(node2, options, level) {
+          return this.stream.write(super.dtdElement(node2, options, level));
+        }
+        dtdEntity(node2, options, level) {
+          return this.stream.write(super.dtdEntity(node2, options, level));
+        }
+        dtdNotation(node2, options, level) {
+          return this.stream.write(super.dtdNotation(node2, options, level));
+        }
+      };
+    }).call(exports);
+  }
+});
+
+// node_modules/xmlbuilder/lib/index.js
+var require_lib2 = __commonJS({
+  "node_modules/xmlbuilder/lib/index.js"(exports, module) {
+    "use strict";
+    (function() {
+      var NodeType, WriterState, XMLDOMImplementation, XMLDocument, XMLDocumentCB, XMLStreamWriter, XMLStringWriter, assign, isFunction;
+      ({ assign, isFunction } = require_Utility());
+      XMLDOMImplementation = require_XMLDOMImplementation();
+      XMLDocument = require_XMLDocument();
+      XMLDocumentCB = require_XMLDocumentCB();
+      XMLStringWriter = require_XMLStringWriter();
+      XMLStreamWriter = require_XMLStreamWriter();
+      NodeType = require_NodeType();
+      WriterState = require_WriterState();
+      module.exports.create = function(name, xmldec, doctype, options) {
+        var doc, root;
+        if (name == null) {
+          throw new Error("Root element needs a name.");
+        }
+        options = assign({}, xmldec, doctype, options);
+        doc = new XMLDocument(options);
+        root = doc.element(name);
+        if (!options.headless) {
+          doc.declaration(options);
+          if (options.pubID != null || options.sysID != null) {
+            doc.dtd(options);
+          }
+        }
+        return root;
+      };
+      module.exports.begin = function(options, onData, onEnd) {
+        if (isFunction(options)) {
+          [onData, onEnd] = [options, onData];
+          options = {};
+        }
+        if (onData) {
+          return new XMLDocumentCB(options, onData, onEnd);
+        } else {
+          return new XMLDocument(options);
+        }
+      };
+      module.exports.stringWriter = function(options) {
+        return new XMLStringWriter(options);
+      };
+      module.exports.streamWriter = function(stream, options) {
+        return new XMLStreamWriter(stream, options);
+      };
+      module.exports.implementation = new XMLDOMImplementation();
+      module.exports.nodeType = NodeType;
+      module.exports.writerState = WriterState;
+    }).call(exports);
+  }
+});
+
 // node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
 import process2 from "process";
 
@@ -9045,18 +19714,18 @@ var validateAsync = async (schema, value, _ctx) => {
   return result.issues.length === 0;
 };
 var _encode = (_Err) => {
-  const parse3 = _parse(_Err);
+  const parse4 = _parse(_Err);
   const fn = (schema, value, _ctx, _params) => {
     const ctx = _ctx ? { ..._ctx, direction: "backward" } : { direction: "backward" };
-    return parse3(schema, value, ctx, finalizeParams(fn, _params));
+    return parse4(schema, value, ctx, finalizeParams(fn, _params));
   };
   return fn;
 };
 var encode = /* @__PURE__ */ _encode($ZodRealError);
 var _decode = (_Err) => {
-  const parse3 = _parse(_Err);
+  const parse4 = _parse(_Err);
   const fn = (schema, value, _ctx, _params) => {
-    return parse3(schema, value, _ctx, finalizeParams(fn, _params));
+    return parse4(schema, value, _ctx, finalizeParams(fn, _params));
   };
   return fn;
 };
@@ -11688,9 +22357,9 @@ var $ZodTransform = /* @__PURE__ */ $constructor("$ZodTransform", (inst, def) =>
     }
     const _out = def.transform(payload.value, payload);
     if (ctx.async) {
-      const output2 = _out instanceof Promise ? _out : Promise.resolve(_out);
-      return output2.then((output3) => {
-        payload.value = output3;
+      const output3 = _out instanceof Promise ? _out : Promise.resolve(_out);
+      return output3.then((output4) => {
+        payload.value = output4;
         return payload;
       });
     }
@@ -12140,12 +22809,12 @@ var $ZodFunction = /* @__PURE__ */ $constructor("$ZodFunction", (inst, def) => {
       output: inst._def.output
     });
   };
-  inst.output = (output2) => {
+  inst.output = (output3) => {
     const F = inst.constructor;
     return new F({
       type: "function",
       input: inst._def.input,
-      output: output2
+      output: output3
     });
   };
   return inst;
@@ -12226,7 +22895,7 @@ var recursive = /* @__PURE__ */ new WeakMap();
 var NONE = 0;
 var ASSUMED = 1;
 var PROVEN = 2;
-function isRecursive(inst, stack, resolve) {
+function isRecursive(inst, stack, resolve2) {
   const cached2 = recursive.get(inst);
   if (cached2 !== void 0)
     return cached2 ? PROVEN : NONE;
@@ -12236,7 +22905,7 @@ function isRecursive(inst, stack, resolve) {
   let result = NONE;
   const check2 = (child) => {
     if (result !== PROVEN && child?._zod) {
-      const answer = isRecursive(child, stack, resolve);
+      const answer = isRecursive(child, stack, resolve2);
       if (answer > result)
         result = answer;
     }
@@ -12247,7 +22916,7 @@ function isRecursive(inst, stack, resolve) {
       const desc = Object.getOwnPropertyDescriptor(sh, key);
       if (spread && !desc.enumerable)
         continue;
-      const child = desc.get ? ASSUMED : desc.value?._zod ? isRecursive(desc.value, stack, resolve) : NONE;
+      const child = desc.get ? ASSUMED : desc.value?._zod ? isRecursive(desc.value, stack, resolve2) : NONE;
       if (child > answer)
         answer = child;
     }
@@ -12311,7 +22980,7 @@ function isRecursive(inst, stack, resolve) {
       break;
     // `$ZodLazy` caches its inner on the def, so a resolved edge is followed exactly
     case "lazy": {
-      const inner = def._cachedInner ?? (resolve ? inst._zod.innerType : void 0);
+      const inner = def._cachedInner ?? (resolve2 ? inst._zod.innerType : void 0);
       merge2(inner ? isRecursive(inner, stack, false) : ASSUMED);
       break;
     }
@@ -25554,14 +36223,14 @@ var ZodTransform = /* @__PURE__ */ $constructor("ZodTransform", (inst, def) => {
         payload.issues.push(util_exports.issue(_issue));
       }
     };
-    const output2 = def.transform(payload.value, payload);
-    if (output2 instanceof Promise) {
-      return output2.then((output3) => {
-        payload.value = output3;
+    const output3 = def.transform(payload.value, payload);
+    if (output3 instanceof Promise) {
+      return output3.then((output4) => {
+        payload.value = output4;
         return payload;
       });
     }
-    payload.value = output2;
+    payload.value = output3;
     return payload;
   };
 });
@@ -28492,12 +39161,12 @@ var StdioServerTransport = class {
     this.onclose?.();
   }
   send(message2) {
-    return new Promise((resolve) => {
+    return new Promise((resolve2) => {
       const json2 = serializeMessage(message2);
       if (this._stdout.write(json2)) {
-        resolve();
+        resolve2();
       } else {
-        this._stdout.once("drain", resolve);
+        this._stdout.once("drain", resolve2);
       }
     });
   }
@@ -29631,6 +40300,22 @@ function shellQuote(arg) {
   if (/^[A-Za-z0-9_\-+=/.,:@%^]+$/.test(arg)) return arg;
   return `'${arg.replace(/'/g, `'\\''`)}'`;
 }
+function redactDeep(value, secrets = []) {
+  if (typeof value === "string") return redact(value, secrets);
+  if (Array.isArray(value)) return value.map((v) => redactDeep(v, secrets));
+  if (value && typeof value === "object" && !(value instanceof Date)) {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (/password|passphrase|secret|privateKey$|private_key$/i.test(k) && typeof v === "string") {
+        out[k] = REDACTED;
+      } else {
+        out[k] = redactDeep(v, secrets);
+      }
+    }
+    return out;
+  }
+  return value;
+}
 
 // src/core/confirm.ts
 var CONFIRM_TOKEN_ARG = "confirm_token";
@@ -29656,7 +40341,7 @@ var ConfirmManager = class {
     if (typeof token !== "string" || !token.includes(".")) {
       return { status: "invalid", reason: "confirm_token is malformed." };
     }
-    const [expStr, mac3] = token.split(".", 2);
+    const [expStr, mac4] = token.split(".", 2);
     const expiry = Number.parseInt(expStr, 36);
     if (!Number.isFinite(expiry)) return { status: "invalid", reason: "confirm_token is malformed." };
     if (this.now() > expiry) {
@@ -29666,7 +40351,7 @@ var ConfirmManager = class {
       };
     }
     const expected = this.sign(tool, args, expiry);
-    const a = Buffer.from(mac3);
+    const a = Buffer.from(mac4);
     const b = Buffer.from(expected);
     if (a.length !== b.length || !timingSafeEqual(a, b)) {
       return {
@@ -29697,6 +40382,21 @@ function sortValue(value) {
     return out;
   }
   return value;
+}
+function cmdStep(description, cmd, args, secrets = []) {
+  return { description, command: formatCommand(cmd, args, secrets) };
+}
+function previewData(plan, token, ttlMs) {
+  return redactDeep({
+    status: "preview",
+    title: plan.title,
+    destructive: plan.destructive ?? false,
+    steps: plan.steps,
+    warnings: plan.warnings ?? [],
+    notes: plan.notes ?? [],
+    confirm_token: token,
+    confirm_token_expires_in_seconds: Math.round(ttlMs / 1e3)
+  });
 }
 
 // src/core/exec.ts
@@ -29734,8 +40434,21 @@ var NullLogWriter = class {
     return void 0;
   }
 };
+function tail(text, maxLines = 40, maxChars = 4e3) {
+  const lines = text.trimEnd().split("\n");
+  let out = lines.slice(-maxLines).join("\n");
+  if (out.length > maxChars) out = `\u2026${out.slice(-maxChars)}`;
+  return lines.length > maxLines ? `\u2026(${lines.length - maxLines} earlier lines omitted)
+${out}` : out;
+}
 
 // src/core/exec.ts
+function ok(r) {
+  return r.code === 0 && !r.spawnError && !r.timedOut;
+}
+function output2(r) {
+  return [r.stdout, r.stderr].filter((s) => s?.trim()).join("\n").trim();
+}
 var MAX_CAPTURE = 32 * 1024 * 1024;
 var SpawnRunner = class {
   constructor(logs = new NullLogWriter()) {
@@ -29790,7 +40503,7 @@ var SpawnRunner = class {
     } else {
       child.stdin?.end();
     }
-    const result = new Promise((resolve) => {
+    const result = new Promise((resolve2) => {
       let spawnError;
       child.on("error", (err) => {
         spawnError = err.code === "ENOENT" ? `command not found: ${cmd}` : err.message;
@@ -29814,7 +40527,7 @@ var SpawnRunner = class {
         if (opts.logName) {
           res.logPath = await this.logs.write(opts.logName, transcript(res, opts.secrets));
         }
-        resolve(res);
+        resolve2(res);
       });
     });
     return { result, kill };
@@ -29896,8 +40609,8 @@ var JobManager = class {
       (e) => ({ ok: false, e })
     );
     let timer;
-    const deadline = new Promise((resolve) => {
-      timer = setTimeout(() => resolve("timeout"), Math.max(0, maxWaitMs));
+    const deadline = new Promise((resolve2) => {
+      timer = setTimeout(() => resolve2("timeout"), Math.max(0, maxWaitMs));
     });
     try {
       const winner = await Promise.race([settled, deadline]);
@@ -29943,6 +40656,43 @@ import { homedir as homedir2 } from "os";
 function detectPlatform() {
   const os = process.env.NOTARIZE_MCP_PLATFORM ?? process.platform;
   return { os, isMac: os === "darwin", homeDir: process.env.NOTARIZE_MCP_HOME ?? homedir2() };
+}
+function requireMacOS(platform, feature) {
+  if (!platform.isMac) {
+    throw new ToolError(`${feature} requires macOS (this server is running on ${platform.os}).`, {
+      hint: "Run this MCP server on the Mac that holds your signing identities. App Store Connect API tools and file inspection tools still work on other platforms."
+    });
+  }
+}
+async function xcodeInfo(runner) {
+  const sel = await runner.run("xcode-select", ["-p"], { timeoutMs: 1e4 });
+  const developerDir = ok(sel) ? sel.stdout.trim() : void 0;
+  const v = await runner.run("xcodebuild", ["-version"], { timeoutMs: 3e4 });
+  let xcodeVersion;
+  let buildVersion;
+  if (ok(v)) {
+    xcodeVersion = /Xcode\s+([\d.]+)/.exec(v.stdout)?.[1];
+    buildVersion = /Build version\s+(\S+)/.exec(v.stdout)?.[1];
+  }
+  return {
+    developerDir,
+    xcodeVersion,
+    buildVersion,
+    isCommandLineToolsOnly: !!developerDir && developerDir.includes("CommandLineTools")
+  };
+}
+async function macOSVersion(runner) {
+  const r = await runner.run("sw_vers", ["-productVersion"], { timeoutMs: 5e3 });
+  return ok(r) ? r.stdout.trim() : void 0;
+}
+function compareVersions(a, b) {
+  const pa = a.split(".").map((n) => Number.parseInt(n, 10) || 0);
+  const pb = b.split(".").map((n) => Number.parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d !== 0) return d < 0 ? -1 : 1;
+  }
+  return 0;
 }
 
 // src/context.ts
@@ -35954,7 +46704,7 @@ var Protocol = class {
           return;
         }
         const pollInterval = task2.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
-        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+        await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
         options?.signal?.throwIfAborted();
       }
     } catch (error62) {
@@ -35971,7 +46721,7 @@ var Protocol = class {
    */
   request(request, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve2, reject) => {
       const earlyReject = (error62) => {
         reject(error62);
       };
@@ -36049,7 +46799,7 @@ var Protocol = class {
           if (!parseResult.success) {
             reject(parseResult.error);
           } else {
-            resolve(parseResult.data);
+            resolve2(parseResult.data);
           }
         } catch (error62) {
           reject(error62);
@@ -36311,12 +47061,12 @@ var Protocol = class {
       }
     } catch {
     }
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve2, reject) => {
       if (signal.aborted) {
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
         return;
       }
-      const timeoutId = setTimeout(resolve, interval);
+      const timeoutId = setTimeout(resolve2, interval);
       signal.addEventListener("abort", () => {
         clearTimeout(timeoutId);
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
@@ -37447,7 +48197,7 @@ var McpServer = class {
     let task = createTaskResult.task;
     const pollInterval = task.pollInterval ?? 5e3;
     while (task.status !== "completed" && task.status !== "failed" && task.status !== "cancelled") {
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
       const updatedTask = await extra.taskStore.getTask(taskId);
       if (!updatedTask) {
         throw new McpError(ErrorCode.InternalError, `Task ${taskId} not found during polling`);
@@ -38083,14 +48833,6064 @@ function registerPrompts(_server) {
 function registerResources(_server) {
 }
 
-// src/tools/index.ts
-var allTools = [];
+// src/knowledge/targets.ts
+var TARGET_IDS = [
+  "mac-developer-id",
+  "mac-app-store",
+  "testflight-mac",
+  "ios-app-store",
+  "testflight-ios",
+  "ios-ad-hoc",
+  "ios-development",
+  "mac-development",
+  "enterprise"
+];
+var TARGETS = {
+  "mac-developer-id": {
+    id: "mac-developer-id",
+    title: "macOS \u2014 Developer ID (direct download, outside the Mac App Store)",
+    platform: "macOS",
+    summary: "Sign every piece of code with your Developer ID Application certificate, hardened runtime and a secure timestamp. Package as .zip/.dmg/.pkg, submit to Apple's notary service, staple the ticket, and distribute from your own website. Gatekeeper then opens it without warnings.",
+    certificates: [
+      { role: "Sign the app and DMG", alternatives: ["developer-id-application"] },
+      {
+        role: "Sign .pkg installers",
+        alternatives: ["developer-id-installer"],
+        when: "only when shipping a .pkg"
+      }
+    ],
+    profile: {
+      ascType: "MAC_APP_DIRECT",
+      required: "restricted-entitlements",
+      embedPath: "Contents/embedded.provisionprofile"
+    },
+    hardenedRuntime: "required",
+    sandbox: "optional",
+    forbiddenEntitlements: ["com.apple.security.get-task-allow"],
+    packaging: [
+      "dmg (recommended for apps)",
+      "zip (ditto -c -k --keepParent)",
+      "pkg (installers, signed with Developer ID Installer)"
+    ],
+    exportMethod: "developer-id",
+    steps: [
+      "Sign inside-out with --options runtime --timestamp (sign tool / Xcode archive + export method developer-id)",
+      "Verify (inspect_code_signature)",
+      "Package (package tool)",
+      "Notarize (notary submit, wait)",
+      "Staple (staple) \u2014 the .app or .dmg/.pkg, not a .zip",
+      "Validate as a user would (gatekeeper simulate_download)"
+    ],
+    ascAppRecord: false,
+    humanSteps: [
+      "Paid Apple Developer Program membership (Organization or Individual).",
+      "Account Holder creates the Developer ID Application certificate (developer.apple.com \u2192 Certificates \u2192 + \u2192 Developer ID Application) using a CSR from keychain create_csr, or from Xcode \u2192 Settings \u2192 Accounts \u2192 Manage Certificates."
+    ]
+  },
+  "mac-app-store": {
+    id: "mac-app-store",
+    title: "macOS \u2014 Mac App Store",
+    platform: "macOS",
+    summary: "Sign the app with Apple Distribution plus a Mac App Store provisioning profile, enable App Sandbox, and wrap it in a .pkg signed with Mac Installer Distribution. Upload it to App Store Connect, then submit for review.",
+    certificates: [
+      { role: "Sign the app", alternatives: ["apple-distribution", "mac-app-distribution-legacy"] },
+      { role: "Sign the upload .pkg", alternatives: ["mac-installer-distribution"] }
+    ],
+    profile: {
+      ascType: "MAC_APP_STORE",
+      required: "always",
+      embedPath: "Contents/embedded.provisionprofile"
+    },
+    hardenedRuntime: "optional",
+    sandbox: "required",
+    forbiddenEntitlements: ["com.apple.security.get-task-allow"],
+    packaging: [
+      "pkg (productbuild --component App.app /Applications --sign 'Mac Installer Distribution / 3rd Party Mac Developer Installer')"
+    ],
+    exportMethod: "app-store-connect",
+    legacyExportMethod: "app-store",
+    steps: [
+      "Register the bundle ID and enable capabilities (asc_bundle_ids)",
+      "Create the app record in App Store Connect (web UI)",
+      "Archive with automatic signing + API key (xcode archive) or sign manually with the MAC_APP_STORE profile",
+      "Export with method app-store-connect (xcode export) or productbuild a signed pkg (package pkg)",
+      "Upload (upload_build or xcode export destination=upload)",
+      "Wait for processing (asc_builds wait_processing), then TestFlight or submit for review (app_store)"
+    ],
+    ascAppRecord: true,
+    humanSteps: [
+      "Create the app record: App Store Connect \u2192 Apps \u2192 + \u2192 New App (platform macOS, bundle ID, SKU, name).",
+      "Accept the Paid Apps agreement for paid apps / IAP (Business section).",
+      "Set LSApplicationCategoryType in Info.plist; Mac App Store requires a category."
+    ]
+  },
+  "testflight-mac": {
+    id: "testflight-mac",
+    title: "macOS \u2014 TestFlight beta",
+    platform: "macOS",
+    summary: "Same build as the Mac App Store. Every executable (including helper apps) must carry an embedded provisioning profile and com.apple.application-identifier, or TestFlight rejects the build (ITMS-90886/90889).",
+    certificates: [
+      { role: "Sign the app", alternatives: ["apple-distribution", "mac-app-distribution-legacy"] },
+      { role: "Sign the upload .pkg", alternatives: ["mac-installer-distribution"] }
+    ],
+    profile: {
+      ascType: "MAC_APP_STORE",
+      required: "always",
+      embedPath: "Contents/embedded.provisionprofile"
+    },
+    hardenedRuntime: "optional",
+    sandbox: "required",
+    forbiddenEntitlements: ["com.apple.security.get-task-allow"],
+    packaging: ["pkg"],
+    exportMethod: "app-store-connect",
+    legacyExportMethod: "app-store",
+    steps: [
+      "Everything from mac-app-store up to upload",
+      "Set export compliance (asc_builds set_encryption_compliance) or add ITSAppUsesNonExemptEncryption to Info.plist",
+      "Add the build to a beta group (testflight add_build_to_group); external groups need beta review (testflight submit_beta_review)"
+    ],
+    ascAppRecord: true,
+    humanSteps: ["Create the app record in App Store Connect (web UI)."]
+  },
+  "ios-app-store": {
+    id: "ios-app-store",
+    title: "iOS / iPadOS \u2014 App Store",
+    platform: "iOS",
+    summary: "Archive with Apple Distribution plus an App Store provisioning profile, export an .ipa with method app-store-connect, upload it, wait for processing, attach the build to a version, and submit for review.",
+    certificates: [{ role: "Sign the app", alternatives: ["apple-distribution", "ios-distribution-legacy"] }],
+    profile: {
+      ascType: "IOS_APP_STORE",
+      required: "always",
+      embedPath: "Payload/<App>.app/embedded.mobileprovision"
+    },
+    hardenedRuntime: "optional",
+    sandbox: "n/a",
+    forbiddenEntitlements: ["get-task-allow"],
+    packaging: ["ipa"],
+    exportMethod: "app-store-connect",
+    legacyExportMethod: "app-store",
+    steps: [
+      "Register the bundle ID + capabilities (asc_bundle_ids)",
+      "Create the app record (web UI)",
+      "Archive (xcode archive, automatic signing with API key recommended)",
+      "Export + upload (xcode export destination=upload) or upload_build",
+      "Wait for processing (asc_builds wait_processing)",
+      "Create a version, attach the build, fill metadata, submit (app_store)"
+    ],
+    ascAppRecord: true,
+    humanSteps: [
+      "Create the app record in App Store Connect (web UI).",
+      "Screenshots, privacy nutrition labels and age rating are usually easiest in the web UI."
+    ]
+  },
+  "testflight-ios": {
+    id: "testflight-ios",
+    title: "iOS / iPadOS \u2014 TestFlight beta",
+    platform: "iOS",
+    summary: "Same build as the App Store. Internal testers (App Store Connect users) get builds right after processing. External testers need a one-time beta app review per version.",
+    certificates: [{ role: "Sign the app", alternatives: ["apple-distribution", "ios-distribution-legacy"] }],
+    profile: {
+      ascType: "IOS_APP_STORE",
+      required: "always",
+      embedPath: "Payload/<App>.app/embedded.mobileprovision"
+    },
+    hardenedRuntime: "optional",
+    sandbox: "n/a",
+    forbiddenEntitlements: ["get-task-allow"],
+    packaging: ["ipa"],
+    exportMethod: "app-store-connect",
+    legacyExportMethod: "app-store",
+    steps: [
+      "Archive + export + upload as for ios-app-store",
+      "Answer export compliance (asc_builds set_encryption_compliance) or set ITSAppUsesNonExemptEncryption=NO in Info.plist",
+      "testflight create_group / add_testers / add_build_to_group; submit_beta_review for external groups"
+    ],
+    ascAppRecord: true,
+    humanSteps: ["Create the app record in App Store Connect (web UI)."]
+  },
+  "ios-ad-hoc": {
+    id: "ios-ad-hoc",
+    title: "iOS \u2014 Ad Hoc (install on specific registered devices)",
+    platform: "iOS",
+    summary: "Register each device UDID (up to 100 per device family per membership year), create an Ad Hoc profile that includes them, and export an .ipa with method release-testing.",
+    certificates: [{ role: "Sign the app", alternatives: ["apple-distribution", "ios-distribution-legacy"] }],
+    profile: {
+      ascType: "IOS_APP_ADHOC",
+      required: "always",
+      embedPath: "Payload/<App>.app/embedded.mobileprovision",
+      needsDevices: true
+    },
+    hardenedRuntime: "optional",
+    sandbox: "n/a",
+    forbiddenEntitlements: ["get-task-allow"],
+    packaging: ["ipa"],
+    exportMethod: "release-testing",
+    legacyExportMethod: "ad-hoc",
+    steps: [
+      "Collect UDIDs (devices tool) and register them (asc_devices register)",
+      "Create/regenerate the IOS_APP_ADHOC profile (asc_profiles)",
+      "Archive + export with method release-testing",
+      "Install via Apple Configurator, Xcode Devices window, or an OTA manifest"
+    ],
+    ascAppRecord: false,
+    humanSteps: []
+  },
+  "ios-development": {
+    id: "ios-development",
+    title: "iOS \u2014 Development (run/debug on your devices)",
+    platform: "iOS",
+    summary: "Use Apple Development certificates and a development profile that lists your devices. Easiest path: Xcode automatic signing.",
+    certificates: [{ role: "Sign the app", alternatives: ["apple-development", "ios-development-legacy"] }],
+    profile: {
+      ascType: "IOS_APP_DEVELOPMENT",
+      required: "always",
+      embedPath: "Payload/<App>.app/embedded.mobileprovision",
+      needsDevices: true
+    },
+    hardenedRuntime: "optional",
+    sandbox: "n/a",
+    forbiddenEntitlements: [],
+    packaging: ["ipa / direct install from Xcode"],
+    exportMethod: "debugging",
+    legacyExportMethod: "development",
+    steps: ["Register devices", "Automatic signing in Xcode, or create IOS_APP_DEVELOPMENT profile"],
+    ascAppRecord: false,
+    humanSteps: ["Enable Developer Mode on the device (Settings \u2192 Privacy & Security \u2192 Developer Mode)."]
+  },
+  "mac-development": {
+    id: "mac-development",
+    title: "macOS \u2014 Development",
+    platform: "macOS",
+    summary: "Apple Development signing for local runs. A MAC_APP_DEVELOPMENT profile listing this Mac's provisioning UDID is needed only for restricted entitlements (iCloud, push, etc.).",
+    certificates: [{ role: "Sign the app", alternatives: ["apple-development", "mac-development-legacy"] }],
+    profile: {
+      ascType: "MAC_APP_DEVELOPMENT",
+      required: "restricted-entitlements",
+      embedPath: "Contents/embedded.provisionprofile",
+      needsDevices: true
+    },
+    hardenedRuntime: "optional",
+    sandbox: "optional",
+    forbiddenEntitlements: [],
+    packaging: [],
+    exportMethod: "debugging",
+    legacyExportMethod: "development",
+    steps: ["Automatic signing in Xcode", "Register this Mac (devices + asc_devices) if a profile is needed"],
+    ascAppRecord: false,
+    humanSteps: []
+  },
+  enterprise: {
+    id: "enterprise",
+    title: "iOS \u2014 Enterprise in-house (Apple Developer Enterprise Program only)",
+    platform: "iOS",
+    summary: "Only for proprietary internal apps of organizations enrolled in the Enterprise Program. Uses an In-House distribution certificate and an IOS_APP_INHOUSE profile.",
+    certificates: [{ role: "Sign the app", alternatives: ["apple-distribution", "ios-distribution-legacy"] }],
+    profile: {
+      ascType: "IOS_APP_INHOUSE",
+      required: "always",
+      embedPath: "Payload/<App>.app/embedded.mobileprovision"
+    },
+    hardenedRuntime: "optional",
+    sandbox: "n/a",
+    forbiddenEntitlements: ["get-task-allow"],
+    packaging: ["ipa"],
+    exportMethod: "enterprise",
+    steps: ["Archive", "Export with method enterprise", "Distribute via MDM or internal site"],
+    ascAppRecord: false,
+    humanSteps: [
+      "Requires Apple Developer Enterprise Program membership (separate from the standard program)."
+    ]
+  }
+};
+
+// src/parsers/project/detect.ts
+import { readdir as readdir2, readFile as readFile3, stat } from "fs/promises";
+import { basename, extname, join as join3, relative } from "path";
+
+// src/core/plist.ts
+import { readFile as readFile2 } from "fs/promises";
+
+// node_modules/plist/dist/parse.js
+var import_xmldom = __toESM(require_lib(), 1);
+
+// node_modules/plist/dist/parse-binary.js
+var EPOCH_2001 = 9783072e5;
+function readSizedInt(view, offset, size) {
+  switch (size) {
+    case 1:
+      return view.getUint8(offset);
+    case 2:
+      return view.getUint16(offset);
+    case 4:
+      return view.getUint32(offset);
+    case 8: {
+      const hi = view.getUint32(offset);
+      const lo = view.getUint32(offset + 4);
+      return hi * 4294967296 + lo;
+    }
+    default:
+      throw new Error(`Unsupported int size: ${size}`);
+  }
+}
+function parseBinary(data) {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const len = data.byteLength;
+  const header = String.fromCharCode(...data.subarray(0, 8));
+  if (header !== "bplist00") {
+    throw new Error("Invalid binary plist: bad magic");
+  }
+  const trailerOffset = len - 32;
+  const offsetTableOffsetSize = view.getUint8(trailerOffset + 6);
+  const objectRefSize = view.getUint8(trailerOffset + 7);
+  const numObjects = readSizedInt(view, trailerOffset + 8, 8);
+  const topObject = readSizedInt(view, trailerOffset + 16, 8);
+  const offsetTableOffset = readSizedInt(view, trailerOffset + 24, 8);
+  const offsets = [];
+  for (let i = 0; i < numObjects; i++) {
+    offsets.push(readSizedInt(view, offsetTableOffset + i * offsetTableOffsetSize, offsetTableOffsetSize));
+  }
+  function parseObject(index) {
+    let offset = offsets[index];
+    const marker = view.getUint8(offset);
+    const type = marker >> 4;
+    let size = marker & 15;
+    offset++;
+    if (type !== 0 && type !== 8 && size === 15) {
+      const extMarker = view.getUint8(offset);
+      offset++;
+      const extSize = 1 << (extMarker & 15);
+      size = readSizedInt(view, offset, extSize);
+      offset += extSize;
+    }
+    switch (type) {
+      case 0:
+        if (marker === 0)
+          return null;
+        if (marker === 8)
+          return false;
+        if (marker === 9)
+          return true;
+        throw new Error(`Unknown singleton: 0x${marker.toString(16)}`);
+      case 1: {
+        const byteCount = 1 << size;
+        if (byteCount <= 4) {
+          return readSizedInt(view, offset, byteCount);
+        }
+        const hi = view.getInt32(offset);
+        const lo = view.getUint32(offset + 4);
+        return hi * 4294967296 + lo;
+      }
+      case 2: {
+        const byteCount = 1 << size;
+        if (byteCount === 4)
+          return view.getFloat32(offset);
+        if (byteCount === 8)
+          return view.getFloat64(offset);
+        throw new Error(`Unsupported real size: ${byteCount}`);
+      }
+      case 3: {
+        const timestamp = view.getFloat64(offset);
+        return new Date(timestamp * 1e3 + EPOCH_2001);
+      }
+      case 4: {
+        return new Uint8Array(data.buffer, data.byteOffset + offset, size);
+      }
+      case 5: {
+        let s = "";
+        for (let i = 0; i < size; i++) {
+          s += String.fromCharCode(view.getUint8(offset + i));
+        }
+        return s;
+      }
+      case 6: {
+        let s = "";
+        for (let i = 0; i < size; i++) {
+          s += String.fromCharCode(view.getUint16(offset + i * 2));
+        }
+        return s;
+      }
+      case 8: {
+        const byteCount = size + 1;
+        return { UID: readSizedInt(view, offset, byteCount) };
+      }
+      case 10: {
+        const arr = [];
+        for (let i = 0; i < size; i++) {
+          const ref = readSizedInt(view, offset + i * objectRefSize, objectRefSize);
+          arr.push(parseObject(ref));
+        }
+        return arr;
+      }
+      case 13: {
+        const dict = {};
+        for (let i = 0; i < size; i++) {
+          const keyRef = readSizedInt(view, offset + i * objectRefSize, objectRefSize);
+          const valRef = readSizedInt(view, offset + (size + i) * objectRefSize, objectRefSize);
+          const key = parseObject(keyRef);
+          dict[key] = parseObject(valRef);
+        }
+        return dict;
+      }
+      default:
+        throw new Error(`Unknown object type: 0x${type.toString(16)}`);
+    }
+  }
+  return parseObject(topObject);
+}
+
+// node_modules/plist/dist/parse-openstep.js
+var OpenStepParser = class {
+  input;
+  pos;
+  constructor(input2) {
+    this.input = input2;
+    this.pos = 0;
+  }
+  skipWhitespaceAndComments() {
+    while (this.pos < this.input.length) {
+      const ch = this.input[this.pos];
+      if (/\s/.test(ch)) {
+        this.pos++;
+        continue;
+      }
+      if (ch === "/" && this.pos + 1 < this.input.length && this.input[this.pos + 1] === "*") {
+        this.pos += 2;
+        const end = this.input.indexOf("*/", this.pos);
+        if (end === -1)
+          throw new Error("Unterminated block comment");
+        this.pos = end + 2;
+        continue;
+      }
+      if (ch === "/" && this.pos + 1 < this.input.length && this.input[this.pos + 1] === "/") {
+        this.pos += 2;
+        const end = this.input.indexOf("\n", this.pos);
+        this.pos = end === -1 ? this.input.length : end + 1;
+        continue;
+      }
+      break;
+    }
+  }
+  parseValue() {
+    this.skipWhitespaceAndComments();
+    if (this.pos >= this.input.length) {
+      throw new Error("Unexpected end of input");
+    }
+    const ch = this.input[this.pos];
+    if (ch === "{")
+      return this.parseDict();
+    if (ch === "(")
+      return this.parseArray();
+    if (ch === "<")
+      return this.parseData();
+    if (ch === '"')
+      return this.parseQuotedString();
+    return this.parseUnquotedString();
+  }
+  parseDict() {
+    this.pos++;
+    const obj = {};
+    while (true) {
+      this.skipWhitespaceAndComments();
+      if (this.pos >= this.input.length)
+        throw new Error("Unterminated dictionary");
+      if (this.input[this.pos] === "}") {
+        this.pos++;
+        return obj;
+      }
+      const key = this.parseValue();
+      this.skipWhitespaceAndComments();
+      if (this.pos >= this.input.length || this.input[this.pos] !== "=")
+        throw new Error(`Expected '=' after key "${key}" at position ${this.pos}`);
+      this.pos++;
+      const value = this.parseValue();
+      obj[key] = value;
+      this.skipWhitespaceAndComments();
+      if (this.pos < this.input.length && this.input[this.pos] === ";") {
+        this.pos++;
+      }
+    }
+  }
+  parseArray() {
+    this.pos++;
+    const arr = [];
+    this.skipWhitespaceAndComments();
+    if (this.pos < this.input.length && this.input[this.pos] === ")") {
+      this.pos++;
+      return arr;
+    }
+    while (true) {
+      arr.push(this.parseValue());
+      this.skipWhitespaceAndComments();
+      if (this.pos >= this.input.length)
+        throw new Error("Unterminated array");
+      if (this.input[this.pos] === ")") {
+        this.pos++;
+        return arr;
+      }
+      if (this.input[this.pos] === ",") {
+        this.pos++;
+        this.skipWhitespaceAndComments();
+        if (this.pos < this.input.length && this.input[this.pos] === ")") {
+          this.pos++;
+          return arr;
+        }
+      } else {
+        throw new Error(`Expected ',' or ')' in array at position ${this.pos}`);
+      }
+    }
+  }
+  parseData() {
+    this.pos++;
+    let hex3 = "";
+    while (this.pos < this.input.length) {
+      const ch = this.input[this.pos];
+      if (ch === ">") {
+        this.pos++;
+        const clean = hex3.replace(/\s+/g, "");
+        const bytes = new Uint8Array(clean.length / 2);
+        for (let i = 0; i < clean.length; i += 2) {
+          bytes[i / 2] = parseInt(clean.substring(i, i + 2), 16);
+        }
+        return bytes;
+      }
+      hex3 += ch;
+      this.pos++;
+    }
+    throw new Error("Unterminated data");
+  }
+  parseQuotedString() {
+    this.pos++;
+    let result = "";
+    while (this.pos < this.input.length) {
+      const ch = this.input[this.pos];
+      if (ch === "\\") {
+        this.pos++;
+        if (this.pos >= this.input.length)
+          throw new Error("Unterminated string escape");
+        const esc2 = this.input[this.pos];
+        switch (esc2) {
+          case '"':
+            result += '"';
+            break;
+          case "\\":
+            result += "\\";
+            break;
+          case "n":
+            result += "\n";
+            break;
+          case "t":
+            result += "	";
+            break;
+          case "r":
+            result += "\r";
+            break;
+          case "0":
+            result += "\0";
+            break;
+          default:
+            result += esc2;
+            break;
+        }
+        this.pos++;
+        continue;
+      }
+      if (ch === '"') {
+        this.pos++;
+        return result;
+      }
+      result += ch;
+      this.pos++;
+    }
+    throw new Error("Unterminated string");
+  }
+  parseUnquotedString() {
+    const start = this.pos;
+    while (this.pos < this.input.length) {
+      const ch = this.input[this.pos];
+      if (/[a-zA-Z0-9._\/$:-]/.test(ch)) {
+        this.pos++;
+      } else {
+        break;
+      }
+    }
+    if (this.pos === start) {
+      throw new Error(`Unexpected character '${this.input[this.pos]}' at position ${this.pos}`);
+    }
+    return this.input.substring(start, this.pos);
+  }
+};
+function parseOpenStep(input2) {
+  const parser = new OpenStepParser(input2);
+  const value = parser.parseValue();
+  return value;
+}
+
+// node_modules/plist/dist/parse.js
+function base64ToUint8Array2(base643) {
+  const binary = atob(base643);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+var TEXT_NODE = 3;
+var CDATA_NODE = 4;
+var COMMENT_NODE = 8;
+function shouldIgnoreNode(node2) {
+  return node2.nodeType === TEXT_NODE || node2.nodeType === COMMENT_NODE || node2.nodeType === CDATA_NODE;
+}
+function isEmptyNode(node2) {
+  if (!node2.childNodes || node2.childNodes.length === 0) {
+    return true;
+  } else {
+    return false;
+  }
+}
+function invariant(test, message2) {
+  if (!test) {
+    throw new Error(message2);
+  }
+}
+function parse3(xml) {
+  if (xml instanceof ArrayBuffer) {
+    return parseBinary(new Uint8Array(xml));
+  }
+  if (xml instanceof Uint8Array) {
+    return parseBinary(xml);
+  }
+  if (typeof xml === "string" && xml.startsWith("bplist")) {
+    const encoder2 = new TextEncoder();
+    return parseBinary(encoder2.encode(xml));
+  }
+  if (typeof xml === "string") {
+    const trimmed = xml.trimStart();
+    if ((trimmed[0] === "{" || trimmed[0] === "(") && !trimmed.startsWith("<?xml") && !trimmed.startsWith("<!DOCTYPE") && !trimmed.startsWith("<plist")) {
+      return parseOpenStep(xml);
+    }
+  }
+  const doc = new import_xmldom.DOMParser().parseFromString(xml, "text/xml");
+  const root = doc.documentElement;
+  invariant(root !== null && root.nodeName === "plist", "malformed document. First element should be <plist>");
+  let plist = parsePlistXML(root);
+  if (Array.isArray(plist) && plist.length == 1)
+    plist = plist[0];
+  return plist;
+}
+function parsePlistXML(node2) {
+  if (!node2)
+    return null;
+  if (node2.nodeName === "plist") {
+    const new_arr = [];
+    if (isEmptyNode(node2)) {
+      return new_arr;
+    }
+    for (let i = 0; i < node2.childNodes.length; i++) {
+      if (!shouldIgnoreNode(node2.childNodes[i])) {
+        new_arr.push(parsePlistXML(node2.childNodes[i]));
+      }
+    }
+    return new_arr;
+  } else if (node2.nodeName === "dict") {
+    const new_obj = {};
+    let key = null;
+    let counter = 0;
+    if (isEmptyNode(node2)) {
+      return new_obj;
+    }
+    for (let i = 0; i < node2.childNodes.length; i++) {
+      if (shouldIgnoreNode(node2.childNodes[i]))
+        continue;
+      if (counter % 2 === 0) {
+        invariant(node2.childNodes[i].nodeName === "key", "Missing key while parsing <dict/>.");
+        key = parsePlistXML(node2.childNodes[i]);
+      } else {
+        invariant(node2.childNodes[i].nodeName !== "key", "Unexpected <key> while parsing <dict/>. Keys and values must alternate.");
+        new_obj[key] = parsePlistXML(node2.childNodes[i]);
+      }
+      counter += 1;
+    }
+    if (counter % 2 === 1) {
+      new_obj[key] = "";
+    }
+    return new_obj;
+  } else if (node2.nodeName === "array") {
+    const new_arr = [];
+    if (isEmptyNode(node2)) {
+      return new_arr;
+    }
+    for (let i = 0; i < node2.childNodes.length; i++) {
+      if (!shouldIgnoreNode(node2.childNodes[i])) {
+        const res = parsePlistXML(node2.childNodes[i]);
+        if (null != res)
+          new_arr.push(res);
+      }
+    }
+    return new_arr;
+  } else if (node2.nodeName === "#text") {
+  } else if (node2.nodeName === "key") {
+    if (isEmptyNode(node2)) {
+      return "";
+    }
+    invariant(node2.childNodes[0].nodeValue !== "__proto__", "__proto__ keys can lead to prototype pollution. More details on CVE-2022-22912");
+    return node2.childNodes[0].nodeValue;
+  } else if (node2.nodeName === "string") {
+    let res = "";
+    if (isEmptyNode(node2)) {
+      return res;
+    }
+    for (let i = 0; i < node2.childNodes.length; i++) {
+      const type = node2.childNodes[i].nodeType;
+      if (type === TEXT_NODE || type === CDATA_NODE) {
+        res += node2.childNodes[i].nodeValue;
+      }
+    }
+    return res;
+  } else if (node2.nodeName === "integer") {
+    invariant(!isEmptyNode(node2), 'Cannot parse "" as integer.');
+    return parseInt(node2.childNodes[0].nodeValue, 10);
+  } else if (node2.nodeName === "real") {
+    invariant(!isEmptyNode(node2), 'Cannot parse "" as real.');
+    let res = "";
+    for (let i = 0; i < node2.childNodes.length; i++) {
+      if (node2.childNodes[i].nodeType === TEXT_NODE) {
+        res += node2.childNodes[i].nodeValue;
+      }
+    }
+    return parseFloat(res);
+  } else if (node2.nodeName === "data") {
+    let res = "";
+    if (isEmptyNode(node2)) {
+      return base64ToUint8Array2(res);
+    }
+    for (let i = 0; i < node2.childNodes.length; i++) {
+      if (node2.childNodes[i].nodeType === TEXT_NODE) {
+        res += node2.childNodes[i].nodeValue.replace(/\s+/g, "");
+      }
+    }
+    return base64ToUint8Array2(res);
+  } else if (node2.nodeName === "date") {
+    invariant(!isEmptyNode(node2), 'Cannot parse "" as Date.');
+    return new Date(node2.childNodes[0].nodeValue);
+  } else if (node2.nodeName === "null") {
+    return null;
+  } else if (node2.nodeName === "true") {
+    return true;
+  } else if (node2.nodeName === "false") {
+    return false;
+  } else {
+    throw new Error("Invalid PLIST tag " + node2.nodeName);
+  }
+  return null;
+}
+
+// node_modules/plist/dist/build.js
+var import_xmlbuilder = __toESM(require_lib2(), 1);
+function uint8ArrayToBase642(bytes) {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+function build(obj, opts) {
+  const XMLHDR = {
+    version: "1.0",
+    encoding: "UTF-8"
+  };
+  const XMLDTD = {
+    pubid: "-//Apple//DTD PLIST 1.0//EN",
+    sysid: "http://www.apple.com/DTDs/PropertyList-1.0.dtd"
+  };
+  const doc = import_xmlbuilder.default.create("plist");
+  doc.dec(XMLHDR.version, XMLHDR.encoding);
+  doc.dtd(XMLDTD.pubid, XMLDTD.sysid);
+  doc.att("version", "1.0");
+  walk_obj(obj, doc);
+  if (!opts)
+    opts = {};
+  opts.pretty = opts.pretty !== false;
+  return doc.end(opts);
+}
+function walk_obj(next, next_child) {
+  if (typeof next === "undefined") {
+    return;
+  } else if (Array.isArray(next)) {
+    next_child = next_child.ele("array");
+    for (let i = 0; i < next.length; i++) {
+      walk_obj(next[i], next_child);
+    }
+  } else if (next instanceof ArrayBuffer) {
+    next_child.ele("data").raw(uint8ArrayToBase642(new Uint8Array(next)));
+  } else if (ArrayBuffer.isView(next)) {
+    const bytes = next instanceof Uint8Array ? next : new Uint8Array(next.buffer, next.byteOffset, next.byteLength);
+    next_child.ele("data").raw(uint8ArrayToBase642(bytes));
+  } else if (typeof next === "object" && next !== null && !(next instanceof Date)) {
+    next_child = next_child.ele("dict");
+    for (const prop in next) {
+      if (Object.hasOwn(next, prop)) {
+        const val = next[prop];
+        if (val === void 0 || val === null)
+          continue;
+        next_child.ele("key").txt(prop);
+        walk_obj(val, next_child);
+      }
+    }
+  } else if (typeof next === "number") {
+    const tag_type = next % 1 === 0 ? "integer" : "real";
+    next_child.ele(tag_type).txt(next.toString());
+  } else if (typeof next === "bigint") {
+    next_child.ele("integer").txt(next.toString());
+  } else if (next instanceof Date) {
+    next_child.ele("date").txt(new Date(next).toISOString().replace(/\.\d{3}Z$/, "Z"));
+  } else if (typeof next === "boolean") {
+    next_child.ele(next ? "true" : "false");
+  } else if (typeof next === "string") {
+    next_child.ele("string").txt(next);
+  }
+}
+
+// src/core/plist.ts
+function parsePlist(data) {
+  try {
+    if (typeof data !== "string" && !isBinaryPlist(data)) {
+      return parse3(decodeText(data));
+    }
+    return parse3(data);
+  } catch (e) {
+    throw new ToolError(`Could not parse property list: ${e.message}`);
+  }
+}
+function isBinaryPlist(data) {
+  return Buffer.from(data.subarray(0, 6)).toString("latin1") === "bplist";
+}
+function decodeText(data) {
+  if (data[0] === 255 && data[1] === 254) return Buffer.from(data.subarray(2)).toString("utf16le");
+  if (data[0] === 254 && data[1] === 255) {
+    const swapped = Buffer.from(data.subarray(2));
+    swapped.swap16();
+    return swapped.toString("utf16le");
+  }
+  return Buffer.from(data).toString("utf8");
+}
+function parsePlistDict(data) {
+  const v = parsePlist(data);
+  if (!v || typeof v !== "object" || Array.isArray(v) || v instanceof Date || v instanceof Uint8Array) {
+    throw new ToolError("Property list root is not a dictionary.");
+  }
+  return v;
+}
+function buildPlist(value) {
+  return build(value, { pretty: true, indent: "	" });
+}
+async function decodeProvisioningProfile(runner, path, isMac) {
+  if (isMac) {
+    const r = await runner.run("security", ["cms", "-D", "-i", path], { timeoutMs: 15e3 });
+    if (ok(r) && r.stdout.includes("<plist")) return parsePlistDict(r.stdout);
+  } else {
+    const r = await runner.run("openssl", ["cms", "-verify", "-noverify", "-inform", "DER", "-in", path], {
+      timeoutMs: 15e3
+    });
+    if (ok(r) && r.stdout.includes("<plist")) return parsePlistDict(r.stdout);
+  }
+  const buf = await readFile2(path).catch((e) => {
+    throw new ToolError(`Cannot read ${path}: ${e.message}`);
+  });
+  return extractEmbeddedPlist(new Uint8Array(buf));
+}
+function extractEmbeddedPlist(der) {
+  const text = Buffer.from(der).toString("latin1");
+  const start = text.indexOf("<?xml");
+  const end = text.indexOf("</plist>");
+  if (start === -1 || end === -1) throw new ToolError("No embedded plist found in provisioning profile.");
+  const xml = Buffer.from(text.slice(start, end + "</plist>".length), "latin1").toString("utf8");
+  return parsePlistDict(xml);
+}
+function asDict(v) {
+  return v && typeof v === "object" && !Array.isArray(v) && !(v instanceof Date) && !(v instanceof Uint8Array) ? v : void 0;
+}
+function asArray(v) {
+  return Array.isArray(v) ? v : [];
+}
+
+// src/parsers/project/detect.ts
+var SKIP_DIRS = /* @__PURE__ */ new Set([
+  "node_modules",
+  "Pods",
+  ".git",
+  "build",
+  "Build",
+  "DerivedData",
+  ".build",
+  "dist",
+  "out",
+  "target",
+  ".dart_tool",
+  ".expo",
+  "vendor"
+]);
+function component(kind, path, extra = {}) {
+  return {
+    kind,
+    path,
+    platforms: [],
+    bundleIds: [],
+    teamIds: [],
+    signing: {},
+    findings: [],
+    suggestedTargets: [],
+    configSnippets: [],
+    envVars: [],
+    buildCommands: [],
+    ...extra
+  };
+}
+async function exists(p) {
+  try {
+    await stat(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function readJson(p) {
+  try {
+    return JSON.parse(await readFile3(p, "utf8"));
+  } catch {
+    return void 0;
+  }
+}
+async function readText(p) {
+  try {
+    return await readFile3(p, "utf8");
+  } catch {
+    return void 0;
+  }
+}
+function uniq(xs) {
+  return [...new Set(xs.filter((x) => x !== void 0 && x !== null && x !== ""))];
+}
+function summarizePbxproj(text) {
+  const all = (key) => uniq([...text.matchAll(new RegExp(`\\b${key} = ("([^"]*)"|([^;\\s]+));`, "g"))].map((m) => m[2] ?? m[3]));
+  return {
+    bundleIds: all("PRODUCT_BUNDLE_IDENTIFIER"),
+    teamIds: all("DEVELOPMENT_TEAM"),
+    codeSignStyles: all("CODE_SIGN_STYLE"),
+    codeSignIdentities: uniq([...all("CODE_SIGN_IDENTITY"), ...all('"CODE_SIGN_IDENTITY\\[sdk=[^\\]]+\\]"')]),
+    sdkRoots: all("SDKROOT"),
+    hardenedRuntime: all("ENABLE_HARDENED_RUNTIME"),
+    entitlementsFiles: all("CODE_SIGN_ENTITLEMENTS"),
+    profileSpecifiers: all("PROVISIONING_PROFILE_SPECIFIER"),
+    productTypes: uniq([...text.matchAll(/productType = "([^"]+)";/g)].map((m) => m[1])),
+    marketingVersions: all("MARKETING_VERSION"),
+    buildNumbers: all("CURRENT_PROJECT_VERSION"),
+    deploymentTargets: {
+      macOS: all("MACOSX_DEPLOYMENT_TARGET"),
+      iOS: all("IPHONEOS_DEPLOYMENT_TARGET")
+    }
+  };
+}
+function platformsFromPbx(s) {
+  const p = [];
+  if (s.sdkRoots.includes("macosx") || s.deploymentTargets.macOS.length) p.push("macOS");
+  if (s.sdkRoots.includes("iphoneos") || s.deploymentTargets.iOS.length) p.push("iOS");
+  return p;
+}
+function targetsFor(platforms) {
+  const t = [];
+  if (platforms.includes("macOS")) t.push("mac-developer-id", "mac-app-store", "testflight-mac");
+  if (platforms.includes("iOS")) t.push("testflight-ios", "ios-app-store", "ios-ad-hoc");
+  return t;
+}
+async function detectXcode(dir, path, kind) {
+  const name = basename(path).replace(/\.(xcodeproj|xcworkspace)$/, "");
+  const c = component(kind, path, { name });
+  let pbxPaths = [];
+  if (kind === "xcode-project") {
+    pbxPaths = [join3(path, "project.pbxproj")];
+  } else {
+    const contents = await readText(join3(path, "contents.xcworkspacedata"));
+    const refs = [...(contents ?? "").matchAll(/location = "group:([^"]+\.xcodeproj)"/g)].map((m) => m[1]);
+    pbxPaths = refs.filter((r) => !r.startsWith("Pods/")).map((r) => join3(dir, r, "project.pbxproj"));
+    c.signing.projects = refs;
+    if (refs.some((r) => r.startsWith("Pods/")))
+      c.findings.push("CocoaPods workspace: always build the .xcworkspace, not the .xcodeproj.");
+  }
+  const summaries = [];
+  for (const p of pbxPaths) {
+    const text = await readText(p);
+    if (text) summaries.push(summarizePbxproj(text));
+  }
+  const merged = summaries.reduce((acc, s) => {
+    if (!acc) return s;
+    for (const k of Object.keys(s)) {
+      if (k === "deploymentTargets") {
+        acc.deploymentTargets.macOS = uniq([...acc.deploymentTargets.macOS, ...s.deploymentTargets.macOS]);
+        acc.deploymentTargets.iOS = uniq([...acc.deploymentTargets.iOS, ...s.deploymentTargets.iOS]);
+      } else {
+        acc[k] = uniq([...acc[k], ...s[k]]);
+      }
+    }
+    return acc;
+  }, void 0);
+  if (merged) {
+    c.bundleIds = merged.bundleIds;
+    c.teamIds = merged.teamIds;
+    c.platforms = platformsFromPbx(merged);
+    c.signing = {
+      ...c.signing,
+      codeSignStyle: merged.codeSignStyles,
+      codeSignIdentity: merged.codeSignIdentities,
+      hardenedRuntime: merged.hardenedRuntime,
+      entitlementsFiles: merged.entitlementsFiles,
+      provisioningProfileSpecifiers: merged.profileSpecifiers,
+      productTypes: merged.productTypes,
+      marketingVersion: merged.marketingVersions,
+      buildNumber: merged.buildNumbers
+    };
+    if (!merged.teamIds.length)
+      c.findings.push(
+        "DEVELOPMENT_TEAM is not set \u2014 pass team_id when archiving or set it in Signing & Capabilities."
+      );
+    if (c.platforms.includes("macOS") && !merged.hardenedRuntime.includes("YES"))
+      c.findings.push(
+        "ENABLE_HARDENED_RUNTIME is not YES for macOS targets \u2014 required for notarization (Developer ID)."
+      );
+    if (merged.codeSignStyles.includes("Manual"))
+      c.findings.push(
+        "Manual signing is configured \u2014 profiles/certificates must be installed explicitly (or switch to Automatic + API key)."
+      );
+  }
+  c.suggestedTargets = targetsFor(c.platforms);
+  const flag = kind === "xcode-workspace" ? "-workspace" : "-project";
+  c.buildCommands = [
+    `xcodebuild -list -json ${flag} ${relative(dir, path) || basename(path)}`,
+    "Use the `xcode` tool: action=archive (automatic signing with -allowProvisioningUpdates + API key), then action=export"
+  ];
+  return c;
+}
+async function detectSwiftPM(dir) {
+  const pkg = await readText(join3(dir, "Package.swift"));
+  if (!pkg) return void 0;
+  const name = /name:\s*"([^"]+)"/.exec(pkg)?.[1];
+  const execs = [...pkg.matchAll(/\.executableTarget\(\s*name:\s*"([^"]+)"/g)].map((m) => m[1]);
+  const platforms = [];
+  if (/\.macOS\(/.test(pkg)) platforms.push("macOS");
+  if (/\.iOS\(/.test(pkg)) platforms.push("iOS");
+  const c = component("swiftpm", join3(dir, "Package.swift"), {
+    name,
+    platforms: platforms.length ? platforms : ["macOS"],
+    signing: { executableTargets: execs },
+    suggestedTargets: ["mac-developer-id"]
+  });
+  c.findings.push(
+    execs.length ? "Command-line executables can be Developer ID signed (hardened runtime + timestamp) and notarized inside a .zip or .pkg. Bare binaries cannot be stapled; Gatekeeper checks the ticket online." : "Library package: nothing to sign on its own."
+  );
+  c.buildCommands = [
+    "swift build -c release --arch arm64 --arch x86_64",
+    "sign (identity Developer ID Application, hardened runtime) \u2192 package zip or pkg \u2192 notarize"
+  ];
+  return c;
+}
+function electronSnippets(appId) {
+  return {
+    snippets: [
+      {
+        file: 'package.json ("build" key) or electron-builder.yml',
+        description: "electron-builder: hardened runtime, entitlements, notarization",
+        snippet: JSON.stringify(
+          {
+            build: {
+              appId,
+              mac: {
+                hardenedRuntime: true,
+                gatekeeperAssess: false,
+                entitlements: "build/entitlements.mac.plist",
+                entitlementsInherit: "build/entitlements.mac.plist",
+                notarize: true,
+                target: ["dmg", "zip"]
+              }
+            }
+          },
+          null,
+          2
+        )
+      },
+      {
+        file: "forge.config.js (Electron Forge alternative)",
+        description: "Forge: osxSign + osxNotarize with an App Store Connect API key",
+        snippet: `packagerConfig: {
+  osxSign: {},
+  osxNotarize: {
+    appleApiKey: process.env.APPLE_API_KEY,        // path to AuthKey_XXXX.p8
+    appleApiKeyId: process.env.APPLE_API_KEY_ID,
+    appleApiIssuer: process.env.APPLE_API_ISSUER,
+  },
+}`
+      },
+      {
+        file: "build/entitlements.mac.plist",
+        description: "Electron needs JIT under the hardened runtime (entitlements generate preset=electron)",
+        snippet: '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n	<key>com.apple.security.cs.allow-jit</key>\n	<true/>\n</dict>\n</plist>'
+      }
+    ],
+    env: [
+      {
+        name: "CSC_NAME",
+        description: "Signing identity name (or let electron-builder pick 'Developer ID Application' from the keychain)"
+      },
+      {
+        name: "CSC_LINK / CSC_KEY_PASSWORD",
+        description: "CI only: base64/path of the Developer ID .p12 and its password"
+      },
+      { name: "APPLE_API_KEY", description: "electron-builder/@electron/notarize: PATH to AuthKey_<ID>.p8" },
+      { name: "APPLE_API_KEY_ID", description: "API key ID" },
+      { name: "APPLE_API_ISSUER", description: "API key issuer ID" }
+    ]
+  };
+}
+async function detectElectron(dir, pkg) {
+  const builderFiles = [
+    "electron-builder.yml",
+    "electron-builder.yaml",
+    "electron-builder.json",
+    "electron-builder.json5",
+    "electron-builder.config.js"
+  ];
+  const builderFile = (await Promise.all(builderFiles.map(async (f) => await exists(join3(dir, f)) ? f : void 0))).find(Boolean);
+  const forgeFile = await exists(join3(dir, "forge.config.js")) ? "forge.config.js" : await exists(join3(dir, "forge.config.ts")) ? "forge.config.ts" : void 0;
+  const build2 = pkg.build ?? {};
+  const builderText = builderFile ? await readText(join3(dir, builderFile)) : void 0;
+  const appId = build2.appId ?? (builderText ? /appId:\s*["']?([\w.-]+)/.exec(builderText)?.[1] : void 0);
+  const mac4 = build2.mac ?? {};
+  const c = component("electron", join3(dir, "package.json"), {
+    name: pkg.productName ?? pkg.name,
+    platforms: ["macOS"],
+    bundleIds: appId ? [appId] : [],
+    signing: {
+      electronVersion: pkg.devDependencies?.electron ?? pkg.dependencies?.electron,
+      packager: forgeFile || pkg.config?.forge ? "electron-forge" : "electron-builder",
+      builderConfigFile: builderFile ?? (pkg.build ? "package.json#build" : void 0),
+      forgeConfigFile: forgeFile,
+      mac: Object.keys(mac4).length ? mac4 : void 0,
+      mas: build2.mas,
+      afterSign: build2.afterSign
+    },
+    suggestedTargets: ["mac-developer-id", "mac-app-store"]
+  });
+  if (!appId) c.findings.push("No appId found \u2014 set build.appId to a reverse-DNS bundle identifier.");
+  if (builderText && /hardenedRuntime:\s*false/.test(builderText))
+    c.findings.push("hardenedRuntime is false \u2014 notarization will fail.");
+  if (mac4.hardenedRuntime === false)
+    c.findings.push("mac.hardenedRuntime is false \u2014 notarization will fail.");
+  if (build2.afterSign)
+    c.findings.push(
+      `Custom afterSign hook (${build2.afterSign}) \u2014 modern electron-builder notarizes natively via mac.notarize; check for double notarization.`
+    );
+  const { snippets, env } = electronSnippets(appId ?? "com.example.app");
+  c.configSnippets = snippets;
+  c.envVars = env;
+  c.buildCommands = forgeFile || pkg.config?.forge ? ["npx electron-forge make --platform darwin"] : ["npx electron-builder --mac"];
+  c.findings.push(
+    "After building, verify with inspect_code_signature and gatekeeper simulate_download on the produced .dmg."
+  );
+  return c;
+}
+async function detectTauri(dir) {
+  const confPath = ["src-tauri/tauri.conf.json", "tauri.conf.json"].map((p) => join3(dir, p));
+  let file2;
+  let conf;
+  for (const p of confPath) {
+    conf = await readJson(p);
+    if (conf) {
+      file2 = p;
+      break;
+    }
+  }
+  if (!conf || !file2) {
+    if (await exists(join3(dir, "src-tauri", "Tauri.toml")))
+      return component("tauri", join3(dir, "src-tauri", "Tauri.toml"), {
+        platforms: ["macOS"],
+        findings: ["Tauri.toml config detected; signing keys live under [bundle.macOS]."],
+        suggestedTargets: ["mac-developer-id"]
+      });
+    return void 0;
+  }
+  const v2 = conf.identifier !== void 0 || conf.bundle !== void 0;
+  const bundle = v2 ? conf.bundle ?? {} : conf.tauri?.bundle ?? {};
+  const identifier = v2 ? conf.identifier : bundle.identifier;
+  const macOS = bundle.macOS ?? {};
+  const iOS = bundle.iOS ?? {};
+  const platforms = ["macOS"];
+  if (await exists(join3(dir, "src-tauri", "gen", "apple"))) platforms.push("iOS");
+  const c = component("tauri", file2, {
+    name: conf.productName ?? conf.package?.productName,
+    platforms,
+    bundleIds: identifier ? [identifier] : [],
+    teamIds: iOS.developmentTeam ? [iOS.developmentTeam] : [],
+    signing: { tauriMajor: v2 ? 2 : 1, macOS, iOS: Object.keys(iOS).length ? iOS : void 0 },
+    suggestedTargets: platforms.includes("iOS") ? ["mac-developer-id", "testflight-ios", "ios-app-store"] : ["mac-developer-id", "mac-app-store"]
+  });
+  if (macOS.hardenedRuntime === false)
+    c.findings.push("bundle.macOS.hardenedRuntime is false \u2014 notarization will fail.");
+  if (!macOS.signingIdentity)
+    c.findings.push("bundle.macOS.signingIdentity not set \u2014 set it or export APPLE_SIGNING_IDENTITY.");
+  c.configSnippets = [
+    {
+      file: relative(dir, file2),
+      description: "Tauri v2 macOS signing (notarization runs automatically when APPLE_API_* env vars are set)",
+      snippet: JSON.stringify(
+        {
+          bundle: {
+            macOS: {
+              signingIdentity: "Developer ID Application: <Name> (<TEAMID>)",
+              hardenedRuntime: true,
+              entitlements: "./Entitlements.plist"
+            }
+          }
+        },
+        null,
+        2
+      )
+    }
+  ];
+  c.envVars = [
+    {
+      name: "APPLE_SIGNING_IDENTITY",
+      description: "Keychain identity name, e.g. 'Developer ID Application: Name (TEAMID)'"
+    },
+    {
+      name: "APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD",
+      description: "CI only: base64 .p12 + password (Tauri imports it into a temp keychain)"
+    },
+    { name: "APPLE_API_ISSUER", description: "App Store Connect API issuer ID (enables notarization)" },
+    { name: "APPLE_API_KEY", description: "Tauri: the API key ID (NOT the path)" },
+    { name: "APPLE_API_KEY_PATH", description: "Path to AuthKey_<ID>.p8" }
+  ];
+  c.buildCommands = [
+    "npm run tauri build -- --bundles app,dmg",
+    ...platforms.includes("iOS") ? ["npm run tauri ios build -- --export-method app-store-connect"] : []
+  ];
+  return c;
+}
+async function nativeIds(dir, sub) {
+  const bundleIds = [];
+  const teamIds = [];
+  let entries = [];
+  try {
+    entries = await readdir2(join3(dir, sub), { withFileTypes: true });
+  } catch {
+    return { bundleIds, teamIds };
+  }
+  for (const e of entries) {
+    if (e.isDirectory() && e.name.endsWith(".xcodeproj")) {
+      const text = await readText(join3(dir, sub, e.name, "project.pbxproj"));
+      if (text) {
+        const s = summarizePbxproj(text);
+        bundleIds.push(...s.bundleIds);
+        teamIds.push(...s.teamIds);
+      }
+    }
+  }
+  return { bundleIds: uniq(bundleIds), teamIds: uniq(teamIds) };
+}
+async function detectFlutter(dir) {
+  const pubspec = await readText(join3(dir, "pubspec.yaml"));
+  if (!pubspec || !/^\s*flutter:/m.test(pubspec)) return void 0;
+  const platforms = [];
+  const ids = { bundleIds: [], teamIds: [] };
+  for (const [sub, plat] of [
+    ["ios", "iOS"],
+    ["macos", "macOS"]
+  ]) {
+    if (await exists(join3(dir, sub, "Runner.xcodeproj"))) {
+      platforms.push(plat);
+      const n = await nativeIds(dir, sub);
+      ids.bundleIds.push(...n.bundleIds);
+      ids.teamIds.push(...n.teamIds);
+    }
+  }
+  const c = component("flutter", join3(dir, "pubspec.yaml"), {
+    name: /^name:\s*(\S+)/m.exec(pubspec)?.[1],
+    platforms,
+    bundleIds: uniq(ids.bundleIds),
+    teamIds: uniq(ids.teamIds),
+    signing: { version: /^version:\s*(\S+)/m.exec(pubspec)?.[1] },
+    suggestedTargets: targetsFor(platforms)
+  });
+  c.findings.push(
+    "pubspec 'version: x.y.z+N' sets CFBundleShortVersionString (x.y.z) and CFBundleVersion (N); bump N for every upload."
+  );
+  if (platforms.includes("iOS"))
+    c.buildCommands.push(
+      "flutter build ipa --release --export-options-plist ios/ExportOptions.plist (generate it with xcode export)"
+    );
+  if (platforms.includes("macOS"))
+    c.buildCommands.push(
+      "flutter build macos --release \u2192 sign/notarize build/macos/Build/Products/Release/<App>.app, or xcode archive with macos/Runner.xcworkspace"
+    );
+  return c;
+}
+async function detectReactNativeOrExpo(dir, pkg) {
+  const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+  const isExpo = !!deps.expo;
+  const isRN = !!deps["react-native"];
+  if (!isExpo && !isRN) return void 0;
+  const hasIos = await exists(join3(dir, "ios"));
+  const ids = hasIos ? await nativeIds(dir, "ios") : { bundleIds: [], teamIds: [] };
+  if (isExpo) {
+    const appJson = await readJson(join3(dir, "app.json")) ?? {};
+    const expo = appJson.expo ?? appJson;
+    const eas = await readJson(join3(dir, "eas.json"));
+    const c2 = component("expo", join3(dir, "package.json"), {
+      name: expo.name ?? pkg.name,
+      platforms: ["iOS"],
+      bundleIds: uniq([expo.ios?.bundleIdentifier, ...ids.bundleIds]),
+      teamIds: uniq([expo.ios?.appleTeamId, ...ids.teamIds]),
+      signing: {
+        workflow: hasIos ? "bare / prebuild (ios/ exists)" : "managed (no ios/ dir)",
+        buildNumber: expo.ios?.buildNumber,
+        version: expo.version,
+        easBuildProfiles: eas?.build ? Object.keys(eas.build) : void 0,
+        easSubmitIos: eas?.submit?.production?.ios,
+        appConfigDynamic: await exists(join3(dir, "app.config.js")) || await exists(join3(dir, "app.config.ts"))
+      },
+      suggestedTargets: ["testflight-ios", "ios-app-store"]
+    });
+    if (!expo.ios?.bundleIdentifier && !ids.bundleIds.length)
+      c2.findings.push("expo.ios.bundleIdentifier is not set.");
+    c2.findings.push(
+      hasIos ? "ios/ exists: you can build locally with the xcode tool (workspace ios/*.xcworkspace after `npx pod-install`) or keep using EAS." : "Managed workflow: EAS Build manages certificates/profiles remotely (`eas credentials`). This server can still create the API key setup, bundle ID, app record checks and TestFlight steps. Or run `npx expo prebuild -p ios` to build locally."
+    );
+    c2.configSnippets = [
+      {
+        file: "eas.json",
+        description: "EAS Submit with an App Store Connect API key",
+        snippet: JSON.stringify(
+          {
+            submit: {
+              production: {
+                ios: {
+                  ascAppId: "<numeric App ID from asc_apps>",
+                  ascApiKeyPath: "./AuthKey_<ID>.p8",
+                  ascApiKeyIssuerId: "<issuer>",
+                  ascApiKeyId: "<key id>"
+                }
+              }
+            }
+          },
+          null,
+          2
+        )
+      }
+    ];
+    c2.buildCommands = ["eas build -p ios --profile production", "eas submit -p ios --latest"];
+    return c2;
+  }
+  const c = component("react-native", join3(dir, "package.json"), {
+    name: pkg.name,
+    platforms: hasIos ? ["iOS"] : [],
+    bundleIds: ids.bundleIds,
+    teamIds: ids.teamIds,
+    signing: { reactNative: deps["react-native"], macos: !!deps["react-native-macos"] },
+    suggestedTargets: ["testflight-ios", "ios-app-store", "ios-ad-hoc"]
+  });
+  if (deps["react-native-macos"]) c.platforms.push("macOS");
+  c.findings.push("Run `cd ios && pod install`, then build the ios/<Name>.xcworkspace with the xcode tool.");
+  c.buildCommands = [
+    "cd ios && pod install",
+    "xcode action=archive workspace=ios/<Name>.xcworkspace scheme=<Name>"
+  ];
+  return c;
+}
+async function readBundleInfo(appPath) {
+  for (const p of [join3(appPath, "Contents", "Info.plist"), join3(appPath, "Info.plist")]) {
+    try {
+      return parsePlistDict(new Uint8Array(await readFile3(p)));
+    } catch {
+    }
+  }
+  return void 0;
+}
+async function detectArtifact(path) {
+  const ext = extname(path).toLowerCase();
+  if (ext === ".app") {
+    const info = await readBundleInfo(path);
+    const isMac = await exists(join3(path, "Contents"));
+    const c = component("app-bundle", path, {
+      name: info?.CFBundleName ?? basename(path, ".app"),
+      platforms: [isMac ? "macOS" : "iOS"],
+      bundleIds: info?.CFBundleIdentifier ? [String(info.CFBundleIdentifier)] : [],
+      signing: {
+        version: info?.CFBundleShortVersionString,
+        build: info?.CFBundleVersion,
+        minimumSystemVersion: info?.LSMinimumSystemVersion ?? info?.MinimumOSVersion,
+        embeddedProfile: await exists(join3(path, "Contents", "embedded.provisionprofile")) ? "Contents/embedded.provisionprofile" : await exists(join3(path, "embedded.mobileprovision")) ? "embedded.mobileprovision" : void 0
+      },
+      suggestedTargets: isMac ? ["mac-developer-id"] : ["ios-ad-hoc"]
+    });
+    c.findings.push(
+      "Prebuilt bundle: inspect_code_signature first; use sign/resign to (re)sign, then notarize_and_staple (macOS)."
+    );
+    return c;
+  }
+  if (ext === ".xcarchive") {
+    let info;
+    try {
+      info = parsePlistDict(new Uint8Array(await readFile3(join3(path, "Info.plist"))));
+    } catch {
+    }
+    const props = info?.ApplicationProperties ?? {};
+    const appPath = String(props.ApplicationPath ?? "");
+    return component("xcarchive", path, {
+      name: String(info?.Name ?? basename(path, ".xcarchive")),
+      platforms: appPath.includes("Applications/") && await exists(join3(path, "Products", appPath, "Contents")) ? ["macOS"] : ["iOS"],
+      bundleIds: props.CFBundleIdentifier ? [String(props.CFBundleIdentifier)] : [],
+      teamIds: props.Team ? [String(props.Team)] : [],
+      signing: {
+        signingIdentity: props.SigningIdentity,
+        version: props.CFBundleShortVersionString,
+        build: props.CFBundleVersion,
+        applicationPath: appPath
+      },
+      findings: ["Export it with the xcode tool (action=export) using the right method for your target."],
+      suggestedTargets: ["mac-developer-id", "testflight-ios", "ios-app-store"]
+    });
+  }
+  const simple = {
+    ".ipa": [
+      "ipa",
+      ["iOS"],
+      ["testflight-ios", "ios-ad-hoc"],
+      "Upload with upload_build, or resign for another profile."
+    ],
+    ".dmg": [
+      "dmg",
+      ["macOS"],
+      ["mac-developer-id"],
+      "Check with gatekeeper assess; notarize + staple the DMG itself."
+    ],
+    ".pkg": [
+      "pkg",
+      ["macOS"],
+      ["mac-developer-id", "mac-app-store"],
+      "pkgutil --check-signature via inspect_code_signature; notarize + staple, or upload for the Mac App Store."
+    ],
+    ".zip": [
+      "zip",
+      ["macOS"],
+      ["mac-developer-id"],
+      "Zips can be notarized but not stapled; staple the app inside and re-zip."
+    ]
+  };
+  if (simple[ext]) {
+    const [kind, platforms, targets, note] = simple[ext];
+    return component(kind, path, {
+      name: basename(path),
+      platforms,
+      suggestedTargets: targets,
+      findings: [note]
+    });
+  }
+  return void 0;
+}
+async function detectProject(root, maxDepth = 2) {
+  const st = await stat(root);
+  const artifact = await detectArtifact(root);
+  if (artifact) return { root, components: [artifact] };
+  if (!st.isDirectory()) {
+    return {
+      root,
+      components: [
+        component("binary", root, {
+          name: basename(root),
+          platforms: ["macOS"],
+          suggestedTargets: ["mac-developer-id"]
+        })
+      ]
+    };
+  }
+  const components = [];
+  const claimed = /* @__PURE__ */ new Set();
+  async function scanDir(dir, depth) {
+    const pkg = await readJson(join3(dir, "package.json"));
+    if (pkg) {
+      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+      if (deps.electron) components.push(await detectElectron(dir, pkg));
+      const rn = await detectReactNativeOrExpo(dir, pkg);
+      if (rn) {
+        components.push(rn);
+        claimed.add(join3(dir, "ios"));
+      }
+    }
+    const tauri = await detectTauri(dir);
+    if (tauri) {
+      components.push(tauri);
+      claimed.add(join3(dir, "src-tauri"));
+    }
+    const flutter = await detectFlutter(dir);
+    if (flutter) {
+      components.push(flutter);
+      claimed.add(join3(dir, "ios"));
+      claimed.add(join3(dir, "macos"));
+    }
+    const spm = await detectSwiftPM(dir);
+    if (spm) components.push(spm);
+    let entries = [];
+    try {
+      entries = await readdir2(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    const workspaces = entries.filter((e) => e.isDirectory() && e.name.endsWith(".xcworkspace"));
+    const projects = entries.filter((e) => e.isDirectory() && e.name.endsWith(".xcodeproj"));
+    if (!claimed.has(dir)) {
+      for (const w of workspaces)
+        components.push(await detectXcode(dir, join3(dir, w.name), "xcode-workspace"));
+      if (!workspaces.length)
+        for (const p of projects) components.push(await detectXcode(dir, join3(dir, p.name), "xcode-project"));
+    } else if (workspaces.length || projects.length) {
+      const owner = components.find((c) => ["flutter", "react-native", "expo"].includes(c.kind));
+      if (owner)
+        owner.signing.nativeProjects = [...workspaces, ...projects].map(
+          (e) => relative(root, join3(dir, e.name))
+        );
+    }
+    for (const e of entries) {
+      if (e.isDirectory() && /\.(app|xcarchive)$/.test(e.name) && depth === 0) {
+        const a = await detectArtifact(join3(dir, e.name));
+        if (a) components.push(a);
+      }
+    }
+    if (depth >= maxDepth) return;
+    for (const e of entries) {
+      if (!e.isDirectory() || SKIP_DIRS.has(e.name) || e.name.startsWith(".")) continue;
+      if (/\.(xcodeproj|xcworkspace|app|xcarchive|framework|bundle|lproj|xcassets)$/.test(e.name)) continue;
+      await scanDir(join3(dir, e.name), depth + 1);
+    }
+  }
+  await scanDir(root, 0);
+  return { root, components };
+}
+
+// src/parsers/xcodebuild.ts
+function parseXcodeList(text) {
+  const start = text.indexOf("{");
+  if (start === -1) return void 0;
+  let j;
+  try {
+    j = JSON.parse(text.slice(start));
+  } catch {
+    return void 0;
+  }
+  const p = j.project ?? j.workspace;
+  if (!p) return void 0;
+  return {
+    kind: j.project ? "project" : "workspace",
+    name: p.name,
+    schemes: p.schemes ?? [],
+    targets: p.targets ?? [],
+    configurations: p.configurations ?? []
+  };
+}
+
+// src/tools/shared.ts
+import { mkdtemp, readdir as readdir4, stat as stat3 } from "fs/promises";
+import { tmpdir } from "os";
+import { basename as basename3, extname as extname3, isAbsolute, join as join5, resolve } from "path";
+
+// src/knowledge/certificate-types.ts
+var CERTIFICATE_TYPES = [
+  {
+    id: "developer-id-application",
+    portalName: "Developer ID Application",
+    ascTypes: ["DEVELOPER_ID_APPLICATION_G2", "DEVELOPER_ID_APPLICATION"],
+    keychainPrefixes: ["Developer ID Application:"],
+    purpose: "Sign Mac apps, frameworks, command-line tools, DMGs and zips distributed OUTSIDE the Mac App Store.",
+    usedFor: ["mac-developer-id"],
+    createdBy: "Account Holder only, via developer.apple.com \u2192 Certificates or Xcode \u2192 Settings \u2192 Accounts \u2192 Manage Certificates. API keys are usually refused for this type.",
+    limit: "5 per team",
+    notes: [
+      "Revoking a Developer ID Application certificate stops Gatekeeper from launching software signed with it (for new downloads). Do not revoke casually; if the private key is lost, just create another (up to the limit).",
+      "Back up the private key (export a .p12) \u2014 it cannot be re-downloaded from Apple."
+    ]
+  },
+  {
+    id: "developer-id-installer",
+    portalName: "Developer ID Installer",
+    ascTypes: [],
+    keychainPrefixes: ["Developer ID Installer:"],
+    purpose: "Sign .pkg installer packages distributed outside the Mac App Store (productsign / productbuild --sign).",
+    usedFor: ["mac-developer-id"],
+    createdBy: "Account Holder only, via developer.apple.com \u2192 Certificates (not available through the API).",
+    limit: "5 per team"
+  },
+  {
+    id: "apple-distribution",
+    portalName: "Apple Distribution",
+    ascTypes: ["DISTRIBUTION"],
+    keychainPrefixes: ["Apple Distribution:"],
+    purpose: "Sign apps for the App Store and TestFlight (iOS, iPadOS, macOS, tvOS, watchOS, visionOS) and for Ad Hoc / Enterprise distribution.",
+    usedFor: [
+      "ios-app-store",
+      "testflight-ios",
+      "ios-ad-hoc",
+      "mac-app-store",
+      "testflight-mac",
+      "enterprise"
+    ],
+    createdBy: "Account Holder or Admin (API key with Admin role works).",
+    limit: "3 per team (shared with legacy distribution types)"
+  },
+  {
+    id: "apple-development",
+    portalName: "Apple Development",
+    ascTypes: ["DEVELOPMENT"],
+    keychainPrefixes: ["Apple Development:"],
+    purpose: "Sign builds for running/debugging on your own registered devices and Macs.",
+    usedFor: ["ios-development", "mac-development"],
+    createdBy: "Any team member (Xcode creates these automatically with automatic signing)."
+  },
+  {
+    id: "mac-installer-distribution",
+    portalName: "Mac Installer Distribution",
+    ascTypes: ["MAC_INSTALLER_DISTRIBUTION"],
+    keychainPrefixes: ["3rd Party Mac Developer Installer:", "Mac Installer Distribution:"],
+    purpose: "Sign the .pkg that wraps a Mac App Store / Mac TestFlight upload.",
+    usedFor: ["mac-app-store", "testflight-mac"],
+    createdBy: "Account Holder or Admin."
+  },
+  {
+    id: "mac-app-distribution-legacy",
+    portalName: "Mac App Distribution (legacy)",
+    ascTypes: ["MAC_APP_DISTRIBUTION"],
+    keychainPrefixes: ["3rd Party Mac Developer Application:"],
+    purpose: "Legacy Mac App Store app-signing certificate; superseded by Apple Distribution.",
+    usedFor: ["mac-app-store", "testflight-mac"],
+    createdBy: "Account Holder or Admin.",
+    legacy: true
+  },
+  {
+    id: "ios-distribution-legacy",
+    portalName: "iOS Distribution (legacy)",
+    ascTypes: ["IOS_DISTRIBUTION"],
+    keychainPrefixes: ["iPhone Distribution:", "iOS Distribution:"],
+    purpose: "Legacy iOS distribution certificate; superseded by Apple Distribution.",
+    usedFor: ["ios-app-store", "testflight-ios", "ios-ad-hoc"],
+    createdBy: "Account Holder or Admin.",
+    legacy: true
+  },
+  {
+    id: "ios-development-legacy",
+    portalName: "iOS Development (legacy)",
+    ascTypes: ["IOS_DEVELOPMENT"],
+    keychainPrefixes: ["iPhone Developer:", "iOS Developer:"],
+    purpose: "Legacy iOS development certificate; superseded by Apple Development.",
+    usedFor: ["ios-development"],
+    createdBy: "Any team member.",
+    legacy: true
+  },
+  {
+    id: "mac-development-legacy",
+    portalName: "Mac Development (legacy)",
+    ascTypes: ["MAC_APP_DEVELOPMENT"],
+    keychainPrefixes: ["Mac Developer:"],
+    purpose: "Legacy Mac development certificate; superseded by Apple Development.",
+    usedFor: ["mac-development"],
+    createdBy: "Any team member.",
+    legacy: true
+  },
+  {
+    id: "developer-id-kext",
+    portalName: "Developer ID Kernel Extension",
+    ascTypes: ["DEVELOPER_ID_KEXT_G2", "DEVELOPER_ID_KEXT"],
+    keychainPrefixes: [],
+    purpose: "Sign kernel extensions (requires Apple approval; prefer DriverKit/System Extensions).",
+    usedFor: [],
+    createdBy: "Account Holder, after Apple grants the kext signing entitlement.",
+    legacy: true
+  }
+];
+function classifyCertificateName(name) {
+  return CERTIFICATE_TYPES.find((c) => c.keychainPrefixes.some((p) => name.startsWith(p)));
+}
+function teamIdFromCertName(name) {
+  return /\(([A-Z0-9]{10})\)\s*$/.exec(name)?.[1];
+}
+var APPLE_INTERMEDIATES = [
+  {
+    name: "Apple Worldwide Developer Relations Certification Authority (G3)",
+    commonName: "Apple Worldwide Developer Relations Certification Authority",
+    url: "https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer",
+    neededFor: "Apple Development / Apple Distribution / Mac Installer Distribution certificates"
+  },
+  {
+    name: "Developer ID Certification Authority (G2)",
+    commonName: "Developer ID Certification Authority",
+    url: "https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer",
+    neededFor: "Developer ID Application / Installer certificates issued since 2022"
+  },
+  {
+    name: "Developer ID Certification Authority (G1)",
+    commonName: "Developer ID Certification Authority",
+    url: "https://www.apple.com/certificateauthority/DeveloperIDCA.cer",
+    neededFor: "Older Developer ID certificates (pre-2022)"
+  }
+];
+
+// src/knowledge/entitlements.ts
+var mac3 = ["macOS"];
+var ios = ["iOS"];
+var both = ["macOS", "iOS"];
+var ENTITLEMENTS = [
+  // --- App Sandbox (macOS) ---
+  {
+    key: "com.apple.security.app-sandbox",
+    title: "App Sandbox",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Runs the app in a container (~/Library/Containers/<bundle-id>) with access only to what other entitlements grant. Required for the Mac App Store; optional for Developer ID.",
+    requiresProfile: false,
+    notes: [
+      "Sandbox violations are logged as 'Sandbox: <proc>(<pid>) deny(1) <operation> <path>' \u2014 use system_logs preset=sandbox."
+    ]
+  },
+  {
+    key: "com.apple.security.network.client",
+    title: "Outgoing network connections",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Allow outbound TCP/UDP (HTTP requests, websockets). Most sandboxed apps need this.",
+    requiresProfile: false
+  },
+  {
+    key: "com.apple.security.network.server",
+    title: "Incoming network connections",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Allow listening sockets (local servers, Bonjour advertising).",
+    requiresProfile: false
+  },
+  {
+    key: "com.apple.security.files.user-selected.read-only",
+    title: "User-selected files (read-only)",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Read files the user picks in an Open panel or drags onto the app.",
+    requiresProfile: false
+  },
+  {
+    key: "com.apple.security.files.user-selected.read-write",
+    title: "User-selected files (read/write)",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Read/write files the user picks in Open/Save panels.",
+    requiresProfile: false
+  },
+  {
+    key: "com.apple.security.files.downloads.read-write",
+    title: "Downloads folder",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Read/write the user's Downloads folder.",
+    requiresProfile: false
+  },
+  {
+    key: "com.apple.security.files.bookmarks.app-scope",
+    title: "Security-scoped bookmarks",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Persist access to user-selected files/folders across launches.",
+    requiresProfile: false
+  },
+  {
+    key: "com.apple.security.assets.pictures.read-write",
+    title: "Pictures folder",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Read/write ~/Pictures (a .read-only variant also exists; same pattern for music and movies).",
+    requiresProfile: false
+  },
+  {
+    key: "com.apple.security.device.camera",
+    title: "Camera",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Camera access. Needed under App Sandbox AND under the hardened runtime, plus NSCameraUsageDescription; without it the capture silently fails or the app is killed.",
+    requiresProfile: false,
+    usageDescriptionKey: "NSCameraUsageDescription"
+  },
+  {
+    key: "com.apple.security.device.audio-input",
+    title: "Microphone (hardened runtime / sandbox)",
+    kind: "hardened-runtime",
+    platforms: mac3,
+    description: "Microphone access under the hardened runtime and App Sandbox. Pair with NSMicrophoneUsageDescription.",
+    requiresProfile: false,
+    usageDescriptionKey: "NSMicrophoneUsageDescription"
+  },
+  {
+    key: "com.apple.security.device.microphone",
+    title: "Microphone (legacy sandbox key)",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Older sandbox microphone key; modern projects use com.apple.security.device.audio-input.",
+    requiresProfile: false,
+    usageDescriptionKey: "NSMicrophoneUsageDescription"
+  },
+  {
+    key: "com.apple.security.device.usb",
+    title: "USB devices",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Talk to USB devices from a sandboxed app.",
+    requiresProfile: false
+  },
+  {
+    key: "com.apple.security.device.bluetooth",
+    title: "Bluetooth",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Use Bluetooth from a sandboxed app (also needs NSBluetoothAlwaysUsageDescription).",
+    requiresProfile: false,
+    usageDescriptionKey: "NSBluetoothAlwaysUsageDescription"
+  },
+  {
+    key: "com.apple.security.print",
+    title: "Printing",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Print from a sandboxed app.",
+    requiresProfile: false
+  },
+  {
+    key: "com.apple.security.personal-information.location",
+    title: "Location",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Location Services from a sandboxed / hardened app. Pair with NSLocationUsageDescription.",
+    requiresProfile: false,
+    usageDescriptionKey: "NSLocationUsageDescription"
+  },
+  {
+    key: "com.apple.security.personal-information.addressbook",
+    title: "Contacts",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Contacts access. Pair with NSContactsUsageDescription.",
+    requiresProfile: false,
+    usageDescriptionKey: "NSContactsUsageDescription"
+  },
+  {
+    key: "com.apple.security.personal-information.calendars",
+    title: "Calendars",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Calendar/Reminders access. Pair with NSCalendarsFullAccessUsageDescription (macOS 14+).",
+    requiresProfile: false,
+    usageDescriptionKey: "NSCalendarsFullAccessUsageDescription"
+  },
+  {
+    key: "com.apple.security.personal-information.photos-library",
+    title: "Photos library",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Photos library access. Pair with NSPhotoLibraryUsageDescription.",
+    requiresProfile: false,
+    usageDescriptionKey: "NSPhotoLibraryUsageDescription"
+  },
+  {
+    key: "com.apple.security.automation.apple-events",
+    title: "Apple Events automation",
+    kind: "hardened-runtime",
+    platforms: mac3,
+    description: "Send Apple Events to other apps (AppleScript automation). Required under the hardened runtime, plus NSAppleEventsUsageDescription; the user is prompted per target app.",
+    requiresProfile: false,
+    usageDescriptionKey: "NSAppleEventsUsageDescription"
+  },
+  {
+    key: "com.apple.security.scripting-targets",
+    title: "Scripting targets",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Sandbox-friendly scoped Apple Events access to specific apps' scripting access groups.",
+    requiresProfile: false
+  },
+  {
+    key: "com.apple.security.application-groups",
+    title: "App Groups",
+    kind: "capability",
+    platforms: both,
+    description: "Shared containers between apps/extensions from the same team. macOS groups are '<TEAMID>.<name>'; iOS groups are 'group.<name>' and need the App Groups capability in a profile.",
+    requiresProfile: true,
+    ascCapability: "APP_GROUPS",
+    notes: [
+      "On macOS, team-prefixed groups work without a profile under Developer ID, but since macOS 15 accessing another app's group container may prompt unless the group is authorized by a profile."
+    ]
+  },
+  {
+    key: "com.apple.security.inherit",
+    title: "Inherit sandbox",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "For helper executables launched by a sandboxed app: inherit the parent's sandbox. Use ONLY together with com.apple.security.app-sandbox and nothing else.",
+    requiresProfile: false
+  },
+  {
+    key: "com.apple.security.temporary-exception.files.absolute-path.read-only",
+    title: "Temporary exception: absolute path access",
+    kind: "sandbox",
+    platforms: mac3,
+    description: "Sandbox escape hatch for specific paths. App Review scrutinizes temporary exceptions heavily.",
+    requiresProfile: false,
+    risk: "Likely to draw App Review questions; prefer user-selected files + bookmarks."
+  },
+  // --- Hardened runtime exceptions ---
+  {
+    key: "com.apple.security.cs.allow-jit",
+    title: "Allow JIT (MAP_JIT)",
+    kind: "hardened-runtime",
+    platforms: mac3,
+    description: "Lets the process create writable+executable memory with MAP_JIT. Required by JavaScript engines with JIT (Electron/V8, some WebView/JS runtimes, LuaJIT).",
+    requiresProfile: false,
+    risk: "Moderate \u2014 narrowest of the executable-memory exceptions; prefer it over allow-unsigned-executable-memory."
+  },
+  {
+    key: "com.apple.security.cs.allow-unsigned-executable-memory",
+    title: "Allow unsigned executable memory",
+    kind: "hardened-runtime",
+    platforms: mac3,
+    description: "Allows writable+executable memory without MAP_JIT. Needed by some older Electron versions and legacy JITs.",
+    requiresProfile: false,
+    risk: "High \u2014 weakens code-injection protection. Remove if allow-jit suffices."
+  },
+  {
+    key: "com.apple.security.cs.disable-executable-page-protection",
+    title: "Disable executable page protection",
+    kind: "hardened-runtime",
+    platforms: mac3,
+    description: "Disables all executable memory protections. Almost never needed.",
+    requiresProfile: false,
+    risk: "Very high \u2014 avoid."
+  },
+  {
+    key: "com.apple.security.cs.disable-library-validation",
+    title: "Disable library validation",
+    kind: "hardened-runtime",
+    platforms: mac3,
+    description: "Allows loading frameworks, plug-ins, or native modules signed by OTHER teams (or ad-hoc). Needed for apps that load third-party plug-ins or unsigned native modules.",
+    requiresProfile: false,
+    risk: "High \u2014 any library on disk could be injected. Prefer re-signing bundled libraries with your own Team ID."
+  },
+  {
+    key: "com.apple.security.cs.allow-dyld-environment-variables",
+    title: "Allow DYLD_* environment variables",
+    kind: "hardened-runtime",
+    platforms: mac3,
+    description: "Honor DYLD_INSERT_LIBRARIES etc. Usually a sign of a packaging workaround.",
+    requiresProfile: false,
+    risk: "High \u2014 enables library injection."
+  },
+  {
+    key: "com.apple.security.cs.debugger",
+    title: "Debugger",
+    kind: "hardened-runtime",
+    platforms: mac3,
+    description: "Lets this app attach to other processes as a debugger (only for developer tools).",
+    requiresProfile: false
+  },
+  {
+    key: "com.apple.security.get-task-allow",
+    title: "get-task-allow (debuggable) \u2014 macOS",
+    kind: "debug",
+    platforms: mac3,
+    description: "Lets debuggers attach. Xcode adds it to Debug builds. Notarization REJECTS binaries with it; App Store distribution strips/rejects it.",
+    requiresProfile: false,
+    risk: "Must not ship. Build the Release configuration / remove CODE_SIGN_INJECT_BASE_ENTITLEMENTS."
+  },
+  {
+    key: "get-task-allow",
+    title: "get-task-allow (debuggable) \u2014 iOS",
+    kind: "debug",
+    platforms: ios,
+    description: "Present only in development-signed iOS builds; must be false/absent in App Store, Ad Hoc and Enterprise builds.",
+    requiresProfile: true
+  },
+  // --- Identity entitlements injected from profiles ---
+  {
+    key: "com.apple.application-identifier",
+    title: "Application identifier (macOS)",
+    kind: "identity",
+    platforms: mac3,
+    description: "<TEAMID>.<bundle-id>. Must match the embedded profile. Required for Mac App Store/TestFlight builds and any app using restricted entitlements.",
+    requiresProfile: true
+  },
+  {
+    key: "application-identifier",
+    title: "Application identifier (iOS)",
+    kind: "identity",
+    platforms: ios,
+    description: "<TEAMID>.<bundle-id>; copied from the provisioning profile at signing time.",
+    requiresProfile: true
+  },
+  {
+    key: "com.apple.developer.team-identifier",
+    title: "Team identifier",
+    kind: "identity",
+    platforms: both,
+    description: "Your 10-character Team ID; must match the profile and signing certificate.",
+    requiresProfile: true
+  },
+  {
+    key: "keychain-access-groups",
+    title: "Keychain sharing",
+    kind: "capability",
+    platforms: both,
+    description: "Share keychain items between your apps. Values are '<TEAMID>.<group>' (or $(AppIdentifierPrefix)\u2026).",
+    requiresProfile: true
+  },
+  // --- Capabilities (restricted; need portal capability + profile) ---
+  {
+    key: "aps-environment",
+    title: "Push Notifications (iOS)",
+    kind: "capability",
+    platforms: ios,
+    description: "'development' or 'production'. Distribution profiles grant 'production'.",
+    requiresProfile: true,
+    ascCapability: "PUSH_NOTIFICATIONS"
+  },
+  {
+    key: "com.apple.developer.aps-environment",
+    title: "Push Notifications (macOS)",
+    kind: "capability",
+    platforms: mac3,
+    description: "macOS push entitlement; needs a profile (MAC_APP_DIRECT for Developer ID apps).",
+    requiresProfile: true,
+    ascCapability: "PUSH_NOTIFICATIONS"
+  },
+  {
+    key: "com.apple.developer.icloud-container-identifiers",
+    title: "iCloud containers",
+    kind: "capability",
+    platforms: both,
+    description: "CloudKit / iCloud Documents containers.",
+    requiresProfile: true,
+    ascCapability: "ICLOUD"
+  },
+  {
+    key: "com.apple.developer.icloud-services",
+    title: "iCloud services",
+    kind: "capability",
+    platforms: both,
+    description: "CloudKit and/or CloudDocuments.",
+    requiresProfile: true,
+    ascCapability: "ICLOUD"
+  },
+  {
+    key: "com.apple.developer.ubiquity-kvstore-identifier",
+    title: "iCloud key-value store",
+    kind: "capability",
+    platforms: both,
+    description: "NSUbiquitousKeyValueStore.",
+    requiresProfile: true,
+    ascCapability: "ICLOUD"
+  },
+  {
+    key: "com.apple.developer.ubiquity-container-identifiers",
+    title: "iCloud Documents containers",
+    kind: "capability",
+    platforms: both,
+    description: "iCloud Drive document containers.",
+    requiresProfile: true,
+    ascCapability: "ICLOUD"
+  },
+  {
+    key: "com.apple.developer.associated-domains",
+    title: "Associated Domains",
+    kind: "capability",
+    platforms: both,
+    description: "Universal links, shared web credentials, App Clips (applinks:, webcredentials:). Needs apple-app-site-association on the domain.",
+    requiresProfile: true,
+    ascCapability: "ASSOCIATED_DOMAINS"
+  },
+  {
+    key: "com.apple.developer.applesignin",
+    title: "Sign in with Apple",
+    kind: "capability",
+    platforms: both,
+    description: "['Default'].",
+    requiresProfile: true,
+    ascCapability: "APPLE_ID_AUTH"
+  },
+  {
+    key: "com.apple.developer.in-app-payments",
+    title: "Apple Pay",
+    kind: "capability",
+    platforms: both,
+    description: "Merchant IDs for Apple Pay.",
+    requiresProfile: true,
+    ascCapability: "APPLE_PAY"
+  },
+  {
+    key: "com.apple.developer.healthkit",
+    title: "HealthKit",
+    kind: "capability",
+    platforms: ios,
+    description: "HealthKit access (plus NSHealthShareUsageDescription / NSHealthUpdateUsageDescription).",
+    requiresProfile: true,
+    ascCapability: "HEALTHKIT",
+    usageDescriptionKey: "NSHealthShareUsageDescription"
+  },
+  {
+    key: "com.apple.developer.homekit",
+    title: "HomeKit",
+    kind: "capability",
+    platforms: ios,
+    description: "HomeKit (plus NSHomeKitUsageDescription).",
+    requiresProfile: true,
+    ascCapability: "HOMEKIT",
+    usageDescriptionKey: "NSHomeKitUsageDescription"
+  },
+  {
+    key: "com.apple.developer.game-center",
+    title: "Game Center",
+    kind: "capability",
+    platforms: both,
+    description: "Game Center.",
+    requiresProfile: true,
+    ascCapability: "GAME_CENTER"
+  },
+  {
+    key: "com.apple.developer.siri",
+    title: "SiriKit",
+    kind: "capability",
+    platforms: ios,
+    description: "SiriKit intents.",
+    requiresProfile: true,
+    ascCapability: "SIRIKIT"
+  },
+  {
+    key: "com.apple.developer.networking.networkextension",
+    title: "Network Extensions",
+    kind: "capability",
+    platforms: both,
+    description: "VPN / content filter / DNS proxy providers. Developer ID variants use '-systemextension' suffixed values.",
+    requiresProfile: true,
+    ascCapability: "NETWORK_EXTENSIONS"
+  },
+  {
+    key: "com.apple.developer.networking.vpn.api",
+    title: "Personal VPN",
+    kind: "capability",
+    platforms: both,
+    description: "NEVPNManager personal VPN.",
+    requiresProfile: true,
+    ascCapability: "PERSONAL_VPN"
+  },
+  {
+    key: "com.apple.developer.networking.wifi-info",
+    title: "Access Wi-Fi Information",
+    kind: "capability",
+    platforms: ios,
+    description: "Read current Wi-Fi SSID/BSSID.",
+    requiresProfile: true,
+    ascCapability: "ACCESS_WIFI_INFORMATION"
+  },
+  {
+    key: "com.apple.developer.nfc.readersession.formats",
+    title: "NFC Tag Reading",
+    kind: "capability",
+    platforms: ios,
+    description: "Core NFC (plus NFCReaderUsageDescription).",
+    requiresProfile: true,
+    ascCapability: "NFC_TAG_READING",
+    usageDescriptionKey: "NFCReaderUsageDescription"
+  },
+  {
+    key: "com.apple.developer.default-data-protection",
+    title: "Data Protection",
+    kind: "capability",
+    platforms: ios,
+    description: "Default file protection class.",
+    requiresProfile: true,
+    ascCapability: "DATA_PROTECTION"
+  },
+  {
+    key: "com.apple.developer.system-extension.install",
+    title: "System Extension install",
+    kind: "capability",
+    platforms: mac3,
+    description: "Install DriverKit / Network / Endpoint Security system extensions.",
+    requiresProfile: true,
+    ascCapability: "SYSTEM_EXTENSION_INSTALL"
+  },
+  {
+    key: "com.apple.developer.endpoint-security.client",
+    title: "Endpoint Security client",
+    kind: "managed",
+    platforms: mac3,
+    description: "Endpoint Security framework. Apple must approve the request for this managed capability first.",
+    requiresProfile: true
+  },
+  {
+    key: "com.apple.developer.driverkit",
+    title: "DriverKit",
+    kind: "managed",
+    platforms: mac3,
+    description: "DriverKit drivers (managed capability; request from Apple).",
+    requiresProfile: true
+  }
+];
+function entitlementInfo(key) {
+  return ENTITLEMENTS.find((e) => e.key === key);
+}
+var RISKY_HARDENED_RUNTIME_EXCEPTIONS = [
+  "com.apple.security.cs.allow-unsigned-executable-memory",
+  "com.apple.security.cs.disable-executable-page-protection",
+  "com.apple.security.cs.disable-library-validation",
+  "com.apple.security.cs.allow-dyld-environment-variables"
+];
+var PROFILE_INJECTED_KEYS = /* @__PURE__ */ new Set([
+  "com.apple.application-identifier",
+  "application-identifier",
+  "com.apple.developer.team-identifier",
+  "keychain-access-groups",
+  "get-task-allow",
+  "com.apple.security.get-task-allow",
+  "beta-reports-active",
+  "aps-environment",
+  "com.apple.developer.aps-environment"
+]);
+var ENTITLEMENT_PRESETS = [
+  {
+    id: "developer-id-minimal",
+    title: "Developer ID \u2014 minimal (hardened runtime, no exceptions)",
+    description: "Most native Swift/ObjC apps need no entitlements for Developer ID distribution.",
+    entitlements: {},
+    notes: [
+      "An empty entitlements dict is valid; hardened runtime is enabled by the --options runtime flag, not by an entitlement."
+    ]
+  },
+  {
+    id: "electron",
+    title: "Electron \u2014 Developer ID (main app + helpers)",
+    description: "V8 needs JIT. Apply to the app and every Helper (Renderer/GPU/Plugin).",
+    entitlements: {
+      "com.apple.security.cs.allow-jit": true
+    },
+    notes: [
+      "Electron < 12 may also need com.apple.security.cs.allow-unsigned-executable-memory.",
+      "Add com.apple.security.cs.disable-library-validation only if you load native modules signed by another team.",
+      "Add com.apple.security.device.audio-input / camera (+ usage strings) if the app uses getUserMedia."
+    ]
+  },
+  {
+    id: "electron-mas",
+    title: "Electron \u2014 Mac App Store (parent app)",
+    description: "Sandboxed Electron main app for the Mac App Store.",
+    entitlements: {
+      "com.apple.security.app-sandbox": true,
+      "com.apple.security.network.client": true,
+      "com.apple.security.files.user-selected.read-write": true,
+      "com.apple.security.application-groups": ["$(TeamIdentifierPrefix)$(CFBundleIdentifier)"],
+      "com.apple.security.cs.allow-jit": true
+    },
+    notes: [
+      "Replace the application group with '<TEAMID>.<bundle-id>' literally if your tool does not expand variables.",
+      "Helpers use the electron-mas-inherit preset."
+    ]
+  },
+  {
+    id: "electron-mas-inherit",
+    title: "Electron \u2014 Mac App Store (helpers / child processes)",
+    description: "Child processes inherit the parent sandbox.",
+    entitlements: {
+      "com.apple.security.app-sandbox": true,
+      "com.apple.security.inherit": true
+    },
+    notes: ["Do not add other keys alongside com.apple.security.inherit."]
+  },
+  {
+    id: "tauri",
+    title: "Tauri \u2014 Developer ID",
+    description: "Tauri (WKWebView) apps generally need no hardened-runtime exceptions.",
+    entitlements: {},
+    notes: ["Add network.client/server and app-sandbox only for Mac App Store builds."]
+  },
+  {
+    id: "sandbox-basic",
+    title: "Sandboxed app \u2014 basic (Mac App Store)",
+    description: "Typical sandbox baseline for a document/network app.",
+    entitlements: {
+      "com.apple.security.app-sandbox": true,
+      "com.apple.security.network.client": true,
+      "com.apple.security.files.user-selected.read-write": true
+    },
+    notes: ["Add device/personal-information keys only for features you actually use (App Review checks)."]
+  }
+];
+var CAPABILITY_SHORTHANDS = {
+  sandbox: { "com.apple.security.app-sandbox": true },
+  "network-client": { "com.apple.security.network.client": true },
+  "network-server": { "com.apple.security.network.server": true },
+  "files-user-selected-read": { "com.apple.security.files.user-selected.read-only": true },
+  "files-user-selected-write": { "com.apple.security.files.user-selected.read-write": true },
+  downloads: { "com.apple.security.files.downloads.read-write": true },
+  camera: { "com.apple.security.device.camera": true },
+  microphone: { "com.apple.security.device.audio-input": true },
+  usb: { "com.apple.security.device.usb": true },
+  bluetooth: { "com.apple.security.device.bluetooth": true },
+  location: { "com.apple.security.personal-information.location": true },
+  contacts: { "com.apple.security.personal-information.addressbook": true },
+  calendars: { "com.apple.security.personal-information.calendars": true },
+  photos: { "com.apple.security.personal-information.photos-library": true },
+  "apple-events": { "com.apple.security.automation.apple-events": true },
+  print: { "com.apple.security.print": true },
+  jit: { "com.apple.security.cs.allow-jit": true },
+  "unsigned-executable-memory": { "com.apple.security.cs.allow-unsigned-executable-memory": true },
+  "disable-library-validation": { "com.apple.security.cs.disable-library-validation": true },
+  "dyld-env": { "com.apple.security.cs.allow-dyld-environment-variables": true }
+};
+
+// src/knowledge/error-catalog.ts
+var ERROR_CATALOG = [
+  // ---------------- keychain / codesign ----------------
+  {
+    id: "errSecInternalComponent",
+    source: "keychain",
+    pattern: /errSecInternalComponent/,
+    title: "Keychain refused access to the signing key",
+    explanation: "codesign could not use the private key: the keychain is locked (common over SSH/CI), the key's access control does not allow codesign, or the certificate chain is incomplete.",
+    fix: [
+      "Unlock the keychain: security unlock-keychain ~/Library/Keychains/login.keychain-db",
+      "CI/temporary keychains: security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k <password> <keychain>",
+      "Install the Apple intermediate certificates (keychain action=install_intermediates)"
+    ],
+    tool: "keychain install_intermediates / signing_identities"
+  },
+  {
+    id: "chain-to-root",
+    source: "codesign",
+    pattern: /unable to build chain to self-signed root|CSSMERR_TP_NOT_TRUSTED|errSecNoTrustSettings/,
+    title: "Certificate chain is incomplete or untrusted",
+    explanation: "The Apple intermediate CA (WWDR G3 or Developer ID G2) is missing, or someone changed the certificate's trust settings to 'Always Trust' (which breaks codesign).",
+    fix: [
+      "Install intermediates: keychain action=install_intermediates",
+      "In Keychain Access, set the certificate's Trust back to 'Use System Defaults'"
+    ],
+    tool: "keychain install_intermediates"
+  },
+  {
+    id: "ambiguous-identity",
+    source: "codesign",
+    pattern: /ambiguous \(matches/,
+    title: "More than one matching signing identity",
+    explanation: "Several certificates share the same name (e.g. an expired and a renewed one).",
+    fix: [
+      "Pass the identity's SHA-1 hash instead of its name (signing_identities lists them)",
+      "Delete expired duplicates from the keychain"
+    ],
+    tool: "signing_identities"
+  },
+  {
+    id: "no-identity",
+    source: "codesign",
+    pattern: /no identity found|The specified item could not be found in the keychain|not a valid identity/,
+    title: "Signing identity not found",
+    explanation: "There is no certificate WITH its private key matching that name in the searched keychains. Certificates downloaded without the private key that created the CSR cannot sign.",
+    fix: [
+      "List usable identities: signing_identities",
+      "Import a .p12 that contains the private key (keychain import_p12), or create a new certificate from a fresh CSR (keychain create_csr \u2192 asc_certificates create)"
+    ],
+    tool: "signing_identities"
+  },
+  {
+    id: "detritus",
+    source: "codesign",
+    pattern: /resource fork, Finder information, or similar detritus not allowed/,
+    title: "Extended attributes on files in the bundle",
+    explanation: "Files carry extended attributes (Finder info, quarantine, resource forks). Often caused by building inside iCloud Drive/Dropbox folders or copying with Finder.",
+    fix: ["xattr -cr /path/to/App.app, then sign again", "Build outside cloud-synced folders"],
+    tool: "quarantine clear"
+  },
+  {
+    id: "nested-unsigned",
+    source: "codesign",
+    pattern: /code object is not signed at all|In subcomponent:/,
+    title: "Nested code is unsigned",
+    explanation: "A framework, dylib, helper, plug-in or executable inside the bundle is not signed. Bundles must be signed inside-out: nested code first, outer bundle last.",
+    fix: ["Use the sign tool (it signs nested code deepest-first)", "Never rely on --deep for signing"],
+    tool: "sign"
+  },
+  {
+    id: "sealed-resource",
+    source: "codesign",
+    pattern: /a sealed resource is missing or invalid|file added:|file modified:|file missing:/,
+    title: "Bundle changed after it was signed",
+    explanation: "Files were added, removed or modified after signing (post-build scripts, copying resources, editing Info.plist, stripping).",
+    fix: [
+      "Make all modifications first and sign last",
+      "inspect_code_signature shows which file changed",
+      "Re-sign the bundle (sign tool)"
+    ],
+    tool: "inspect_code_signature"
+  },
+  {
+    id: "modified-binary",
+    source: "codesign",
+    pattern: /invalid signature \(code or signature have been modified\)|invalid Info\.plist \(plist or signature have been modified\)/,
+    title: "Code or signature has been modified",
+    explanation: "A binary changed after signing (strip, install_name_tool, lipo, patching) or the signature is from a revoked/expired certificate.",
+    fix: [
+      "Re-sign after the last modification (sign tool)",
+      "Check the certificate is valid (signing_identities)"
+    ],
+    tool: "sign"
+  },
+  {
+    id: "bundle-format",
+    source: "codesign",
+    pattern: /bundle format unrecognized, invalid, or unsuitable|bundle format is ambiguous/,
+    title: "Malformed bundle",
+    explanation: "The bundle structure is invalid \u2014 commonly a framework whose Versions/Current symlinks were flattened by `cp -r`/zip, or an Info.plist in the wrong location.",
+    fix: [
+      "Copy bundles with ditto or cp -a (preserve symlinks)",
+      "Check Framework.framework/Versions/Current is a symlink to A"
+    ]
+  },
+  {
+    id: "unsealed-contents",
+    source: "codesign",
+    pattern: /unsealed contents present in the (root directory of an embedded framework|bundle root)/,
+    title: "Files in an unsealed location",
+    explanation: "Only specific locations are sealed. Extra files at the bundle/framework root are not allowed.",
+    fix: ["Move resources into Contents/Resources (or Versions/A/Resources for frameworks)"]
+  },
+  {
+    id: "timestamp-unavailable",
+    source: "codesign",
+    pattern: /The timestamp service is not available|timestamp.*(timed out|unavailable)/i,
+    title: "Apple timestamp server unreachable",
+    explanation: "codesign --timestamp contacts timestamp.apple.com; the network or proxy blocked it.",
+    fix: ["Retry; check network/proxy access to timestamp.apple.com"]
+  },
+  {
+    id: "cert-revoked",
+    source: "codesign",
+    pattern: /CSSMERR_TP_CERT_REVOKED|certificate (has been )?revoked/i,
+    title: "Certificate revoked",
+    explanation: "The signing certificate was revoked in the developer portal.",
+    fix: ["Create a new certificate (keychain create_csr \u2192 asc_certificates create) and re-sign"],
+    tool: "asc_certificates"
+  },
+  {
+    id: "cert-expired",
+    source: "codesign",
+    pattern: /CSSMERR_TP_CERT_EXPIRED|certificate (has )?expired/i,
+    title: "Certificate expired",
+    explanation: "The signing certificate has expired. Builds signed with a timestamp before expiry stay valid; new signing needs a new certificate.",
+    fix: ["Create a replacement certificate and remove the expired one from the keychain"],
+    tool: "asc_certificates"
+  },
+  // ---------------- notarization ----------------
+  {
+    id: "notary-not-developer-id",
+    source: "notarization",
+    pattern: /not signed with a valid Developer ID certificate/,
+    title: "Not signed with Developer ID",
+    explanation: "Notarization requires a Developer ID Application certificate. Apple Development/Distribution or ad-hoc signatures are rejected.",
+    fix: ["Sign with 'Developer ID Application: <Name> (<TEAMID>)' (sign tool with target=mac-developer-id)"],
+    tool: "sign"
+  },
+  {
+    id: "notary-no-timestamp",
+    source: "notarization",
+    pattern: /does not include a secure timestamp/,
+    title: "Missing secure timestamp",
+    explanation: "Every binary must be signed with --timestamp.",
+    fix: ["Re-sign with --timestamp (the sign tool always adds it for distribution)"],
+    tool: "sign"
+  },
+  {
+    id: "notary-no-hardened-runtime",
+    source: "notarization",
+    pattern: /does not have the hardened runtime enabled/,
+    title: "Hardened runtime not enabled",
+    explanation: "Every executable must be signed with --options runtime.",
+    fix: [
+      "Xcode: ENABLE_HARDENED_RUNTIME = YES",
+      "Electron: mac.hardenedRuntime=true; Tauri: bundle.macOS.hardenedRuntime=true",
+      "Manual: codesign --options runtime"
+    ],
+    tool: "sign"
+  },
+  {
+    id: "notary-get-task-allow",
+    source: "notarization",
+    pattern: /requests the com\.apple\.security\.get-task-allow entitlement/,
+    title: "Debug entitlement present",
+    explanation: "The build is debuggable (Debug configuration or development signing).",
+    fix: [
+      "Build the Release configuration",
+      "Remove com.apple.security.get-task-allow from entitlements and re-sign"
+    ],
+    tool: "entitlements validate"
+  },
+  {
+    id: "notary-old-sdk",
+    source: "notarization",
+    pattern: /uses an SDK older than the 10\.9 SDK/,
+    title: "Binary built with an ancient SDK",
+    explanation: "A binary (often a bundled third-party tool) was linked against a macOS SDK older than 10.9.",
+    fix: ["Rebuild that binary with a modern SDK, or remove it", "inspect_binary shows each binary's SDK"],
+    tool: "inspect_binary"
+  },
+  {
+    id: "notary-binary-not-signed",
+    source: "notarization",
+    pattern: /The binary is not signed|The signature of the binary is invalid/,
+    title: "Unsigned or invalid nested binary",
+    explanation: "A Mach-O inside the submission (possibly inside a nested zip/jar, node_modules *.node, Python .so) is unsigned or its signature is broken.",
+    fix: [
+      "Sign every Mach-O inside-out (sign tool discovers them)",
+      "Sign binaries inside nested archives before archiving"
+    ],
+    tool: "sign"
+  },
+  {
+    id: "notary-pkg-unsigned",
+    source: "notarization",
+    pattern: /(package|installer).*not signed|not signed with a Developer ID Installer/i,
+    title: "Installer package not signed",
+    explanation: "A .pkg must be signed with a Developer ID Installer certificate.",
+    fix: ["productsign --sign 'Developer ID Installer: \u2026' in.pkg out.pkg (package action=pkg)"],
+    tool: "package"
+  },
+  {
+    id: "notary-archive-invalid",
+    source: "notarization",
+    pattern: /The archive is invalid|unable to (unzip|extract)|Invalid archive/i,
+    title: "Upload archive invalid",
+    explanation: "The zip was created in a way the notary service cannot read (e.g. Finder 'Compress' of an alias, zip without symlinks).",
+    fix: ["Create with: ditto -c -k --sequesterRsrc --keepParent App.app App.zip (package action=zip)"],
+    tool: "package"
+  },
+  {
+    id: "notary-auth",
+    source: "notarization",
+    pattern: /HTTP status code: 401|Unable to authenticate|invalid credentials|Error: (HTTP )?401/i,
+    title: "Notary service authentication failed",
+    explanation: "The API key, Apple ID or app-specific password is wrong or revoked. Apple ID passwords must be app-specific passwords, not the account password.",
+    fix: ["Re-store credentials with an App Store Connect API key (notary action=store_credentials)"],
+    tool: "notary store_credentials"
+  },
+  {
+    id: "notary-agreement",
+    source: "notarization",
+    pattern: /required agreement|sign the relevant contracts|agreement.*(missing|expired|not.*accepted)/i,
+    title: "Developer agreement not accepted",
+    explanation: "Apple blocks notarization/uploads until the Account Holder accepts updated agreements.",
+    fix: ["Account Holder: sign in at developer.apple.com/account and accept the pending agreement"]
+  },
+  {
+    id: "notary-no-profile",
+    source: "notarization",
+    pattern: /No Keychain password item found for profile|keychain profile .* (not found|could not be found)/i,
+    title: "notarytool keychain profile missing",
+    explanation: "The named --keychain-profile does not exist in this keychain.",
+    fix: ["Create it: notary action=store_credentials"],
+    tool: "notary store_credentials"
+  },
+  // ---------------- stapler ----------------
+  {
+    id: "staple-error-65",
+    source: "stapler",
+    pattern: /Error 65|Record not found|Could not validate ticket|does not have a ticket stapled/i,
+    title: "No notarization ticket found",
+    explanation: "Apple has no ticket for this exact file: it was not notarized (or notarization was Invalid), it changed after submission (different cdhash), or the ticket is still propagating (wait a minute).",
+    fix: [
+      "Check status: notary action=history / status",
+      "Staple the same .app/.dmg/.pkg you submitted (a .zip cannot be stapled \u2014 staple the app inside and re-zip)",
+      "Retry after a minute if notarization just finished"
+    ],
+    tool: "notary status"
+  },
+  {
+    id: "staple-unsupported",
+    source: "stapler",
+    pattern: /Error 73|is not a supported file type|Stapler is incapable of working with/i,
+    title: "File type cannot be stapled",
+    explanation: "Only .app bundles, .dmg, and .pkg can be stapled; bare executables and .zip cannot.",
+    fix: [
+      "Staple the .app (then zip it), or ship a .dmg/.pkg",
+      "Bare CLI tools rely on online ticket lookup instead"
+    ]
+  },
+  // ---------------- gatekeeper ----------------
+  {
+    id: "gk-unnotarized",
+    source: "gatekeeper",
+    pattern: /source=Unnotarized Developer ID/,
+    title: "Signed but not notarized",
+    explanation: "Gatekeeper sees a valid Developer ID signature but no notarization ticket.",
+    fix: ["Notarize and staple (notarize_and_staple)"],
+    tool: "notarize_and_staple"
+  },
+  {
+    id: "gk-no-usable-signature",
+    source: "gatekeeper",
+    pattern: /source=no usable signature|no usable signature/,
+    title: "No usable signature",
+    explanation: "The item is unsigned, ad-hoc signed, or the signature is broken.",
+    fix: ["inspect_code_signature to see why", "Sign with Developer ID (sign)"],
+    tool: "inspect_code_signature"
+  },
+  {
+    id: "gk-not-an-app",
+    source: "gatekeeper",
+    pattern: /the code is valid but does not seem to be an app/,
+    title: "Wrong spctl assessment type",
+    explanation: "spctl --type execute only applies to app bundles. Use --type install for .pkg and --type open for .dmg.",
+    fix: ["Use gatekeeper action=assess (it picks the right type)"],
+    tool: "gatekeeper assess"
+  },
+  {
+    id: "gk-wrong-cert",
+    source: "gatekeeper",
+    pattern: /origin=Apple (Development|Distribution)|source=Apple (Development|Distribution)|source=Mac App Store/,
+    title: "Not a Developer ID signature",
+    explanation: "Development/App Store signatures are not trusted by Gatekeeper for direct downloads. Only Developer ID + notarization works outside the App Store.",
+    fix: ["Re-sign with Developer ID Application and notarize"],
+    tool: "sign"
+  },
+  {
+    id: "gk-damaged",
+    source: "gatekeeper",
+    pattern: /is damaged and can.t be opened|is damaged and should be moved to the Trash/,
+    title: '"App is damaged"',
+    explanation: "Shown for quarantined apps whose signature is invalid (modified after signing, broken nested signatures, unsigned arm64 code), not for merely unnotarized apps.",
+    fix: [
+      "inspect_code_signature on the downloaded copy",
+      "Re-sign inside-out, notarize, staple; distribute in a .dmg or ditto-made zip"
+    ],
+    tool: "gatekeeper simulate_download"
+  },
+  {
+    id: "gk-unverified",
+    source: "gatekeeper",
+    pattern: /developer cannot be verified|Apple could not verify|cannot check it for malicious software|unidentified developer/i,
+    title: "Gatekeeper cannot verify the developer",
+    explanation: "The app is not notarized (or the ticket is missing and the Mac is offline), or it isn't Developer ID signed.",
+    fix: ["notarize_and_staple, then re-test with gatekeeper simulate_download"],
+    tool: "notarize_and_staple"
+  },
+  {
+    id: "gk-translocation",
+    source: "gatekeeper",
+    pattern: /AppTranslocation|translocat/i,
+    title: "App Translocation",
+    explanation: "A quarantined app launched from where it was downloaded runs from a randomized read-only path, which breaks relative paths and updaters.",
+    fix: ["Ship in a .dmg with an /Applications link and ask users to move the app", "Notarize + staple"]
+  },
+  // ---------------- runtime (dyld / AMFI / sandbox) ----------------
+  {
+    id: "rt-library-validation",
+    source: "runtime",
+    pattern: /not valid for use in process|different Team IDs|mapping process and mapped file \(non-platform\) have different Team IDs/,
+    title: "Library validation blocked a library",
+    explanation: "Under the hardened runtime, a process may only load libraries signed by Apple or by the same Team ID.",
+    fix: [
+      "Re-sign the bundled library with your Developer ID (sign tool signs nested code)",
+      "If you must load third-party plug-ins: add com.apple.security.cs.disable-library-validation"
+    ],
+    tool: "sign"
+  },
+  {
+    id: "rt-library-not-loaded",
+    source: "runtime",
+    pattern: /Library not loaded:/,
+    title: "dyld could not load a library",
+    explanation: "A linked library is missing from the bundle or its @rpath/install name is wrong.",
+    fix: ["inspect_binary shows linked libraries and rpaths", "Embed the framework (Xcode: Embed & Sign)"],
+    tool: "inspect_binary"
+  },
+  {
+    id: "rt-no-profile",
+    source: "runtime",
+    pattern: /no eligible provisioning profiles found|Unsatisfied [Ee]ntitlements|Disallowing .* because no eligible provisioning profiles/,
+    title: "Restricted entitlement without a matching profile",
+    explanation: "The app claims an entitlement (iCloud, push, associated domains, etc.) that must be granted by an embedded provisioning profile. AMFI kills it at launch.",
+    fix: [
+      "Create a profile for the target (MAC_APP_DIRECT for Developer ID) with the capability enabled (asc_bundle_ids enable_capability \u2192 asc_profiles create)",
+      "Embed it at Contents/embedded.provisionprofile before signing (provisioning_profiles embed)"
+    ],
+    tool: "entitlements validate"
+  },
+  {
+    id: "rt-codesigning-crash",
+    source: "runtime",
+    pattern: /Namespace CODESIGNING|Code Signature Invalid|CODESIGNING, Code/,
+    title: "Killed for an invalid code signature",
+    explanation: "The kernel killed the process because a page failed signature validation or the signature is invalid.",
+    fix: ["inspect_code_signature", "Re-sign after all modifications; check entitlements need a profile"],
+    tool: "inspect_code_signature"
+  },
+  {
+    id: "rt-killed-9",
+    source: "runtime",
+    pattern: /[Kk]illed: 9/,
+    title: "Process killed at launch (SIGKILL)",
+    explanation: "On Apple silicon, arm64 code must be signed (at least ad-hoc); invalid signatures or unsatisfied entitlements cause an immediate SIGKILL.",
+    fix: [
+      "codesign -s - for local testing, or sign properly",
+      "crash_reports and system_logs preset=amfi for details"
+    ],
+    tool: "crash_reports"
+  },
+  {
+    id: "rt-sandbox-deny",
+    source: "runtime",
+    pattern: /Sandbox: .*deny\(\d+\)/,
+    title: "App Sandbox denied an operation",
+    explanation: "The sandboxed process tried something its entitlements don't allow.",
+    fix: ["system_logs preset=sandbox maps each denial to the entitlement that would allow it"],
+    tool: "system_logs"
+  },
+  // ---------------- xcodebuild ----------------
+  {
+    id: "xc-no-certificate",
+    source: "xcodebuild",
+    pattern: /No signing certificate "([^"]+)" found|No certificate for team .* matching/,
+    title: "Xcode cannot find a signing certificate",
+    explanation: "No certificate of the required type with its private key is in the keychain.",
+    fix: [
+      "Let Xcode create it: xcode archive with allow_provisioning_updates=true and an API key",
+      "Or create/import manually (keychain create_csr \u2192 asc_certificates create)"
+    ],
+    tool: "signing_identities"
+  },
+  {
+    id: "xc-no-profile",
+    source: "xcodebuild",
+    pattern: /No profiles for '([^']+)' were found|requires a provisioning profile|No provisioning profiles? (with|matching)/,
+    title: "No matching provisioning profile",
+    explanation: "Automatic signing could not fetch/create a profile, or manual signing points to one that isn't installed.",
+    fix: [
+      "Archive with -allowProvisioningUpdates and API key auth (xcode archive)",
+      "Or create + install one: asc_profiles create / download_install"
+    ],
+    tool: "asc_profiles"
+  },
+  {
+    id: "xc-profile-missing-cert",
+    source: "xcodebuild",
+    pattern: /Provisioning profile "[^"]+" doesn't include signing certificate/,
+    title: "Profile does not contain your certificate",
+    explanation: "The profile was generated for a different/older certificate.",
+    fix: [
+      "asc_profiles regenerate including the current certificate",
+      "Or sign with the certificate the profile lists"
+    ],
+    tool: "asc_profiles regenerate"
+  },
+  {
+    id: "xc-profile-missing-capability",
+    source: "xcodebuild",
+    pattern: /Provisioning profile "[^"]+" doesn't (support|include) the .* (capability|entitlement)/,
+    title: "Profile lacks a capability/entitlement",
+    explanation: "The app's entitlements request a capability not enabled on the App ID or not present in the profile.",
+    fix: ["asc_bundle_ids enable_capability, then asc_profiles regenerate", "Or remove the entitlement"],
+    tool: "asc_bundle_ids"
+  },
+  {
+    id: "xc-requires-team",
+    source: "xcodebuild",
+    pattern: /requires a development team/,
+    title: "No development team set",
+    explanation: "DEVELOPMENT_TEAM is empty for the target.",
+    fix: [
+      "Pass DEVELOPMENT_TEAM=<TEAMID> (xcode archive team_id=\u2026) or set it in the target's Signing & Capabilities"
+    ],
+    tool: "xcode signing_settings"
+  },
+  {
+    id: "xc-conflicting-settings",
+    source: "xcodebuild",
+    pattern: /has conflicting provisioning settings|is automatically signed, but provisioning profile .* has been manually specified|is automatically signed for development, but a conflicting code signing identity/,
+    title: "Automatic vs manual signing conflict",
+    explanation: "The target uses automatic signing but a specific identity/profile is forced (or vice-versa).",
+    fix: [
+      "For automatic: clear PROVISIONING_PROFILE_SPECIFIER and set CODE_SIGN_IDENTITY to 'Apple Development'",
+      "For manual: CODE_SIGN_STYLE=Manual with an explicit profile"
+    ],
+    tool: "xcode signing_settings"
+  },
+  {
+    id: "xc-no-devices",
+    source: "xcodebuild",
+    pattern: /Your team has no devices from which to generate a provisioning profile/,
+    title: "No registered devices",
+    explanation: "Development/Ad Hoc profiles need at least one registered device.",
+    fix: ["devices (get UDIDs) \u2192 asc_devices register"],
+    tool: "asc_devices"
+  },
+  {
+    id: "xc-auth-key",
+    source: "xcodebuild",
+    pattern: /authenticationKey|Failed to authenticate|No Accounts|There are no accounts registered with Xcode/,
+    title: "xcodebuild has no account to manage signing",
+    explanation: "Automatic signing in CI needs either an Xcode-logged-in account or App Store Connect API key flags.",
+    fix: ["xcode archive with an API key profile (adds -authenticationKeyPath/ID/IssuerID)"],
+    tool: "xcode archive"
+  },
+  // ---------------- upload / App Store Connect ----------------
+  {
+    id: "itms-90189",
+    source: "upload",
+    pattern: /ITMS-90189|Redundant Binary Upload|bundle version .* has already been used/i,
+    title: "Build number already used",
+    explanation: "CFBundleVersion must be unique (and increasing) per version train.",
+    fix: ["Bump CURRENT_PROJECT_VERSION / CFBundleVersion (asc_builds list shows the latest)"],
+    tool: "asc_builds list"
+  },
+  {
+    id: "itms-90062",
+    source: "upload",
+    pattern: /ITMS-90062|ITMS-90186|must contain a higher version than that of the previously approved version|train .* is closed/i,
+    title: "Version must be higher",
+    explanation: "CFBundleShortVersionString must be greater than the last approved/released version.",
+    fix: ["Increase MARKETING_VERSION / CFBundleShortVersionString"]
+  },
+  {
+    id: "itms-90683",
+    source: "upload",
+    pattern: /ITMS-90683|Missing purpose string in Info\.plist/i,
+    title: "Missing privacy usage description",
+    explanation: "The binary references a protected API but Info.plist lacks the matching NS*UsageDescription.",
+    fix: [
+      "Add the key named in the email/error with a user-facing explanation (privacy audit lists candidates)"
+    ],
+    tool: "privacy audit"
+  },
+  {
+    id: "itms-91053",
+    source: "upload",
+    pattern: /ITMS-91053|Missing API declaration/i,
+    title: "Privacy manifest missing a required-reason API",
+    explanation: "The app (or an SDK) uses a required-reason API not declared in PrivacyInfo.xcprivacy.",
+    fix: [
+      "Add NSPrivacyAccessedAPITypes entries with the reason codes (privacy audit lists detected categories)"
+    ],
+    tool: "privacy audit"
+  },
+  {
+    id: "itms-91061",
+    source: "upload",
+    pattern: /ITMS-91061|Missing privacy manifest/i,
+    title: "Third-party SDK missing its privacy manifest",
+    explanation: "A commonly-used SDK in the app lacks PrivacyInfo.xcprivacy or a valid signature.",
+    fix: ["Update the SDK to a version that ships a privacy manifest"]
+  },
+  {
+    id: "itms-90296",
+    source: "upload",
+    pattern: /ITMS-90296|App sandbox not enabled/i,
+    title: "Mac App Store build not sandboxed",
+    explanation: "Every executable in a Mac App Store app must have com.apple.security.app-sandbox.",
+    fix: ["Add the sandbox entitlement to the app and all helpers (helpers: app-sandbox + inherit)"],
+    tool: "entitlements generate"
+  },
+  {
+    id: "itms-90161",
+    source: "upload",
+    pattern: /ITMS-90161|Invalid Provisioning Profile/i,
+    title: "Invalid provisioning profile",
+    explanation: "The embedded profile is not an App Store distribution profile or doesn't match the bundle ID/team.",
+    fix: [
+      "Export with method app-store-connect; inspect the embedded profile (provisioning_profiles inspect)"
+    ],
+    tool: "provisioning_profiles inspect"
+  },
+  {
+    id: "itms-90046",
+    source: "upload",
+    pattern: /ITMS-90046|Invalid Code Signing Entitlements/i,
+    title: "Entitlements not allowed by the profile",
+    explanation: "Signed entitlements contain keys/values the distribution profile does not grant.",
+    fix: ["entitlements validate against the profile; enable the capability and regenerate the profile"],
+    tool: "entitlements validate"
+  },
+  {
+    id: "itms-90034",
+    source: "upload",
+    pattern: /ITMS-90034|Missing or invalid signature/i,
+    title: "Not signed with a distribution certificate",
+    explanation: "App Store uploads must be signed with Apple Distribution (or legacy iOS/Mac distribution).",
+    fix: ["Export with method app-store-connect, or re-sign with Apple Distribution"]
+  },
+  {
+    id: "itms-90237",
+    source: "upload",
+    pattern: /ITMS-90237|product archive package's signature is invalid/i,
+    title: "Mac upload .pkg not signed correctly",
+    explanation: "The .pkg must be signed with the Mac Installer Distribution (3rd Party Mac Developer Installer) certificate.",
+    fix: ["package action=pkg with the Mac Installer Distribution identity"],
+    tool: "package pkg"
+  },
+  {
+    id: "itms-90886",
+    source: "upload",
+    pattern: /ITMS-90886|ITMS-90889|missing a provisioning profile|missing an application identifier/i,
+    title: "Mac TestFlight: helper missing profile / app identifier",
+    explanation: "For Mac TestFlight every executable bundle needs an embedded profile and the com.apple.application-identifier + team-identifier entitlements.",
+    fix: ["Embed MAC_APP_STORE profiles in each helper/extension and include the identity entitlements"],
+    tool: "provisioning_profiles embed"
+  },
+  {
+    id: "itms-90087",
+    source: "upload",
+    pattern: /ITMS-90087|Unsupported Architectures/i,
+    title: "Simulator architectures in the upload",
+    explanation: "An embedded framework contains simulator slices (x86_64/arm64-simulator).",
+    fix: ["Use XCFrameworks, or strip simulator slices with lipo before signing"],
+    tool: "inspect_binary"
+  },
+  {
+    id: "itms-sdk-version",
+    source: "upload",
+    pattern: /ITMS-90725|ITMS-90111|SDK version issue|built with .* SDK .* (older|unsupported)/i,
+    title: "Built with an SDK that is too old",
+    explanation: "App Store Connect requires uploads to be built with a recent Xcode/SDK.",
+    fix: ["Update Xcode (doctor shows the current minimum)"],
+    tool: "doctor"
+  },
+  {
+    id: "itms-90717",
+    source: "upload",
+    pattern: /ITMS-90717|Invalid App Store Icon/i,
+    title: "App icon has transparency",
+    explanation: "The App Store icon must not have an alpha channel.",
+    fix: ["Export the 1024\xD71024 icon without transparency"]
+  },
+  {
+    id: "itms-90338",
+    source: "upload",
+    pattern: /ITMS-90338|Non-public API usage/i,
+    title: "Non-public API usage",
+    explanation: "The binary references private Apple APIs (often via a third-party SDK).",
+    fix: ["Find the symbol named in the email; update/remove the SDK"]
+  }
+];
+function matchKnownErrors(text, sources) {
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const e of ERROR_CATALOG) {
+    if (sources && !sources.includes(e.source)) continue;
+    const m = e.pattern.exec(text);
+    if (m && !seen.has(e.id)) {
+      seen.add(e.id);
+      const lineStart = text.lastIndexOf("\n", m.index) + 1;
+      const lineEnd = text.indexOf("\n", m.index);
+      const matched = text.slice(lineStart, lineEnd === -1 ? void 0 : lineEnd).trim().slice(0, 300);
+      out.push({
+        id: e.id,
+        source: e.source,
+        title: e.title,
+        explanation: e.explanation,
+        fix: e.fix,
+        tool: e.tool,
+        matched
+      });
+    }
+  }
+  return out;
+}
+
+// src/parsers/codesign.ts
+function parseCodesignDisplay(text) {
+  const info = {
+    flags: [],
+    authorities: [],
+    hasSecureTimestamp: false,
+    isAdhoc: false,
+    hardenedRuntime: false,
+    isSigned: !/code object is not signed at all|is not signed at all/.test(text),
+    raw: text
+  };
+  for (const line of text.split("\n")) {
+    const eq = line.indexOf("=");
+    if (eq === -1) continue;
+    const key = line.slice(0, eq).trim();
+    const value = line.slice(eq + 1).trim();
+    switch (key) {
+      case "Executable":
+        info.executable = value;
+        break;
+      case "Identifier":
+        info.identifier = value;
+        break;
+      case "Format":
+        info.format = value;
+        break;
+      case "CodeDirectory v": {
+        const m = /^(\S+)/.exec(value);
+        info.codeDirectoryVersion = m?.[1];
+        const fm = /flags=(0x[0-9a-f]+)\(([^)]*)\)/i.exec(line);
+        if (fm) {
+          info.flagsHex = fm[1];
+          info.flags = fm[2] ? fm[2].split(",").map((f) => f.trim()).filter(Boolean) : [];
+        }
+        const rv = /runtime=(\S+)/.exec(line);
+        if (rv) info.runtimeVersion = rv[1];
+        break;
+      }
+      case "Hash type":
+        info.hashType = value;
+        break;
+      case "CandidateCDHash sha256":
+      case "CDHash":
+        info.cdHash ??= value;
+        break;
+      case "Authority":
+        info.authorities.push(value);
+        break;
+      case "TeamIdentifier":
+        info.teamIdentifier = value === "not set" ? void 0 : value;
+        break;
+      case "Timestamp":
+        info.timestamp = value;
+        info.hasSecureTimestamp = true;
+        break;
+      case "Signed Time":
+        info.signedTime = value;
+        break;
+      case "Signature":
+        if (/adhoc/i.test(value)) info.isAdhoc = true;
+        break;
+      case "Info.plist entries":
+        info.infoPlistEntries = Number.parseInt(value, 10);
+        break;
+      case "Sealed Resources version":
+        info.sealedResources = value;
+        break;
+      case "Runtime Version":
+        info.runtimeVersion = value;
+        break;
+      case "Notarization Ticket":
+        info.notarizationTicket = /stapled/i.test(value) ? "stapled" : "none";
+        break;
+    }
+  }
+  if (info.flags.includes("adhoc")) info.isAdhoc = true;
+  if (info.flags.includes("runtime")) info.hardenedRuntime = true;
+  return info;
+}
+function signerKind(info) {
+  if (!info.isSigned) return "unsigned";
+  if (info.isAdhoc) return "adhoc";
+  const leaf = info.authorities[0] ?? "";
+  if (leaf.startsWith("Developer ID Application")) return "developer-id";
+  if (leaf.startsWith("Apple Distribution") || leaf.startsWith("iPhone Distribution"))
+    return "apple-distribution";
+  if (leaf.startsWith("3rd Party Mac Developer Application")) return "apple-distribution";
+  if (/^(Apple Development|iPhone Developer|Mac Developer)/.test(leaf)) return "apple-development";
+  if (leaf.startsWith("Apple Mac OS Application Signing")) return "mac-app-store";
+  if (leaf.startsWith("Software Signing") || leaf.startsWith("Apple Code Signing")) return "apple";
+  return "unknown";
+}
+function parseCodesignVerify(text, exitCode) {
+  const problemPaths = [];
+  const messages = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  for (const line of messages) {
+    const m = /^(file added|file modified|file missing|In subcomponent|In architecture):\s*(.+)$/.exec(line);
+    if (m) problemPaths.push({ kind: m[1], path: m[2] });
+  }
+  return {
+    valid: exitCode === 0,
+    satisfiesDesignatedRequirement: /satisfies its Designated Requirement/.test(text),
+    messages,
+    problemPaths
+  };
+}
+
+// src/parsers/macho.ts
+import { open as open2, readdir as readdir3, readFile as readFile4, readlink, stat as stat2 } from "fs/promises";
+import { basename as basename2, extname as extname2, join as join4, relative as relative2 } from "path";
+var MAGICS = /* @__PURE__ */ new Set([4277009102, 4277009103, 3472551422, 3489328638]);
+var FAT_MAGICS = /* @__PURE__ */ new Set([3405691582, 3199925962, 3405691583, 3216703178]);
+async function isMachO(path) {
+  let fh;
+  try {
+    fh = await open2(path, "r");
+    const buf = Buffer.alloc(8);
+    const { bytesRead } = await fh.read(buf, 0, 8, 0);
+    if (bytesRead < 8) return false;
+    const magic = buf.readUInt32BE(0);
+    if (MAGICS.has(magic)) return true;
+    if (FAT_MAGICS.has(magic)) {
+      const nArch = magic === 3405691582 || magic === 3405691583 ? buf.readUInt32BE(4) : buf.readUInt32LE(4);
+      return nArch > 0 && nArch < 20;
+    }
+    return false;
+  } catch {
+    return false;
+  } finally {
+    await fh?.close();
+  }
+}
+var BUNDLE_EXTS = {
+  ".app": "app",
+  ".framework": "framework",
+  ".appex": "appex",
+  ".xpc": "xpc",
+  ".bundle": "bundle",
+  ".plugin": "plugin",
+  ".kext": "kext",
+  ".systemextension": "systemextension",
+  ".qlgenerator": "plugin",
+  ".mdimporter": "plugin",
+  ".saver": "plugin"
+};
+async function discoverNestedCode(root) {
+  const results = [];
+  const rootKind = BUNDLE_EXTS[extname2(root).toLowerCase()];
+  async function walk(dir, depth, bundleRoot) {
+    let entries;
+    try {
+      entries = await readdir3(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const full = join4(dir, e.name);
+      if (e.isSymbolicLink()) continue;
+      if (e.isDirectory()) {
+        const kind = BUNDLE_EXTS[extname2(e.name).toLowerCase()];
+        if (kind) {
+          const target = kind === "framework" ? await frameworkSignTarget(full) : full;
+          await walk(full, depth + 1, full);
+          results.push({ path: target, relativePath: relative2(root, target) || ".", kind, depth: depth + 1 });
+        } else if (e.name !== "_CodeSignature" && e.name !== "Headers" && e.name !== "Modules") {
+          await walk(full, depth, bundleRoot);
+        }
+        continue;
+      }
+      if (!e.isFile()) continue;
+      if (await isMainExecutable(full, bundleRoot)) continue;
+      const lower = e.name.toLowerCase();
+      if (lower.endsWith(".dylib") || lower.endsWith(".so")) {
+        if (await isMachO(full))
+          results.push({ path: full, relativePath: relative2(root, full), kind: "dylib", depth: depth + 1 });
+      } else if (lower.endsWith(".node")) {
+        if (await isMachO(full))
+          results.push({
+            path: full,
+            relativePath: relative2(root, full),
+            kind: "node-module",
+            depth: depth + 1
+          });
+      } else if (await isExecutableCandidate(full)) {
+        if (await isMachO(full))
+          results.push({
+            path: full,
+            relativePath: relative2(root, full),
+            kind: "executable",
+            depth: depth + 1
+          });
+      }
+    }
+  }
+  await walk(root, 0, root);
+  results.sort((a, b) => b.depth - a.depth);
+  if (rootKind) results.push({ path: root, relativePath: ".", kind: rootKind, depth: 0 });
+  else if (await isMachO(root))
+    results.push({ path: root, relativePath: basename2(root), kind: "executable", depth: 0 });
+  return results;
+}
+async function frameworkSignTarget(fw) {
+  try {
+    const current = await readlink(join4(fw, "Versions", "Current"));
+    const versioned = join4(fw, "Versions", current);
+    await stat2(versioned);
+    return versioned;
+  } catch {
+    return fw;
+  }
+}
+async function isMainExecutable(file2, bundleRoot) {
+  const name = basename2(bundleRoot).replace(/\.[^.]+$/, "");
+  const candidates = [
+    join4(bundleRoot, "Contents", "MacOS", name),
+    join4(bundleRoot, name),
+    join4(bundleRoot, "Versions", "A", name)
+  ];
+  if (candidates.includes(file2)) return true;
+  const rel = relative2(bundleRoot, file2);
+  if (/^Contents\/MacOS\/[^/]+$/.test(rel) || /^Versions\/[^/]+\/[^/]+$/.test(rel)) {
+    const exe = await readBundleExecutable(bundleRoot);
+    if (exe && basename2(file2) === exe) return true;
+  }
+  return false;
+}
+async function readBundleExecutable(bundleRoot) {
+  for (const p of [
+    join4(bundleRoot, "Contents", "Info.plist"),
+    join4(bundleRoot, "Info.plist"),
+    join4(bundleRoot, "Resources", "Info.plist"),
+    join4(bundleRoot, "Versions", "Current", "Resources", "Info.plist")
+  ]) {
+    try {
+      const v = parsePlistDict(new Uint8Array(await readFile4(p)));
+      if (typeof v?.CFBundleExecutable === "string") return v.CFBundleExecutable;
+    } catch {
+    }
+  }
+  return void 0;
+}
+async function isExecutableCandidate(path) {
+  try {
+    const s = await stat2(path);
+    return (s.mode & 73) !== 0 || extname2(path) === "";
+  } catch {
+    return false;
+  }
+}
+
+// src/parsers/security.ts
+function parseFindIdentity(text) {
+  const byHash = /* @__PURE__ */ new Map();
+  const lineRe = /^\s*\d+\)\s+([0-9A-F]{40})\s+"(.*)"(?:\s+\((\S+)\))?\s*$/;
+  let section = "unknown";
+  for (const line of text.split("\n")) {
+    if (/Matching identities/i.test(line)) section = "matching";
+    else if (/Valid identities only/i.test(line)) section = "valid";
+    const m = lineRe.exec(line);
+    if (!m) continue;
+    const [, sha1, name, reason] = m;
+    const existing = byHash.get(sha1);
+    const type = classifyCertificateName(name);
+    const rec = existing ?? {
+      sha1,
+      name,
+      valid: !reason,
+      invalidReason: reason,
+      type: type?.id,
+      typeName: type?.portalName,
+      teamId: teamIdFromCertName(name)
+    };
+    if (reason) {
+      rec.valid = false;
+      rec.invalidReason = reason;
+    } else if (section === "valid") {
+      rec.valid = true;
+    }
+    byHash.set(sha1, rec);
+  }
+  return [...byHash.values()];
+}
+
+// src/parsers/x509.ts
+import { X509Certificate } from "crypto";
+function parseDistinguishedName(dn) {
+  const out = {};
+  for (const line of dn.split("\n")) {
+    const eq = line.indexOf("=");
+    if (eq > 0) out[line.slice(0, eq).trim()] = line.slice(eq + 1).trim();
+  }
+  return out;
+}
+function describeCertificate(input2, now = /* @__PURE__ */ new Date()) {
+  const cert = new X509Certificate(typeof input2 === "string" ? input2 : Buffer.from(input2));
+  const subject = parseDistinguishedName(cert.subject);
+  const issuer = parseDistinguishedName(cert.issuer);
+  const validTo = new Date(cert.validTo);
+  const validFrom = new Date(cert.validFrom);
+  const cn = subject.CN;
+  const type = cn ? classifyCertificateName(cn) : void 0;
+  return {
+    commonName: cn,
+    organizationalUnit: subject.OU,
+    organization: subject.O,
+    country: subject.C,
+    userId: subject.UID,
+    issuerCommonName: issuer.CN,
+    issuerOrganizationalUnit: issuer.OU,
+    serialNumber: cert.serialNumber,
+    validFrom: validFrom.toISOString(),
+    validTo: validTo.toISOString(),
+    expired: validTo.getTime() < now.getTime(),
+    notYetValid: validFrom.getTime() > now.getTime(),
+    daysUntilExpiry: Math.floor((validTo.getTime() - now.getTime()) / 864e5),
+    sha1: cert.fingerprint.replace(/:/g, "").toUpperCase(),
+    sha256: cert.fingerprint256.replace(/:/g, "").toUpperCase(),
+    type: type ? { id: type.id, portalName: type.portalName } : void 0,
+    teamId: subject.OU && /^[A-Z0-9]{10}$/.test(subject.OU) ? subject.OU : void 0
+  };
+}
+function splitPemCertificates(text) {
+  return text.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g) ?? [];
+}
+
+// src/tools/shared.ts
+function finding(severity, message2, fix, path) {
+  return { severity, message: message2, ...fix ? { fix } : {}, ...path ? { path } : {} };
+}
+function formatFindings(findings) {
+  const icon = { error: "\u2717", warning: "\u26A0", info: "\u2139" };
+  return findings.map(
+    (f) => `${icon[f.severity]} ${f.message}${f.path ? ` [${f.path}]` : ""}${f.fix ? `
+    \u2192 ${f.fix}` : ""}`
+  ).join("\n");
+}
+async function resolveUserPath(ctx, p, mustExist = true) {
+  const expanded = expandHome(p.trim(), ctx.platform.homeDir);
+  const abs = isAbsolute(expanded) ? expanded : resolve(expanded);
+  if (mustExist) {
+    try {
+      await stat3(abs);
+    } catch {
+      throw new ToolError(`Path does not exist: ${abs}`);
+    }
+  }
+  return abs;
+}
+async function isDirectory(p) {
+  try {
+    return (await stat3(p)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+async function pathExists(p) {
+  try {
+    await stat3(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function scratchDir(prefix) {
+  return mkdtemp(join5(tmpdir(), `notarize-${prefix}-`));
+}
+async function listIdentities(ctx, keychain) {
+  requireMacOS(ctx.platform, "Listing signing identities");
+  const args = ["find-identity", "-p", "codesigning"];
+  if (keychain) args.push(keychain);
+  const r = await ctx.runner.run("security", args, { timeoutMs: 3e4 });
+  if (!ok(r)) throw new ToolError(`security find-identity failed: ${output2(r)}`);
+  const ids = parseFindIdentity(r.stdout);
+  const names = [...new Set(ids.map((i) => i.name))];
+  for (const name of names) {
+    const certs = await findCertificates(ctx, name, keychain);
+    for (const id of ids.filter((i) => i.name === name)) {
+      id.certificate = certs.find((c) => c.sha1 === id.sha1);
+    }
+  }
+  return ids;
+}
+async function findCertificates(ctx, name, keychain) {
+  const args = ["find-certificate", "-a", "-c", name, "-p"];
+  if (keychain) args.push(keychain);
+  const r = await ctx.runner.run("security", args, { timeoutMs: 3e4 });
+  if (!ok(r)) return [];
+  const out = [];
+  for (const pem of splitPemCertificates(r.stdout)) {
+    try {
+      out.push(describeCertificate(pem, ctx.now()));
+    } catch {
+    }
+  }
+  return out;
+}
+var DEVELOPER_CERT_PREFIXES = [
+  "Developer ID Application",
+  "Developer ID Installer",
+  "Apple Distribution",
+  "Apple Development",
+  "3rd Party Mac Developer",
+  "Mac Installer Distribution",
+  "iPhone Distribution",
+  "iPhone Developer",
+  "Mac Developer"
+];
+async function certificatesWithoutKeys(ctx, identities) {
+  const have = new Set(identities.map((i) => i.sha1));
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (const prefix of DEVELOPER_CERT_PREFIXES) {
+    for (const c of await findCertificates(ctx, prefix)) {
+      if (!have.has(c.sha1) && !seen.has(c.sha1) && c.commonName?.startsWith(prefix)) {
+        seen.add(c.sha1);
+        out.push(c);
+      }
+    }
+  }
+  return out;
+}
+async function intermediateStatus(ctx) {
+  const results = [];
+  for (const im of APPLE_INTERMEDIATES) {
+    const certs = [
+      ...await findCertificates(ctx, im.commonName),
+      ...await findCertificates(ctx, im.commonName, "/Library/Keychains/System.keychain")
+    ];
+    const wantOU = /\((G\d)\)/.exec(im.name)?.[1];
+    const found = certs.some(
+      (c) => wantOU === "G1" ? !c.organizationalUnit || /Certification Authority/.test(c.organizationalUnit) : c.organizationalUnit === wantOU
+    );
+    results.push({ name: im.name, url: im.url, neededFor: im.neededFor, found });
+  }
+  return results;
+}
+async function readSignedEntitlements(ctx, path) {
+  const r = await ctx.runner.run("codesign", ["-d", "--entitlements", "-", "--xml", path], {
+    timeoutMs: 3e4
+  });
+  let text = r.stdout;
+  if (!ok(r) || !text.includes("<plist")) {
+    const legacy = await ctx.runner.run("codesign", ["-d", "--entitlements", ":-", path], {
+      timeoutMs: 3e4
+    });
+    text = legacy.stdout;
+  }
+  const start = text.indexOf("<?xml") >= 0 ? text.indexOf("<?xml") : text.indexOf("<plist");
+  if (start === -1) return void 0;
+  try {
+    return parsePlistDict(text.slice(start));
+  } catch {
+    return void 0;
+  }
+}
+var MAX_NESTED = 80;
+async function inspectSignature(ctx, path, opts = {}) {
+  requireMacOS(ctx.platform, "Inspecting code signatures");
+  const ext = extname3(path).toLowerCase();
+  if (ext === ".pkg") return inspectPkg(ctx, path);
+  const isBundle = await isDirectory(path);
+  const report = {
+    path,
+    artifactType: ext === ".dmg" ? "dmg" : isBundle ? "bundle" : "binary",
+    signed: false,
+    signer: "unsigned",
+    nested: [],
+    nestedTruncated: false,
+    findings: []
+  };
+  const disp = await ctx.runner.run("codesign", ["-dvvv", path], { timeoutMs: 6e4 });
+  const display = parseCodesignDisplay(output2(disp));
+  report.display = display;
+  report.signed = ok(disp) && display.isSigned;
+  report.signer = report.signed ? signerKind(display) : "unsigned";
+  const ver = await ctx.runner.run("codesign", ["--verify", "--deep", "--strict", "--verbose=4", path], {
+    timeoutMs: 18e4,
+    logName: "codesign-verify"
+  });
+  report.verify = parseCodesignVerify(output2(ver), ver.code);
+  if (report.signed && report.artifactType !== "dmg") {
+    report.entitlements = await readSignedEntitlements(ctx, path);
+  }
+  if (isBundle) {
+    for (const prof of ["Contents/embedded.provisionprofile", "embedded.mobileprovision"]) {
+      const p = join5(path, prof);
+      if (await pathExists(p)) {
+        try {
+          const pl = await decodeProvisioningProfile(ctx.runner, p, ctx.platform.isMac);
+          report.embeddedProfile = {
+            path: prof,
+            name: pl.Name,
+            teamId: pl.TeamIdentifier?.[0],
+            type: profileKind(pl),
+            expiration: pl.ExpirationDate instanceof Date ? pl.ExpirationDate.toISOString() : void 0
+          };
+        } catch {
+          report.embeddedProfile = { path: prof };
+        }
+      }
+    }
+  }
+  if (isBundle && opts.deep !== false) {
+    const nested = (await discoverNestedCode(path)).filter((n) => n.relativePath !== ".");
+    report.nestedTruncated = nested.length > MAX_NESTED;
+    for (const n of nested.slice(0, MAX_NESTED)) {
+      report.nested.push(await inspectComponent(ctx, n, display.teamIdentifier, report.signer));
+    }
+  }
+  report.findings = signatureFindings(report, opts.target);
+  return report;
+}
+async function inspectComponent(ctx, n, rootTeam, rootSigner) {
+  const r = await ctx.runner.run("codesign", ["-dvvv", n.path], { timeoutMs: 3e4 });
+  const info = parseCodesignDisplay(output2(r));
+  const signed = ok(r) && info.isSigned;
+  const signer = signed ? signerKind(info) : "unsigned";
+  const issues = [];
+  if (!signed) issues.push("unsigned");
+  else {
+    if (signer === "adhoc") issues.push("ad-hoc signature");
+    if (!info.hardenedRuntime && ["executable", "app", "xpc", "appex", "systemextension"].includes(n.kind))
+      issues.push("hardened runtime not enabled");
+    if (rootSigner === "developer-id" && ["apple-development", "apple-distribution"].includes(signer))
+      issues.push(`signed with ${info.authorities[0]} instead of Developer ID`);
+    if (!info.hasSecureTimestamp && signer !== "apple") issues.push("no secure timestamp");
+    if (rootTeam && info.teamIdentifier && info.teamIdentifier !== rootTeam && signer !== "apple")
+      issues.push(`different Team ID (${info.teamIdentifier} vs ${rootTeam})`);
+  }
+  return {
+    path: n.path,
+    relativePath: n.relativePath,
+    kind: n.kind,
+    signer,
+    identifier: info.identifier,
+    teamId: info.teamIdentifier,
+    authority: info.authorities[0],
+    hardenedRuntime: info.hardenedRuntime,
+    secureTimestamp: info.hasSecureTimestamp,
+    flags: info.flags,
+    issues
+  };
+}
+function profileKind(pl) {
+  const ent = asDict(pl.Entitlements) ?? {};
+  const platforms = pl.Platform ?? [];
+  const isMac = platforms.includes("OSX") || platforms.includes("macOS");
+  const hasDevices = Array.isArray(pl.ProvisionedDevices) && pl.ProvisionedDevices.length > 0;
+  const getTaskAllow = ent["get-task-allow"] === true || ent["com.apple.security.get-task-allow"] === true;
+  if (pl.ProvisionsAllDevices === true)
+    return isMac ? "MAC_APP_DIRECT (Developer ID)" : "IOS_APP_INHOUSE (Enterprise)";
+  if (getTaskAllow) return isMac ? "MAC_APP_DEVELOPMENT" : "IOS_APP_DEVELOPMENT";
+  if (hasDevices) return isMac ? "MAC_APP_DEVELOPMENT/ADHOC" : "IOS_APP_ADHOC";
+  return isMac ? "MAC_APP_STORE" : "IOS_APP_STORE";
+}
+function signatureFindings(r, target) {
+  const f = [];
+  const d = r.display;
+  const ent = r.entitlements ?? {};
+  if (!r.signed) {
+    f.push(finding("error", "Not signed.", "Sign it with the sign tool."));
+    return f;
+  }
+  if (r.verify && !r.verify.valid) {
+    const known = matchKnownErrors(r.verify.messages.join("\n"));
+    f.push(
+      finding(
+        "error",
+        `Signature does not verify: ${r.verify.messages.slice(0, 3).join(" | ")}`,
+        known[0]?.fix.join("; ") ?? "Re-sign after all modifications (sign tool)."
+      )
+    );
+    for (const p of r.verify.problemPaths.slice(0, 10)) f.push(finding("error", p.kind, void 0, p.path));
+  }
+  if (r.signer === "adhoc")
+    f.push(finding("warning", "Ad-hoc signature (no identity). Fine for local testing only."));
+  const isDist = !target || !["ios-development", "mac-development"].includes(target);
+  if (isDist && (ent["com.apple.security.get-task-allow"] === true || ent["get-task-allow"] === true)) {
+    f.push(
+      finding(
+        "error",
+        "get-task-allow entitlement present (debuggable build).",
+        "Build the Release configuration; notarization and App Store reject this."
+      )
+    );
+  }
+  for (const k of RISKY_HARDENED_RUNTIME_EXCEPTIONS) {
+    if (ent[k] === true)
+      f.push(finding("warning", `Hardened-runtime exception ${k} is enabled.`, "Keep only if required."));
+  }
+  const devIdTarget = target === "mac-developer-id";
+  if (devIdTarget || !target && r.signer === "developer-id") {
+    if (r.signer !== "developer-id")
+      f.push(
+        finding(
+          "error",
+          `Signed with ${d?.authorities[0] ?? r.signer}, not Developer ID Application.`,
+          "Re-sign with your Developer ID Application identity."
+        )
+      );
+    if (r.artifactType !== "dmg" && !d?.hardenedRuntime)
+      f.push(
+        finding(
+          "error",
+          "Hardened runtime is not enabled.",
+          "Sign with --options runtime (sign tool does this)."
+        )
+      );
+    if (!d?.hasSecureTimestamp) f.push(finding("error", "No secure timestamp.", "Sign with --timestamp."));
+    if (r.artifactType === "bundle" && d?.notarizationTicket !== "stapled")
+      f.push(
+        finding(
+          "info",
+          "No stapled notarization ticket.",
+          "notarize_and_staple (or staple after notarizing)."
+        )
+      );
+  }
+  if (target === "mac-app-store" || target === "testflight-mac") {
+    if (!["apple-distribution", "mac-app-store"].includes(r.signer))
+      f.push(
+        finding(
+          "error",
+          "Not signed with Apple Distribution.",
+          "Export with method app-store-connect or sign with Apple Distribution."
+        )
+      );
+    if (ent["com.apple.security.app-sandbox"] !== true)
+      f.push(
+        finding(
+          "error",
+          "App Sandbox not enabled (required for the Mac App Store).",
+          "Add com.apple.security.app-sandbox (entitlements generate)."
+        )
+      );
+    if (!r.embeddedProfile)
+      f.push(
+        finding(
+          "error",
+          "No Contents/embedded.provisionprofile.",
+          "Embed a MAC_APP_STORE profile (provisioning_profiles embed)."
+        )
+      );
+    if (!ent["com.apple.application-identifier"])
+      f.push(
+        finding(
+          "warning",
+          "Missing com.apple.application-identifier entitlement (required for TestFlight).",
+          "Sign with the profile's entitlements."
+        )
+      );
+  }
+  if (target === "ios-app-store" || target === "testflight-ios" || target === "ios-ad-hoc") {
+    if (!["apple-distribution"].includes(r.signer))
+      f.push(
+        finding(
+          "error",
+          "Not signed with Apple Distribution.",
+          "Export with the right method (xcode export)."
+        )
+      );
+    if (!r.embeddedProfile) f.push(finding("error", "No embedded.mobileprovision."));
+  }
+  const restricted = Object.keys(ent).filter(
+    (k) => k.startsWith("com.apple.developer.") || k === "keychain-access-groups" || k === "com.apple.application-identifier"
+  );
+  if (restricted.length && r.artifactType === "bundle" && !r.embeddedProfile) {
+    f.push(
+      finding(
+        "error",
+        `Restricted entitlements (${restricted.slice(0, 4).join(", ")}) require an embedded provisioning profile; the app will be killed at launch.`,
+        "Create a profile with these capabilities (asc_profiles) and embed it (provisioning_profiles embed), or drop the entitlements."
+      )
+    );
+  }
+  const badNested = r.nested.filter((n) => n.issues.length);
+  for (const n of badNested.slice(0, 20)) {
+    const severity = n.issues.some((i) => i === "unsigned" || i.startsWith("different Team")) ? "error" : "warning";
+    f.push(
+      finding(
+        severity,
+        `Nested ${n.kind}: ${n.issues.join(", ")}`,
+        "Sign nested code inside-out (sign tool).",
+        n.relativePath
+      )
+    );
+  }
+  if (badNested.length > 20)
+    f.push(finding("warning", `\u2026and ${badNested.length - 20} more nested items with issues.`));
+  if (r.nestedTruncated)
+    f.push(finding("info", `Only the first ${MAX_NESTED} nested code items were inspected.`));
+  return f;
+}
+async function inspectPkg(ctx, path) {
+  const r = await ctx.runner.run("pkgutil", ["--check-signature", path], { timeoutMs: 6e4 });
+  const text = output2(r);
+  const status = /Status:\s*(.+)/.exec(text)?.[1]?.trim() ?? (ok(r) ? "signed" : "no signature");
+  const notarized = /Notarization:\s*trusted by the Apple notary service/i.test(text);
+  const chain = [...text.matchAll(/^\s*\d+\.\s*(.+)$/gm)].map((m) => m[1].trim());
+  const signed = !/no signature/i.test(status) && ok(r);
+  const leaf = chain[0] ?? "";
+  const findings = [];
+  if (!signed)
+    findings.push(
+      finding(
+        "error",
+        "Package is not signed.",
+        "package action=pkg (productsign) with a Developer ID Installer or Mac Installer Distribution identity."
+      )
+    );
+  else if (!/^Developer ID Installer|^3rd Party Mac Developer Installer|^Mac Installer Distribution/.test(leaf))
+    findings.push(finding("warning", `Signed by "${leaf}" \u2014 expected an Installer certificate.`));
+  if (signed && /^Developer ID Installer/.test(leaf) && !notarized)
+    findings.push(finding("info", "Not notarized (or ticket not stapled).", "notarize_and_staple"));
+  return {
+    path,
+    artifactType: "pkg",
+    signed,
+    signer: signed ? /^Developer ID/.test(leaf) ? "developer-id" : "unknown" : "unsigned",
+    nested: [],
+    nestedTruncated: false,
+    pkg: { status, notarized, chain },
+    findings
+  };
+}
+async function extractIpa(ctx, ipa) {
+  const dir = await scratchDir("ipa");
+  const r = ctx.platform.isMac ? await ctx.runner.run("ditto", ["-x", "-k", ipa, dir], { timeoutMs: 3e5 }) : await ctx.runner.run("unzip", ["-q", ipa, "-d", dir], { timeoutMs: 3e5 });
+  if (!ok(r)) throw new ToolError(`Could not extract ${basename3(ipa)}: ${output2(r)}`);
+  const payload = join5(dir, "Payload");
+  const apps = (await readdir4(payload)).filter((f) => f.endsWith(".app"));
+  if (!apps.length) throw new ToolError("No .app found in Payload/ of the IPA.");
+  return join5(payload, apps[0]);
+}
 
 // src/tools/types.ts
+function defineTool(def) {
+  return def;
+}
 var confirmTokenSchema = external_exports.string().optional().describe(
   "Leave empty on the first call to get a preview. After the user approves the preview, repeat the call with identical arguments plus the confirm_token from the preview."
 );
+async function withConfirmation(ctx, extra, args, buildPlan, execute) {
+  const check2 = ctx.confirm.check(extra.toolName, args);
+  if (check2.status === "execute") return execute();
+  const plan = await buildPlan();
+  const token = ctx.confirm.issue(extra.toolName, args);
+  const data = previewData(plan, token, ctx.confirm.ttlMs);
+  const lines = [
+    `${check2.status === "invalid" ? `Not executed: ${check2.reason}
+
+` : ""}PREVIEW (nothing has been changed yet): ${plan.title}`,
+    ...plan.steps.map((s, i) => `${i + 1}. ${s.description}${s.command ? `
+   $ ${s.command}` : ""}`)
+  ];
+  if (plan.warnings?.length) lines.push("", "Warnings:", ...plan.warnings.map((w) => `\u26A0 ${w}`));
+  if (plan.notes?.length) lines.push("", ...plan.notes);
+  return {
+    summary: lines.join("\n"),
+    data,
+    next_steps: [
+      `Show this plan to the user${plan.destructive ? " and get explicit approval \u2014 this action is destructive or affects your Apple account" : ""}.`,
+      `If approved, call ${extra.toolName} again with the same arguments plus ${CONFIRM_TOKEN_ARG}="${token}".`
+    ],
+    isError: check2.status === "invalid"
+  };
+}
 var profileArg = external_exports.string().optional().describe("Credential profile name from asc_auth configure (defaults to env vars / default profile).");
+
+// src/tools/detect-project.ts
+var detectProjectTool = defineTool({
+  name: "detect_project",
+  title: "Detect app/project type and current signing setup",
+  description: "Identify what lives at a path: Xcode project/workspace, SwiftPM package, Electron (electron-builder/forge), Tauri, Flutter, React Native, Expo (managed/bare), or a prebuilt .app/.xcarchive/.ipa/.dmg/.pkg/.zip. Reports platforms, bundle IDs, team IDs, current signing configuration, problems found, suggested distribution targets, build commands, and framework-specific config snippets / environment variables to enable signing + notarization (apply them with your editor). Read-only.",
+  input: {
+    path: external_exports.string().describe("Project directory or artifact path (absolute, or ~/...)."),
+    depth: external_exports.number().int().min(0).max(4).optional().describe("Directory scan depth (default 2).")
+  },
+  async handler(args, ctx) {
+    const root = await resolveUserPath(ctx, args.path);
+    const report = await detectProject(root, args.depth ?? 2);
+    if (ctx.platform.isMac) {
+      for (const c of report.components.filter(
+        (x) => x.kind === "xcode-project" || x.kind === "xcode-workspace"
+      )) {
+        const flag = c.kind === "xcode-workspace" ? "-workspace" : "-project";
+        const r = await ctx.runner.run("xcodebuild", ["-list", "-json", flag, c.path], { timeoutMs: 12e4 });
+        if (ok(r)) {
+          const list = parseXcodeList(r.stdout);
+          if (list) c.signing.schemes = list.schemes;
+          if (list?.configurations.length) c.signing.configurations = list.configurations;
+        }
+      }
+    }
+    if (!report.components.length) {
+      return {
+        summary: `No recognizable Apple app project or artifact found under ${root}.`,
+        data: { root, components: [] },
+        next_steps: [
+          "Point path at the folder containing the .xcodeproj/.xcworkspace, package.json (Electron/RN/Expo), src-tauri, pubspec.yaml, or at a built .app/.ipa/.dmg/.pkg."
+        ]
+      };
+    }
+    const lines = [`Found ${report.components.length} component(s) under ${root}:`];
+    for (const c of report.components) {
+      lines.push(
+        `
+\u2022 ${c.kind}${c.name ? ` "${c.name}"` : ""} \u2014 ${c.platforms.join(", ") || "platform unknown"}`,
+        `  path: ${c.path}`
+      );
+      if (c.bundleIds.length) lines.push(`  bundle IDs: ${c.bundleIds.join(", ")}`);
+      if (c.teamIds.length) lines.push(`  team IDs: ${c.teamIds.join(", ")}`);
+      if (c.findings.length) lines.push(...c.findings.map((f) => `  - ${f}`));
+      if (c.suggestedTargets.length)
+        lines.push(
+          `  possible targets: ${c.suggestedTargets.map((t) => `${t} (${TARGETS[t].title.split("\u2014")[1]?.trim() ?? t})`).join("; ")}`
+        );
+    }
+    return {
+      summary: lines.join("\n"),
+      data: report,
+      next_steps: [
+        "Ask the user which distribution target(s) they want (e.g. mac-developer-id for a website download, testflight-ios for beta testers).",
+        "distribution_checklist path=<same path> target=<chosen target>"
+      ]
+    };
+  }
+});
+
+// src/tools/diagnostics.ts
+import { readdir as readdir5, readFile as readFile5, stat as stat4, unlink } from "fs/promises";
+import { basename as basename4, join as join6 } from "path";
+
+// src/knowledge/privacy-keys.ts
+var PRIVACY_RESOURCES = [
+  {
+    id: "camera",
+    title: "Camera",
+    usageKeys: ["NSCameraUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["AVFoundation", "AVKit", "VisionKit"],
+    tccService: "Camera",
+    macEntitlement: "com.apple.security.device.camera"
+  },
+  {
+    id: "microphone",
+    title: "Microphone",
+    usageKeys: ["NSMicrophoneUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["AVFoundation", "AVFAudio", "Speech"],
+    tccService: "Microphone",
+    macEntitlement: "com.apple.security.device.audio-input"
+  },
+  {
+    id: "location",
+    title: "Location",
+    usageKeys: [
+      "NSLocationWhenInUseUsageDescription",
+      "NSLocationAlwaysAndWhenInUseUsageDescription",
+      "NSLocationUsageDescription"
+    ],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["CoreLocation", "MapKit"],
+    macEntitlement: "com.apple.security.personal-information.location",
+    notes: "MapKit alone does not require location permission; only CLLocationManager usage does."
+  },
+  {
+    id: "contacts",
+    title: "Contacts",
+    usageKeys: ["NSContactsUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["Contacts", "ContactsUI", "AddressBook"],
+    tccService: "AddressBook",
+    macEntitlement: "com.apple.security.personal-information.addressbook"
+  },
+  {
+    id: "calendars",
+    title: "Calendars",
+    usageKeys: [
+      "NSCalendarsFullAccessUsageDescription",
+      "NSCalendarsWriteOnlyAccessUsageDescription",
+      "NSCalendarsUsageDescription"
+    ],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["EventKit", "EventKitUI"],
+    tccService: "Calendar",
+    macEntitlement: "com.apple.security.personal-information.calendars"
+  },
+  {
+    id: "reminders",
+    title: "Reminders",
+    usageKeys: ["NSRemindersFullAccessUsageDescription", "NSRemindersUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["EventKit"],
+    tccService: "Reminders",
+    macEntitlement: "com.apple.security.personal-information.calendars"
+  },
+  {
+    id: "photos",
+    title: "Photos",
+    usageKeys: ["NSPhotoLibraryUsageDescription", "NSPhotoLibraryAddUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["Photos", "PhotosUI"],
+    tccService: "Photos",
+    macEntitlement: "com.apple.security.personal-information.photos-library",
+    notes: "PHPickerViewController (PhotosUI) does not need permission; direct PHPhotoLibrary access does."
+  },
+  {
+    id: "bluetooth",
+    title: "Bluetooth",
+    usageKeys: ["NSBluetoothAlwaysUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["CoreBluetooth"],
+    tccService: "BluetoothAlways",
+    macEntitlement: "com.apple.security.device.bluetooth"
+  },
+  {
+    id: "speech",
+    title: "Speech recognition",
+    usageKeys: ["NSSpeechRecognitionUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["Speech"],
+    tccService: "SpeechRecognition"
+  },
+  {
+    id: "motion",
+    title: "Motion & fitness",
+    usageKeys: ["NSMotionUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["CoreMotion"],
+    tccService: "Motion"
+  },
+  {
+    id: "health",
+    title: "Health",
+    usageKeys: ["NSHealthShareUsageDescription", "NSHealthUpdateUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["HealthKit"]
+  },
+  {
+    id: "homekit",
+    title: "HomeKit",
+    usageKeys: ["NSHomeKitUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["HomeKit"],
+    tccService: "Willow"
+  },
+  {
+    id: "faceid",
+    title: "Face ID",
+    usageKeys: ["NSFaceIDUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["LocalAuthentication"]
+  },
+  {
+    id: "tracking",
+    title: "App Tracking Transparency",
+    usageKeys: ["NSUserTrackingUsageDescription"],
+    platforms: ["iOS", "macOS"],
+    frameworks: ["AppTrackingTransparency", "AdSupport"]
+  },
+  {
+    id: "local-network",
+    title: "Local network",
+    usageKeys: ["NSLocalNetworkUsageDescription"],
+    platforms: ["iOS", "macOS"],
+    frameworks: ["Network", "MultipeerConnectivity"],
+    notes: "Also declare NSBonjourServices for Bonjour browsing. macOS 15+ prompts for local network access too."
+  },
+  {
+    id: "apple-events",
+    title: "Automation (Apple Events)",
+    usageKeys: ["NSAppleEventsUsageDescription"],
+    platforms: ["macOS"],
+    frameworks: ["ScriptingBridge", "OSAKit"],
+    tccService: "AppleEvents",
+    macEntitlement: "com.apple.security.automation.apple-events"
+  },
+  {
+    id: "nfc",
+    title: "NFC",
+    usageKeys: ["NFCReaderUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["CoreNFC"]
+  },
+  {
+    id: "media-library",
+    title: "Media library",
+    usageKeys: ["NSAppleMusicUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["MediaPlayer", "MusicKit"],
+    tccService: "MediaLibrary"
+  },
+  {
+    id: "screen-capture",
+    title: "Screen recording",
+    usageKeys: [],
+    platforms: ["macOS"],
+    frameworks: ["ScreenCaptureKit"],
+    tccService: "ScreenCapture",
+    notes: "No Info.plist key: the user must enable the app in System Settings \u2192 Privacy & Security \u2192 Screen & System Audio Recording."
+  },
+  {
+    id: "accessibility",
+    title: "Accessibility",
+    usageKeys: [],
+    platforms: ["macOS"],
+    frameworks: [],
+    tccService: "Accessibility",
+    notes: "No Info.plist key; AXIsProcessTrustedWithOptions prompts and the user enables it in System Settings. Not allowed for sandboxed Mac App Store apps."
+  },
+  {
+    id: "files-desktop",
+    title: "Desktop / Documents / Downloads folders",
+    usageKeys: [
+      "NSDesktopFolderUsageDescription",
+      "NSDocumentsFolderUsageDescription",
+      "NSDownloadsFolderUsageDescription"
+    ],
+    platforms: ["macOS"],
+    frameworks: [],
+    tccService: "SystemPolicyDesktopFolder",
+    notes: "Non-sandboxed apps reading these folders trigger a TCC prompt on first access; provide the usage strings."
+  },
+  {
+    id: "removable-volumes",
+    title: "Removable / network volumes",
+    usageKeys: ["NSRemovableVolumesUsageDescription", "NSNetworkVolumesUsageDescription"],
+    platforms: ["macOS"],
+    frameworks: [],
+    tccService: "SystemPolicyRemovableVolumes"
+  }
+];
+var TCC_SERVICES = [
+  "All",
+  "Accessibility",
+  "AddressBook",
+  "AppleEvents",
+  "BluetoothAlways",
+  "Calendar",
+  "Camera",
+  "ListenEvent",
+  "MediaLibrary",
+  "Microphone",
+  "Motion",
+  "Photos",
+  "PostEvent",
+  "Reminders",
+  "ScreenCapture",
+  "SpeechRecognition",
+  "SystemPolicyAllFiles",
+  "SystemPolicyDesktopFolder",
+  "SystemPolicyDocumentsFolder",
+  "SystemPolicyDownloadsFolder",
+  "SystemPolicyNetworkVolumes",
+  "SystemPolicyRemovableVolumes",
+  "Willow"
+];
+var REQUIRED_REASON_APIS = [
+  {
+    category: "NSPrivacyAccessedAPICategoryUserDefaults",
+    title: "User defaults",
+    markers: ["NSUserDefaults"],
+    commonReasons: [
+      { code: "CA92.1", meaning: "Access info from the same app that wrote it" },
+      { code: "1C8F.1", meaning: "Shared via App Group with apps/extensions of the same developer" }
+    ]
+  },
+  {
+    category: "NSPrivacyAccessedAPICategoryFileTimestamp",
+    title: "File timestamp APIs",
+    markers: [
+      "\0_stat\0",
+      "\0_fstat\0",
+      "\0_lstat\0",
+      "\0_fstatat\0",
+      "\0_getattrlist\0",
+      "\0_getattrlistbulk\0",
+      "NSFileModificationDate",
+      "NSFileCreationDate",
+      "contentModificationDate",
+      "creationDate"
+    ],
+    commonReasons: [
+      { code: "C617.1", meaning: "Timestamps of files inside the app container / app group" },
+      { code: "3B52.1", meaning: "Timestamps of files the user granted access to" },
+      { code: "DDA9.1", meaning: "Display timestamps to the user" }
+    ]
+  },
+  {
+    category: "NSPrivacyAccessedAPICategorySystemBootTime",
+    title: "System boot time",
+    markers: ["systemUptime", "\0_mach_absolute_time\0"],
+    commonReasons: [{ code: "35F9.1", meaning: "Measure elapsed time between in-app events" }]
+  },
+  {
+    category: "NSPrivacyAccessedAPICategoryDiskSpace",
+    title: "Disk space",
+    markers: [
+      "\0_statfs\0",
+      "\0_statvfs\0",
+      "\0_fstatfs\0",
+      "\0_fstatvfs\0",
+      "NSFileSystemFreeSize",
+      "NSFileSystemSize",
+      "volumeAvailableCapacity"
+    ],
+    commonReasons: [
+      { code: "E174.1", meaning: "Check there is enough space before writing files" },
+      { code: "85F4.1", meaning: "Display disk space to the user" }
+    ]
+  },
+  {
+    category: "NSPrivacyAccessedAPICategoryActiveKeyboards",
+    title: "Active keyboards",
+    markers: ["activeInputModes"],
+    commonReasons: [{ code: "3EC4.1", meaning: "Custom keyboard app determining active keyboards" }]
+  }
+];
+
+// src/parsers/ips.ts
+function parseCrashReport(text) {
+  const nl = text.indexOf("\n");
+  let header = {};
+  let body = {};
+  try {
+    header = JSON.parse(nl === -1 ? text : text.slice(0, nl));
+    if (nl !== -1) body = JSON.parse(text.slice(nl + 1));
+  } catch {
+    return parseLegacyCrash(text);
+  }
+  const term = body.termination ?? {};
+  const details = [
+    ...Array.isArray(term.details) ? term.details : [],
+    ...Array.isArray(term.reasons) ? term.reasons : [],
+    ...Array.isArray(body.asi?.dyld) ? body.asi.dyld : []
+  ].map(String);
+  const ns = term.namespace;
+  const indicator = term.indicator;
+  const joined = [ns, indicator, ...details, body.exception?.type, body.exception?.signal].filter(Boolean).join("\n");
+  return {
+    process: body.procName ?? header.name ?? header.app_name,
+    bundleId: header.bundleID ?? body.bundleInfo?.CFBundleIdentifier,
+    appVersion: header.app_version ?? body.bundleInfo?.CFBundleShortVersionString,
+    buildVersion: header.build_version ?? body.bundleInfo?.CFBundleVersion,
+    osVersion: header.os_version,
+    timestamp: header.timestamp ?? body.captureTime,
+    exceptionType: body.exception?.type,
+    signal: body.exception?.signal,
+    terminationNamespace: ns,
+    terminationIndicator: indicator,
+    terminationDetails: details,
+    codeSigning: body.codeSigningTeamID || body.codeSigningFlags !== void 0 ? { teamId: body.codeSigningTeamID || void 0, flags: body.codeSigningFlags } : void 0,
+    isSigningRelated: /CODESIGNING|Code Signature Invalid|Library missing|not valid for use in process|DYLD/i.test(joined),
+    explanations: matchKnownErrors(`Namespace ${ns ?? ""}
+${joined}`, ["runtime"])
+  };
+}
+function parseLegacyCrash(text) {
+  const get = (re) => re.exec(text)?.[1]?.trim();
+  const termination = get(/^Termination Reason:\s*(.+)$/m);
+  const details = [
+    termination,
+    get(/^Termination Details:\s*(.+)$/m),
+    get(/^(Library not loaded:.+)$/m)
+  ].filter(Boolean);
+  return {
+    process: get(/^Process:\s*([^[]+)/m),
+    bundleId: get(/^Identifier:\s*(\S+)/m),
+    appVersion: get(/^Version:\s*(\S+)/m),
+    osVersion: get(/^OS Version:\s*(.+)$/m),
+    timestamp: get(/^Date\/Time:\s*(.+)$/m),
+    exceptionType: get(/^Exception Type:\s*(.+)$/m),
+    terminationNamespace: termination ? /Namespace (\w+)/.exec(termination)?.[1] : void 0,
+    terminationDetails: details,
+    isSigningRelated: /CODESIGNING|Code Signature Invalid|Library not loaded|DYLD/i.test(text),
+    explanations: matchKnownErrors(text, ["runtime"])
+  };
+}
+
+// src/parsers/otool.ts
+function parseOtoolL(text) {
+  const libs = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const line of text.split("\n")) {
+    if (!/^\s/.test(line)) continue;
+    const m = /^\s+(.+?) \(compatibility version ([^,]+), current version ([^,)]+)(, weak)?\)/.exec(line);
+    if (!m || seen.has(m[1])) continue;
+    seen.add(m[1]);
+    libs.push({ path: m[1], compatibilityVersion: m[2], currentVersion: m[3], weak: !!m[4] });
+  }
+  return libs;
+}
+var PLATFORMS = {
+  "1": "macOS",
+  "2": "iOS",
+  "3": "tvOS",
+  "4": "watchOS",
+  "5": "bridgeOS",
+  "6": "macCatalyst",
+  "7": "iOS-simulator",
+  "8": "tvOS-simulator",
+  "9": "watchOS-simulator",
+  "10": "DriverKit",
+  "11": "visionOS",
+  "12": "visionOS-simulator",
+  MACOS: "macOS",
+  IOS: "iOS",
+  TVOS: "tvOS",
+  WATCHOS: "watchOS",
+  MACCATALYST: "macCatalyst",
+  IOSSIMULATOR: "iOS-simulator",
+  XROS: "visionOS"
+};
+function parseOtoolLoadCommands(text) {
+  const info = { buildVersions: [], rpaths: [], hasCodeSignature: false, encrypted: false };
+  const blocks = text.split(/^Load command \d+$/m);
+  for (const block of blocks) {
+    const cmd = /^\s*cmd (\S+)/m.exec(block)?.[1];
+    if (!cmd) continue;
+    switch (cmd) {
+      case "LC_BUILD_VERSION": {
+        const platform = /^\s*platform (\S+)/m.exec(block)?.[1] ?? "?";
+        info.buildVersions.push({
+          platform: PLATFORMS[platform] ?? platform,
+          minos: /^\s*minos (\S+)/m.exec(block)?.[1],
+          sdk: /^\s*sdk (\S+)/m.exec(block)?.[1]
+        });
+        break;
+      }
+      case "LC_VERSION_MIN_MACOSX":
+      case "LC_VERSION_MIN_IPHONEOS":
+      case "LC_VERSION_MIN_TVOS":
+      case "LC_VERSION_MIN_WATCHOS":
+        info.buildVersions.push({
+          platform: cmd.includes("MACOSX") ? "macOS" : cmd.includes("IPHONEOS") ? "iOS" : cmd.slice(15),
+          minos: /^\s*version (\S+)/m.exec(block)?.[1],
+          sdk: /^\s*sdk (\S+)/m.exec(block)?.[1]
+        });
+        break;
+      case "LC_RPATH": {
+        const p = /^\s*path (.+?) \(offset \d+\)/m.exec(block)?.[1];
+        if (p && !info.rpaths.includes(p)) info.rpaths.push(p);
+        break;
+      }
+      case "LC_ID_DYLIB":
+        info.installName = /^\s*name (.+?) \(offset \d+\)/m.exec(block)?.[1];
+        break;
+      case "LC_CODE_SIGNATURE":
+        info.hasCodeSignature = true;
+        break;
+      case "LC_ENCRYPTION_INFO":
+      case "LC_ENCRYPTION_INFO_64":
+        if (/^\s*cryptid 1/m.test(block)) info.encrypted = true;
+        break;
+    }
+  }
+  return info;
+}
+function parseLipoArchs(text) {
+  return text.trim().split(/\s+/).filter(Boolean);
+}
+
+// src/parsers/sandbox-log.ts
+var DENY_RE = /Sandbox: ([^(]+)\((\d+)\) deny\(\d+\) (\S+)(?: (.+))?$/;
+function parseSandboxViolations(text, home) {
+  const map2 = /* @__PURE__ */ new Map();
+  for (const line of text.split("\n")) {
+    const m = DENY_RE.exec(line.trim());
+    if (!m) continue;
+    const [, proc, pid, operation, target] = m;
+    const key = `${proc.trim()}|${operation}|${target ?? ""}`;
+    const existing = map2.get(key);
+    if (existing) {
+      existing.count++;
+      continue;
+    }
+    map2.set(key, {
+      process: proc.trim(),
+      pid: Number(pid),
+      operation,
+      target: target?.trim(),
+      count: 1,
+      suggestion: suggestForViolation(operation, target?.trim(), home)
+    });
+  }
+  return [...map2.values()].sort((a, b) => b.count - a.count);
+}
+function suggestForViolation(operation, target, home) {
+  const t = target ?? "";
+  const inHome = (sub) => home && t.startsWith(`${home}/${sub}`) || new RegExp(`^/Users/[^/]+/${sub}(/|$)`).test(t);
+  if (operation.startsWith("network-outbound")) {
+    return {
+      entitlement: "com.apple.security.network.client",
+      advice: "Outgoing network connection blocked."
+    };
+  }
+  if (operation.startsWith("network-bind") || operation.startsWith("network-inbound")) {
+    return {
+      entitlement: "com.apple.security.network.server",
+      advice: "Listening/incoming connection blocked."
+    };
+  }
+  if (operation.startsWith("file-")) {
+    const write = /write|create|unlink|rename/.test(operation);
+    if (inHome("Downloads")) {
+      return {
+        entitlement: "com.apple.security.files.downloads.read-write",
+        advice: "Access to ~/Downloads requires the downloads entitlement."
+      };
+    }
+    for (const [folder, asset] of [
+      ["Pictures", "pictures"],
+      ["Music", "music"],
+      ["Movies", "movies"]
+    ]) {
+      if (inHome(folder)) {
+        return {
+          entitlement: `com.apple.security.assets.${asset}.${write ? "read-write" : "read-only"}`,
+          advice: `Access to ~/${folder} requires the ${asset} assets entitlement.`
+        };
+      }
+    }
+    if (/\/Library\/Containers\//.test(t) || /\/Library\/Group Containers\//.test(t)) {
+      return {
+        entitlement: "com.apple.security.application-groups",
+        advice: "Accessing another container: share data via an App Group both apps declare."
+      };
+    }
+    return {
+      entitlement: write ? "com.apple.security.files.user-selected.read-write" : "com.apple.security.files.user-selected.read-only",
+      advice: "Sandboxed apps can only reach arbitrary paths the user chose in an Open/Save panel (or drag-and-drop). Use NSOpenPanel and persist access with security-scoped bookmarks (com.apple.security.files.bookmarks.app-scope). Hard-coded paths outside the container need a temporary exception, which App Review discourages."
+    };
+  }
+  if (operation.startsWith("appleevent-send")) {
+    return {
+      entitlement: "com.apple.security.automation.apple-events",
+      advice: "Sending Apple Events from a sandbox needs com.apple.security.scripting-targets (preferred) or a temporary-exception.apple-events entry, plus NSAppleEventsUsageDescription."
+    };
+  }
+  if (operation.startsWith("device-camera")) {
+    return { entitlement: "com.apple.security.device.camera", advice: "Camera access blocked." };
+  }
+  if (operation.startsWith("device-microphone")) {
+    return { entitlement: "com.apple.security.device.audio-input", advice: "Microphone access blocked." };
+  }
+  if (operation.startsWith("iokit-open")) {
+    if (/USB/i.test(t))
+      return { entitlement: "com.apple.security.device.usb", advice: "USB device access blocked." };
+    if (/Bluetooth/i.test(t))
+      return { entitlement: "com.apple.security.device.bluetooth", advice: "Bluetooth access blocked." };
+    if (/Camera|VDC|AVC/i.test(t))
+      return { entitlement: "com.apple.security.device.camera", advice: "Camera access blocked." };
+    return {
+      advice: "IOKit user client blocked; usually needs a device entitlement or is not allowed in the sandbox."
+    };
+  }
+  if (operation.startsWith("mach-lookup")) {
+    return {
+      advice: "Mach service lookup blocked. If it is your own XPC service, embed it in the bundle (XPCServices) or use an App Group-prefixed name; global names need com.apple.security.temporary-exception.mach-lookup.global-name (App Review scrutinizes this)."
+    };
+  }
+  if (operation.startsWith("process-exec")) {
+    return {
+      advice: "Executing a binary outside the bundle is blocked. Bundle helpers inside the app and sign them with app-sandbox + inherit."
+    };
+  }
+  if (operation.startsWith("user-preference")) {
+    return { advice: "Reading another app's preferences is blocked; use App Groups for shared settings." };
+  }
+  return { advice: "Operation blocked by App Sandbox; review whether it is necessary." };
+}
+
+// src/tools/diagnostics.ts
+var PRESETS = {
+  gatekeeper: {
+    predicate: 'process == "syspolicyd" OR subsystem BEGINSWITH "com.apple.syspolicy" OR process == "XprotectService"',
+    description: "Gatekeeper / notarization ticket checks / XProtect"
+  },
+  amfi: {
+    predicate: 'process == "amfid" OR process == "taskgated" OR process == "taskgated-helper" OR sender == "AppleMobileFileIntegrity" OR eventMessage CONTAINS "AMFI"',
+    description: "Code signature enforcement, entitlement/profile validation (apps killed at launch)"
+  },
+  sandbox: {
+    predicate: 'sender == "Sandbox" OR eventMessage CONTAINS "Sandbox: "',
+    description: "App Sandbox denials (deny(1) <operation> <target>)"
+  },
+  tcc: {
+    predicate: 'subsystem == "com.apple.TCC" OR process == "tccd"',
+    description: "Privacy permission (TCC) prompts, grants and denials"
+  },
+  launch: {
+    predicate: 'process == "launchd" OR process == "runningboardd" OR subsystem == "com.apple.dyld"',
+    description: "Launch failures, dyld errors"
+  }
+};
+var systemLogsTool = defineTool({
+  name: "system_logs",
+  title: "Query macOS unified logs for signing / sandbox / privacy problems",
+  description: "Runs `log show` with a preset predicate: gatekeeper (syspolicyd, XProtect), amfi (code signature & entitlement enforcement), sandbox (deny lines \u2192 parsed into violations with the entitlement that would allow each), tcc (privacy permission decisions), launch (dyld/launchd), or a custom predicate. Optionally narrow to a process / app name. Reproduce the problem first, then call this with a short window (e.g. last=5m). Read-only.",
+  input: {
+    preset: external_exports.enum(["gatekeeper", "amfi", "sandbox", "tcc", "launch", "custom"]),
+    predicate: external_exports.string().optional().describe("custom: NSPredicate for `log show --predicate`."),
+    process: external_exports.string().optional().describe("Only lines mentioning this process / app name."),
+    last: external_exports.string().regex(/^\d+[smhd]$/).optional().describe("Time window like 5m, 1h (default 10m)."),
+    max_lines: external_exports.number().int().min(10).max(2e3).optional().describe("Lines to return (default 200).")
+  },
+  async handler(args, ctx) {
+    requireMacOS(ctx.platform, "system_logs");
+    let predicate = args.preset === "custom" ? args.predicate : PRESETS[args.preset].predicate;
+    if (!predicate) throw new ToolError("predicate is required for preset=custom.");
+    if (args.process) {
+      const p = args.process.replace(/"/g, "");
+      predicate = `(${predicate}) AND (process == "${p}" OR eventMessage CONTAINS[c] "${p}")`;
+    }
+    const r = await ctx.runner.run(
+      "log",
+      ["show", "--style", "compact", "--info", "--last", args.last ?? "10m", "--predicate", predicate],
+      {
+        timeoutMs: 3e5,
+        logName: `log-${args.preset}`
+      }
+    );
+    if (!ok(r) && !r.stdout) throw new ToolError(`log show failed: ${output2(r)}`);
+    const lines = r.stdout.split("\n").filter((l) => l.trim() && !/^Timestamp\s+Ty/.test(l));
+    const max = args.max_lines ?? 200;
+    const data = {
+      predicate,
+      totalLines: lines.length,
+      lines: lines.slice(-max),
+      logPath: r.logPath
+    };
+    let summary = `${lines.length} log line(s) for ${args.preset}${args.process ? ` / ${args.process}` : ""} in the last ${args.last ?? "10m"}.`;
+    if (args.preset === "sandbox") {
+      const v = parseSandboxViolations(r.stdout, ctx.platform.homeDir);
+      data.violations = v;
+      if (v.length)
+        summary += `
+Sandbox violations:
+${v.slice(0, 25).map(
+          (x) => `\u2022 ${x.process} ${x.operation} ${x.target ?? ""} (\xD7${x.count})
+    \u2192 ${x.suggestion?.entitlement ? `${x.suggestion.entitlement}: ` : ""}${x.suggestion?.advice ?? ""}`
+        ).join("\n")}`;
+    } else if (lines.length) {
+      summary += `
+${tail(lines.join("\n"), 40)}`;
+    }
+    if (!lines.length)
+      summary += " Reproduce the issue (launch the app / trigger the feature) and query again.";
+    return { summary, data };
+  }
+});
+var crashReportsTool = defineTool({
+  name: "crash_reports",
+  title: "Find and explain recent crash reports",
+  description: "Lists recent .ips/.crash reports from ~/Library/Logs/DiagnosticReports (and /Library/Logs/DiagnosticReports) for a process or bundle ID and explains signing-related terminations: CODESIGNING kills (invalid signature, missing provisioning profile for restricted entitlements), dyld 'Library not loaded' and library-validation Team ID mismatches. Read-only.",
+  input: {
+    process: external_exports.string().optional().describe("Process / app name or bundle ID to match (omit for all)."),
+    limit: external_exports.number().int().min(1).max(50).optional().describe("Max reports (default 10).")
+  },
+  async handler(args, ctx) {
+    const dirs = [
+      join6(ctx.platform.homeDir, "Library", "Logs", "DiagnosticReports"),
+      "/Library/Logs/DiagnosticReports"
+    ];
+    const files = [];
+    for (const d of dirs) {
+      try {
+        for (const f of await readdir5(d)) {
+          if (!/\.(ips|crash)$/.test(f)) continue;
+          if (args.process && !f.toLowerCase().includes(args.process.toLowerCase().split(".").pop()))
+            continue;
+          const p = join6(d, f);
+          files.push({ path: p, mtime: (await stat4(p)).mtimeMs });
+        }
+      } catch {
+      }
+    }
+    files.sort((a, b) => b.mtime - a.mtime);
+    const reports = [];
+    for (const f of files.slice(0, args.limit ?? 10)) {
+      try {
+        const s = parseCrashReport(await readFile5(f.path, "utf8"));
+        if (args.process && ![s.process, s.bundleId, basename4(f.path)].some(
+          (x) => x?.toLowerCase().includes(args.process.toLowerCase())
+        ))
+          continue;
+        reports.push({ file: f.path, modified: new Date(f.mtime).toISOString(), ...s });
+      } catch {
+      }
+    }
+    if (!reports.length)
+      return {
+        summary: `No crash reports found${args.process ? ` for ${args.process}` : ""}.`,
+        data: { reports: [] }
+      };
+    return {
+      summary: reports.map(
+        (r) => `\u2022 ${r.modified.slice(0, 19)} ${r.process ?? "?"} ${r.appVersion ?? ""} \u2014 ${r.exceptionType ?? ""} ${r.terminationNamespace ? `[${r.terminationNamespace}${r.terminationIndicator ? `: ${r.terminationIndicator}` : ""}]` : ""}${r.isSigningRelated ? " \u2190 signing-related" : ""}${r.explanations.length ? `
+    ${r.explanations.map((e) => `${e.title}: ${e.fix[0]}`).join("\n    ")}` : ""}`
+      ).join("\n"),
+      data: { reports }
+    };
+  }
+});
+async function scanRequiredReasonApis(binary) {
+  const buf = await readFile5(binary);
+  return REQUIRED_REASON_APIS.filter(
+    (c) => c.markers.some((m) => buf.includes(Buffer.from(m, "latin1")))
+  ).map((c) => c.category);
+}
+async function mainExecutable(app, info) {
+  const exe = info?.CFBundleExecutable;
+  for (const p of [exe && join6(app, "Contents", "MacOS", exe), exe && join6(app, exe)])
+    if (p && await pathExists(p)) return p;
+  return void 0;
+}
+var privacyTool = defineTool({
+  name: "privacy",
+  title: "Audit privacy permissions (TCC) / reset prompts",
+  description: "action=audit: for an .app, cross-checks linked frameworks (camera, microphone, location, contacts, photos, Bluetooth\u2026) against Info.plist NS*UsageDescription strings and macOS hardened-runtime/sandbox entitlements, and scans for privacy-manifest required-reason APIs (UserDefaults, file timestamps, boot time, disk space) vs PrivacyInfo.xcprivacy \u2014 the causes of silent permission failures, crashes on first access, and ITMS-90683 / ITMS-91053 rejections. action=tcc_reset (confirm): `tccutil reset <Service> <bundle-id>` so the permission prompt appears again for testing.",
+  mutating: true,
+  input: {
+    action: external_exports.enum(["audit", "tcc_reset"]),
+    path: external_exports.string().optional().describe("audit: the .app bundle."),
+    service: external_exports.enum(TCC_SERVICES).optional().describe("tcc_reset: TCC service (All resets everything for the bundle)."),
+    bundle_id: external_exports.string().optional().describe("tcc_reset: bundle ID (omit to reset the service for ALL apps).")
+  },
+  async handler(args, ctx, extra) {
+    if (args.action === "tcc_reset") {
+      requireMacOS(ctx.platform, "tccutil");
+      if (!args.service) throw new ToolError("service is required.");
+      const cmd = ["reset", args.service, ...args.bundle_id ? [args.bundle_id] : []];
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Reset ${args.service} permission${args.bundle_id ? ` for ${args.bundle_id}` : " for ALL apps"}`,
+          steps: [cmdStep("Reset TCC decision", "tccutil", cmd)],
+          warnings: args.bundle_id ? [] : ["Without bundle_id this resets the permission for every app on this Mac."],
+          destructive: !args.bundle_id
+        }),
+        async () => {
+          const r = await ctx.runner.run("tccutil", cmd, { timeoutMs: 3e4 });
+          if (!ok(r)) throw new ToolError(`tccutil failed: ${output2(r)}`);
+          return {
+            summary: `Reset ${args.service}${args.bundle_id ? ` for ${args.bundle_id}` : ""}. Relaunch the app to see the prompt again.`,
+            data: { ok: true }
+          };
+        }
+      );
+    }
+    if (!args.path) throw new ToolError("path is required for audit.");
+    const app = await resolveUserPath(ctx, args.path);
+    if (!await isDirectory(app)) throw new ToolError("audit expects an .app bundle.");
+    const info = await readBundleInfo(app) ?? {};
+    const isMac = await pathExists(join6(app, "Contents"));
+    const platform = isMac ? "macOS" : "iOS";
+    const exe = await mainExecutable(app, info);
+    const findings = [];
+    let frameworks = [];
+    if (exe && ctx.platform.isMac) {
+      const r = await ctx.runner.run("otool", ["-L", exe], { timeoutMs: 3e4 });
+      if (ok(r))
+        frameworks = parseOtoolL(r.stdout).map((l) => /\/([^/]+)\.framework\//.exec(l.path)?.[1]).filter((x) => !!x);
+    }
+    const ent = ctx.platform.isMac ? await readSignedEntitlements(ctx, app) ?? {} : {};
+    const resources = [];
+    for (const res of PRIVACY_RESOURCES.filter((r) => r.platforms.includes(platform))) {
+      const linked = res.frameworks.filter((f) => frameworks.includes(f));
+      const keysPresent = res.usageKeys.filter(
+        (k) => typeof info[k] === "string" && info[k].trim()
+      );
+      const entOk = res.macEntitlement ? ent[res.macEntitlement] === true : void 0;
+      resources.push({
+        id: res.id,
+        linkedFrameworks: linked,
+        usageKeysPresent: keysPresent,
+        entitlementPresent: entOk
+      });
+      if (isMac && res.macEntitlement && entOk && res.usageKeys.length && !keysPresent.length)
+        findings.push(
+          finding(
+            "error",
+            `${res.title}: entitlement ${res.macEntitlement} present but no ${res.usageKeys.join(" / ")} in Info.plist \u2014 the app is terminated when it requests access.`,
+            `Add ${res.usageKeys[0]}.`
+          )
+        );
+      if (isMac && res.macEntitlement && keysPresent.length && !entOk && (ent["com.apple.security.app-sandbox"] === true || Object.keys(ent).length))
+        findings.push(
+          finding(
+            "warning",
+            `${res.title}: usage string present but ${res.macEntitlement} is not in the signed entitlements \u2014 under hardened runtime/sandbox access is silently denied.`,
+            `Add ${res.macEntitlement} and re-sign.`
+          )
+        );
+      if (linked.length && res.usageKeys.length && !keysPresent.length)
+        findings.push(
+          finding(
+            "warning",
+            `${res.title}: links ${linked.join(", ")} but has no ${res.usageKeys.join(" / ")}. If the app accesses ${res.title.toLowerCase()}, it will crash/be denied (and App Store upload fails with ITMS-90683).`,
+            res.notes
+          )
+        );
+      if (!res.usageKeys.length && linked.length && res.notes)
+        findings.push(finding("info", `${res.title}: ${res.notes}`));
+    }
+    const manifestPath = [
+      join6(app, "PrivacyInfo.xcprivacy"),
+      join6(app, "Contents", "Resources", "PrivacyInfo.xcprivacy")
+    ];
+    let manifest;
+    for (const p of manifestPath) {
+      if (await pathExists(p)) {
+        try {
+          manifest = parsePlistDict(new Uint8Array(await readFile5(p)));
+        } catch {
+          findings.push(finding("error", `PrivacyInfo.xcprivacy at ${p} is not a valid plist.`));
+        }
+      }
+    }
+    const declared = asArray(manifest?.NSPrivacyAccessedAPITypes).map((x) => asDict(x)?.NSPrivacyAccessedAPIType).filter((x) => !!x);
+    const detected = exe ? await scanRequiredReasonApis(exe) : [];
+    for (const cat of detected.filter((c) => !declared.includes(c))) {
+      const c = REQUIRED_REASON_APIS.find((x) => x.category === cat);
+      findings.push(
+        finding(
+          platform === "iOS" ? "warning" : "info",
+          `Binary appears to use ${c.title} APIs (${cat}) but PrivacyInfo.xcprivacy does not declare it.${platform === "iOS" ? " App Store uploads get ITMS-91053." : ""}`,
+          `Declare it with a reason code, e.g. ${c.commonReasons.map((r) => `${r.code} (${r.meaning})`).join("; ")}. Heuristic symbol scan \u2014 verify.`
+        )
+      );
+    }
+    if (!manifest && platform === "iOS")
+      findings.push(
+        finding(
+          "warning",
+          "No PrivacyInfo.xcprivacy in the app bundle.",
+          "Add a privacy manifest (Xcode \u2192 New File \u2192 App Privacy)."
+        )
+      );
+    if (isMac && ent["com.apple.security.automation.apple-events"] && !info.NSAppleEventsUsageDescription)
+      findings.push(
+        finding(
+          "error",
+          "Apple Events entitlement without NSAppleEventsUsageDescription \u2014 automation requests fail."
+        )
+      );
+    for (const k of Object.keys(ent)) {
+      const e = entitlementInfo(k);
+      if (e?.usageDescriptionKey && ent[k] === true && !info[e.usageDescriptionKey] && !findings.some((f) => f.message.includes(k)))
+        findings.push(finding("error", `${k} requires ${e.usageDescriptionKey} in Info.plist.`));
+    }
+    return {
+      summary: `Privacy audit of ${basename4(app)} (${platform}): ${findings.filter((f) => f.severity !== "info").length} issue(s).
+${formatFindings(findings) || "No issues found."}
+Note: screen recording, accessibility and input monitoring have no Info.plist key \u2014 users grant them in System Settings \u2192 Privacy & Security.`,
+      data: {
+        platform,
+        frameworks,
+        resources,
+        entitlements: Object.keys(ent),
+        privacyManifest: manifest ? { declared } : null,
+        requiredReasonApisDetected: detected,
+        findings
+      },
+      next_steps: [
+        "After fixing, reset prompts with privacy action=tcc_reset and watch system_logs preset=tcc while testing."
+      ]
+    };
+  }
+});
+var devicesTool = defineTool({
+  name: "devices",
+  title: "List this Mac's UDID, connected devices and simulators",
+  description: "Collects device identifiers needed for development / Ad Hoc provisioning: this Mac's provisioning UDID (system_profiler), connected iPhones/iPads/Apple TVs/Vision Pros (`xcrun devicectl list devices`), and available simulators (`xcrun simctl`). Register them with asc_devices action=register. Read-only.",
+  input: {
+    include_simulators: external_exports.boolean().optional().describe("Include simulators (default false).")
+  },
+  async handler(args, ctx) {
+    requireMacOS(ctx.platform, "devices");
+    const data = {};
+    const hw = await ctx.runner.run("system_profiler", ["SPHardwareDataType", "-json"], { timeoutMs: 6e4 });
+    if (ok(hw)) {
+      try {
+        const h = JSON.parse(hw.stdout).SPHardwareDataType?.[0] ?? {};
+        data.thisMac = {
+          name: h.machine_name,
+          model: h.machine_model,
+          chip: h.chip_type ?? h.cpu_type,
+          provisioningUDID: h.provisioning_UDID ?? h.platform_UUID,
+          hardwareUUID: h.platform_UUID,
+          note: "Register provisioningUDID (platform MAC_OS) for macOS development/Developer ID profiles that need devices."
+        };
+      } catch {
+      }
+    }
+    const tmp = join6(await scratchDir("devicectl"), "devices.json");
+    const dc = await ctx.runner.run("xcrun", ["devicectl", "list", "devices", "--json-output", tmp], {
+      timeoutMs: 6e4
+    });
+    if (ok(dc)) {
+      try {
+        const j = JSON.parse(await readFile5(tmp, "utf8"));
+        data.connected = (j.result?.devices ?? []).map((d) => ({
+          name: d.deviceProperties?.name,
+          udid: d.hardwareProperties?.udid,
+          platform: d.hardwareProperties?.platform,
+          model: d.hardwareProperties?.marketingName ?? d.hardwareProperties?.productType,
+          os: d.deviceProperties?.osVersionNumber,
+          pairing: d.connectionProperties?.pairingState,
+          developerMode: d.deviceProperties?.developerModeStatus
+        }));
+      } catch {
+        data.connected = [];
+      } finally {
+        await unlink(tmp).catch(() => {
+        });
+      }
+    } else data.connectedError = output2(dc).slice(0, 300);
+    if (args.include_simulators) {
+      const sim = await ctx.runner.run("xcrun", ["simctl", "list", "devices", "available", "-j"], {
+        timeoutMs: 6e4
+      });
+      if (ok(sim)) {
+        const j = JSON.parse(sim.stdout);
+        data.simulators = Object.entries(j.devices ?? {}).flatMap(
+          ([runtime, devs]) => devs.map((d) => ({
+            runtime: runtime.replace("com.apple.CoreSimulator.SimRuntime.", ""),
+            name: d.name,
+            udid: d.udid,
+            state: d.state
+          }))
+        );
+      }
+    }
+    const mac4 = data.thisMac;
+    const connected = data.connected ?? [];
+    return {
+      summary: [
+        mac4 ? `This Mac: ${mac4.name ?? "?"} \u2014 provisioning UDID ${mac4.provisioningUDID ?? "?"}` : "This Mac: unknown",
+        `Connected devices: ${connected.length ? connected.map((d) => `${d.name} (${d.platform}) ${d.udid}`).join("; ") : "none"}`,
+        args.include_simulators ? `Simulators: ${data.simulators?.length ?? 0}` : void 0
+      ].filter(Boolean).join("\n"),
+      data,
+      next_steps: [
+        "asc_devices action=register name=<\u2026> udid=<\u2026> platform=<IOS|MAC_OS>",
+        "then asc_profiles action=regenerate for development/ad-hoc profiles"
+      ]
+    };
+  }
+});
+var jobsTool = defineTool({
+  name: "jobs",
+  title: "Status of long-running background jobs",
+  description: "Long operations (xcodebuild archive/export, notarization waits, uploads, build processing) continue in the background when they exceed max_wait_seconds. action=list / status (optionally wait up to wait_seconds) / tail (recent output) / cancel (confirm).",
+  mutating: true,
+  input: {
+    action: external_exports.enum(["list", "status", "tail", "cancel"]),
+    job_id: external_exports.string().optional(),
+    wait_seconds: external_exports.number().int().min(0).max(900).optional().describe("status: wait up to this long for completion."),
+    lines: external_exports.number().int().min(1).max(1e3).optional().describe("tail: number of lines (default 80).")
+  },
+  async handler(args, ctx, extra) {
+    if (args.action === "list") {
+      const list = ctx.jobs.list().map(({ lines: _l, result: _r, ...j }) => j);
+      return {
+        summary: list.length ? list.map((j) => `\u2022 ${j.id} ${j.name} \u2014 ${j.status}${j.progress ? ` (${j.progress})` : ""}`).join("\n") : "No jobs.",
+        data: { jobs: list }
+      };
+    }
+    if (!args.job_id) throw new ToolError("job_id is required.");
+    let job = ctx.jobs.get(args.job_id);
+    if (!job) throw new ToolError(`Unknown job ${args.job_id} (jobs do not survive a server restart).`);
+    if (args.action === "status") {
+      if (args.wait_seconds && job.status === "running")
+        job = await ctx.jobs.wait(args.job_id, args.wait_seconds * 1e3) ?? job;
+      const { lines, ...rest } = job;
+      return {
+        summary: `${job.id} ${job.name}: ${job.status}${job.progress ? ` \u2014 ${job.progress}` : ""}${job.error ? `
+Error: ${job.error}` : ""}`,
+        data: { ...rest, recentOutput: lines.slice(-20) },
+        next_steps: job.status === "running" ? [`jobs action=status job_id=${job.id} wait_seconds=300`] : []
+      };
+    }
+    if (args.action === "tail") {
+      return {
+        summary: job.lines.slice(-(args.lines ?? 80)).join("\n") || "(no output yet)",
+        data: { status: job.status }
+      };
+    }
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `Cancel job ${job.id} (${job.name})`,
+        steps: [{ description: "Send SIGTERM to the running process" }]
+      }),
+      async () => ({
+        summary: ctx.jobs.cancel(args.job_id) ? "Cancellation requested." : "Job is not running.",
+        data: {}
+      })
+    );
+  }
+});
+
+// src/knowledge/sdk-requirements.ts
+var SDK_REQUIREMENTS = [
+  {
+    effective: "2024-04-29",
+    minXcode: "15.0",
+    sdks: "iOS 17 / iPadOS 17 / tvOS 17 / watchOS 10 / visionOS 1 SDKs",
+    source: "https://developer.apple.com/news/upcoming-requirements/"
+  },
+  {
+    effective: "2025-04-24",
+    minXcode: "16.0",
+    sdks: "iOS 18 / iPadOS 18 / tvOS 18 / visionOS 2 / watchOS 11 SDKs",
+    source: "https://developer.apple.com/news/upcoming-requirements/"
+  },
+  {
+    effective: "2026-04-28",
+    minXcode: "26.0",
+    sdks: "iOS 26 / iPadOS 26 / tvOS 26 / visionOS 26 / watchOS 26 SDKs",
+    source: "https://developer.apple.com/news/upcoming-requirements/"
+  }
+];
+var SDK_REQUIREMENTS_LAST_REVIEWED = "2026-06-01";
+function currentSdkRequirement(date5) {
+  const iso = date5.toISOString().slice(0, 10);
+  return [...SDK_REQUIREMENTS].reverse().find((r) => r.effective <= iso);
+}
+var NOTARIZATION_MIN_SDK = "10.9";
+
+// src/tools/doctor.ts
+var TOOLS = [
+  "codesign",
+  "notarytool",
+  "stapler",
+  "altool",
+  "productbuild",
+  "pkgbuild",
+  "productsign",
+  "spctl",
+  "security",
+  "hdiutil",
+  "ditto",
+  "openssl",
+  "xcodebuild",
+  "devicectl",
+  "simctl"
+];
+var doctorTool = defineTool({
+  name: "doctor",
+  title: "Check this Mac's signing/notarization readiness",
+  description: "Start here. Checks macOS and Xcode / Command Line Tools versions against App Store minimums, required CLIs (codesign, notarytool, stapler, altool, productbuild\u2026), keychain signing identities (expired, missing private keys, duplicates), Apple intermediate certificates, App Store Connect API key configuration and the notarytool keychain profile. Returns a checklist with exact fixes. Read-only.",
+  input: {
+    profile: external_exports.string().optional().describe("Credential profile to check (default profile / env vars if omitted).")
+  },
+  async handler(args, ctx) {
+    const findings = [];
+    const data = { platform: ctx.platform.os };
+    const p8s = await ctx.config.listDiscoveredP8();
+    let ascConfigured = false;
+    try {
+      const creds = await ctx.config.resolveAsc(args.profile);
+      ascConfigured = true;
+      data.appStoreConnect = {
+        configured: true,
+        keyId: creds.keyId,
+        issuerId: creds.issuerId ?? "(individual key)",
+        source: creds.source,
+        privateKeyPath: creds.privateKeyPath
+      };
+      findings.push(
+        finding(
+          "info",
+          `App Store Connect API key ${creds.keyId} configured (${creds.source}).`,
+          "Validate it with asc_auth action=test."
+        )
+      );
+    } catch (e) {
+      data.appStoreConnect = { configured: false, discoveredKeys: p8s };
+      findings.push(
+        finding(
+          "warning",
+          `No App Store Connect API key configured${p8s.length ? ` (found ${p8s.map((p) => p.path).join(", ")})` : ""}.`,
+          "Needed for portal automation, notarization and uploads. Create a Team key (App Store Connect \u2192 Users and Access \u2192 Integrations \u2192 App Store Connect API, role Admin or App Manager) then asc_auth action=configure."
+        )
+      );
+      void e;
+    }
+    if (!ctx.platform.isMac) {
+      findings.push(
+        finding(
+          "warning",
+          `Running on ${ctx.platform.os}: only App Store Connect API and file inspection tools work here.`,
+          "Run this server on a Mac for signing, notarization and Gatekeeper tools."
+        )
+      );
+      return {
+        summary: `doctor (${ctx.platform.os})
+${formatFindings(findings)}`,
+        data: { ...data, findings },
+        next_steps: ascConfigured ? ["asc_auth action=test"] : ["asc_auth action=configure"]
+      };
+    }
+    const macos = await macOSVersion(ctx.runner);
+    const xc = await xcodeInfo(ctx.runner);
+    data.macOS = macos;
+    data.xcode = xc;
+    const req = currentSdkRequirement(ctx.now());
+    if (!xc.developerDir) {
+      findings.push(
+        finding(
+          "error",
+          "No developer tools selected.",
+          "Install Xcode from the App Store (or `xcode-select --install` for Command Line Tools), then `sudo xcode-select -s /Applications/Xcode.app`."
+        )
+      );
+    } else if (xc.isCommandLineToolsOnly || !xc.xcodeVersion) {
+      findings.push(
+        finding(
+          "warning",
+          "Only Command Line Tools are active (no full Xcode). codesign/notarytool/stapler work; xcodebuild archive, altool uploads and iOS builds need Xcode.",
+          "Install Xcode and run `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`."
+        )
+      );
+    } else if (req && compareVersions(xc.xcodeVersion, req.minXcode) < 0) {
+      findings.push(
+        finding(
+          "warning",
+          `Xcode ${xc.xcodeVersion} is older than the App Store Connect minimum (Xcode ${req.minXcode}, ${req.sdks}, since ${req.effective}). Uploads will be rejected; Developer ID notarization still works.`,
+          `Update Xcode. Requirements last reviewed ${SDK_REQUIREMENTS_LAST_REVIEWED}; confirm at ${req.source}.`
+        )
+      );
+    } else {
+      findings.push(
+        finding("info", `Xcode ${xc.xcodeVersion} (${xc.buildVersion ?? "?"}) at ${xc.developerDir}.`)
+      );
+    }
+    const tools = {};
+    for (const t of TOOLS) {
+      const r = await ctx.runner.run("xcrun", ["--find", t], { timeoutMs: 15e3 });
+      if (ok(r)) tools[t] = r.stdout.trim();
+      else {
+        const w = await ctx.runner.run("/usr/bin/which", [t], { timeoutMs: 5e3 });
+        tools[t] = ok(w) ? w.stdout.trim() : null;
+      }
+    }
+    data.tools = tools;
+    const missing = Object.entries(tools).filter(([, v]) => !v).map(([k]) => k);
+    const critical = missing.filter(
+      (m) => ["codesign", "notarytool", "stapler", "security", "spctl"].includes(m)
+    );
+    if (critical.length)
+      findings.push(
+        finding(
+          "error",
+          `Missing critical tools: ${critical.join(", ")}.`,
+          "Install Xcode 13+ (notarytool ships with Xcode 13+)."
+        )
+      );
+    else if (missing.length)
+      findings.push(finding("info", `Optional tools not found: ${missing.join(", ")}.`));
+    try {
+      const ids = await listIdentities(ctx);
+      const orphanCerts = await certificatesWithoutKeys(ctx, ids);
+      data.identities = ids.map((i) => ({
+        name: i.name,
+        sha1: i.sha1,
+        type: i.typeName,
+        valid: i.valid,
+        invalidReason: i.invalidReason,
+        expires: i.certificate?.validTo
+      }));
+      data.certificatesWithoutPrivateKey = orphanCerts.map((c) => ({
+        name: c.commonName,
+        sha1: c.sha1,
+        expires: c.validTo
+      }));
+      const valid = ids.filter((i) => i.valid);
+      const byType = (t) => valid.filter((i) => i.type === t);
+      if (!ids.length) {
+        findings.push(
+          finding(
+            "warning",
+            "No code signing identities in the keychain.",
+            "signing_identities explains which certificate you need; keychain create_csr \u2192 asc_certificates create."
+          )
+        );
+      }
+      for (const [type, label] of [
+        ["developer-id-application", "Developer ID Application (outside the Mac App Store)"],
+        ["apple-distribution", "Apple Distribution (App Store / TestFlight)"],
+        ["apple-development", "Apple Development (local development)"]
+      ]) {
+        const n = byType(type).length;
+        findings.push(finding(n ? "info" : "info", `${label}: ${n ? `${n} valid identity(ies)` : "none"}.`));
+      }
+      for (const i of ids.filter((x) => !x.valid))
+        findings.push(
+          finding(
+            "warning",
+            `Invalid identity "${i.name}" (${i.invalidReason ?? "invalid"}).`,
+            "Remove it from the keychain to avoid ambiguity.",
+            i.sha1
+          )
+        );
+      for (const i of valid.filter((x) => (x.certificate?.daysUntilExpiry ?? 999) < 30))
+        findings.push(finding("warning", `"${i.name}" expires in ${i.certificate?.daysUntilExpiry} days.`));
+      if (orphanCerts.length)
+        findings.push(
+          finding(
+            "warning",
+            `${orphanCerts.length} developer certificate(s) in the keychain have no private key (cannot sign): ${orphanCerts.map((c) => c.commonName).join("; ")}.`,
+            "Import the .p12 from the Mac that created the CSR, or create a new certificate."
+          )
+        );
+      const names = valid.map((i) => i.name);
+      const dups = names.filter((n, i) => names.indexOf(n) !== i);
+      if (dups.length)
+        findings.push(
+          finding(
+            "warning",
+            `Duplicate identity names: ${[...new Set(dups)].join("; ")} \u2014 codesign will say "ambiguous".`,
+            "Sign using the SHA-1 hash, or delete the older certificate."
+          )
+        );
+      const inter = await intermediateStatus(ctx);
+      data.intermediates = inter;
+      for (const im of inter.filter((x) => !x.found && !x.name.includes("G1")))
+        findings.push(
+          finding(
+            "info",
+            `${im.name} not found in login/System keychains (${im.neededFor}).`,
+            "Only needed if codesign reports 'unable to build chain' / errSecInternalComponent: keychain action=install_intermediates."
+          )
+        );
+    } catch (e) {
+      findings.push(finding("error", `Could not read keychain identities: ${e.message}`));
+    }
+    const notaryProfile = await ctx.config.notaryProfile(void 0, args.profile).catch(() => void 0);
+    data.notaryKeychainProfile = notaryProfile ?? null;
+    if (!notaryProfile)
+      findings.push(
+        finding(
+          "info",
+          "No notarytool keychain profile configured.",
+          ascConfigured ? "notary action=store_credentials (reuses your API key) \u2014 or pass API key flags per call." : "Configure an API key first, then notary action=store_credentials."
+        )
+      );
+    const errors = findings.filter((f) => f.severity === "error").length;
+    const warnings = findings.filter((f) => f.severity === "warning").length;
+    return {
+      summary: `doctor: macOS ${macos ?? "?"}, ${xc.xcodeVersion ? `Xcode ${xc.xcodeVersion}` : "no Xcode"} \u2014 ${errors} error(s), ${warnings} warning(s)
+${formatFindings(findings)}`,
+      data: { ...data, findings },
+      next_steps: [
+        "detect_project path=<your app or project> to see what you are shipping",
+        "distribution_checklist path=<\u2026> target=<mac-developer-id|mac-app-store|testflight-ios|ios-app-store|\u2026>"
+      ]
+    };
+  }
+});
+
+// src/tools/entitlements.ts
+import { readFile as readFile6, writeFile as writeFile3 } from "fs/promises";
+import { extname as extname4, join as join7 } from "path";
+async function loadEntitlements(ctx, path) {
+  const ext = extname4(path).toLowerCase();
+  if (ext === ".mobileprovision" || ext === ".provisionprofile") {
+    const profile = await decodeProvisioningProfile(ctx.runner, path, ctx.platform.isMac);
+    return { source: "profile", entitlements: asDict(profile.Entitlements) ?? {}, profile };
+  }
+  if (ext === ".entitlements" || ext === ".plist" || ext === ".xcent") {
+    return { source: "file", entitlements: parsePlistDict(new Uint8Array(await readFile6(path))) };
+  }
+  if (!ctx.platform.isMac)
+    throw new ToolError("Reading entitlements from a signed binary requires macOS (codesign).");
+  return { source: "signature", entitlements: await readSignedEntitlements(ctx, path) ?? {} };
+}
+function valueAllowed(requested, granted) {
+  if (granted === void 0) return false;
+  const strMatch = (r, g) => g === "*" || r === g || g.endsWith("*") && r.startsWith(g.slice(0, -1));
+  if (typeof requested === "string") {
+    if (typeof granted === "string") return strMatch(requested, granted);
+    if (Array.isArray(granted)) return granted.some((g) => typeof g === "string" && strMatch(requested, g));
+    return false;
+  }
+  if (Array.isArray(requested)) {
+    return requested.every((r) => valueAllowed(r, granted));
+  }
+  if (typeof requested === "boolean") {
+    if (typeof granted === "boolean") return requested === false || granted === true;
+    return false;
+  }
+  return JSON.stringify(requested) === JSON.stringify(granted);
+}
+function validateEntitlements(input2) {
+  const f = [];
+  const ent = input2.entitlements;
+  const prof = input2.profileEntitlements;
+  const t = input2.target ? TARGETS[input2.target] : void 0;
+  if (prof) {
+    for (const [key, value] of Object.entries(ent)) {
+      if (!valueAllowed(value, prof[key])) {
+        if (prof[key] === void 0 && !entitlementInfo(key)?.requiresProfile && !PROFILE_INJECTED_KEYS.has(key))
+          continue;
+        f.push(
+          finding(
+            "error",
+            `${key} = ${JSON.stringify(value)} is not granted by the provisioning profile (profile has ${prof[key] === void 0 ? "nothing" : JSON.stringify(prof[key])}).`,
+            entitlementInfo(key)?.ascCapability ? `Enable ${entitlementInfo(key)?.ascCapability} on the bundle ID (asc_bundle_ids enable_capability) and regenerate the profile (asc_profiles regenerate).` : "Remove the entitlement or use a profile that grants it."
+          )
+        );
+      }
+    }
+  } else {
+    const restricted = Object.keys(ent).filter(
+      (k) => entitlementInfo(k)?.requiresProfile && !PROFILE_INJECTED_KEYS.has(k)
+    );
+    if (restricted.length)
+      f.push(
+        finding(
+          "warning",
+          `These entitlements must be granted by a provisioning profile: ${restricted.join(", ")}. Without one the app is killed at launch (macOS) or install fails (iOS).`,
+          "Provide/compare against a profile (validate with profile=\u2026) or embed one."
+        )
+      );
+  }
+  if (t) {
+    for (const k of t.forbiddenEntitlements)
+      if (ent[k] === true)
+        f.push(finding("error", `${k} must not be present for ${t.id}.`, "Build Release / remove it."));
+    if (t.sandbox === "required" && ent["com.apple.security.app-sandbox"] !== true)
+      f.push(
+        finding(
+          "error",
+          `App Sandbox is required for ${t.id}.`,
+          "Add com.apple.security.app-sandbox = true (and inherit for helpers)."
+        )
+      );
+  }
+  if (ent["com.apple.security.inherit"] === true) {
+    const extra = Object.keys(ent).filter(
+      (k) => !["com.apple.security.inherit", "com.apple.security.app-sandbox"].includes(k)
+    );
+    if (extra.length)
+      f.push(
+        finding(
+          "error",
+          `com.apple.security.inherit must only be combined with app-sandbox; also found ${extra.join(", ")}.`,
+          "Strip helper entitlements down to app-sandbox + inherit."
+        )
+      );
+  }
+  for (const k of RISKY_HARDENED_RUNTIME_EXCEPTIONS) {
+    if (ent[k] === true)
+      f.push(finding("warning", `${k}: ${entitlementInfo(k)?.risk ?? "weakens hardened runtime"}`));
+  }
+  if (ent["com.apple.security.cs.allow-unsigned-executable-memory"] === true && ent["com.apple.security.cs.allow-jit"] === true)
+    f.push(
+      finding(
+        "info",
+        "Both allow-jit and allow-unsigned-executable-memory are set; modern JS engines only need allow-jit."
+      )
+    );
+  for (const k of Object.keys(ent).filter((k2) => k2.startsWith("com.apple.security.temporary-exception")))
+    f.push(finding("warning", `${k} \u2014 App Review scrutinizes temporary exceptions.`));
+  if (input2.infoPlist) {
+    for (const [key, value] of Object.entries(ent)) {
+      const info = entitlementInfo(key);
+      if (value === true && info?.usageDescriptionKey && !input2.infoPlist[info.usageDescriptionKey])
+        f.push(
+          finding(
+            "error",
+            `${key} is enabled but Info.plist lacks ${info.usageDescriptionKey}; the permission request will crash or be denied.`,
+            `Add ${info.usageDescriptionKey} with a user-facing explanation.`
+          )
+        );
+    }
+  }
+  for (const key of Object.keys(ent)) {
+    if (!entitlementInfo(key) && !PROFILE_INJECTED_KEYS.has(key) && !key.startsWith("com.apple.security.temporary-exception"))
+      f.push(finding("info", `${key}: not in the built-in catalog (may be fine \u2014 check Apple's docs).`));
+  }
+  return f;
+}
+function annotate(ent) {
+  return Object.entries(ent).map(([key, value]) => {
+    const info = entitlementInfo(key);
+    return {
+      key,
+      value,
+      title: info?.title,
+      kind: info?.kind,
+      requiresProfile: info?.requiresProfile,
+      description: info?.description,
+      risk: info?.risk
+    };
+  });
+}
+var entitlementsTool = defineTool({
+  name: "entitlements",
+  title: "Read, validate, explain or generate entitlements",
+  description: "action=read: entitlements of a signed app/binary, an .entitlements/.plist file, or a provisioning profile, annotated with what each key does. action=validate: check them against a provisioning profile (wildcards supported), a distribution target (sandbox required, get-task-allow forbidden\u2026), Info.plist usage descriptions, risky hardened-runtime exceptions and helper inherit rules. action=explain: describe keys (or the whole catalog). action=generate: build an .entitlements plist from a preset (electron, electron-mas, electron-mas-inherit, tauri, sandbox-basic, developer-id-minimal) plus capability shorthands; writing to output_path requires confirmation.",
+  mutating: true,
+  input: {
+    action: external_exports.enum(["read", "validate", "explain", "generate"]),
+    path: external_exports.string().optional().describe("read/validate: app bundle, binary, .entitlements/.plist file, or profile."),
+    profile: external_exports.string().optional().describe(
+      "validate: provisioning profile to validate against (default: the bundle's embedded profile)."
+    ),
+    target: external_exports.enum(TARGET_IDS).optional().describe("validate/generate: distribution target."),
+    keys: external_exports.array(external_exports.string()).optional().describe("explain: entitlement keys to describe (omit for the full catalog)."),
+    preset: external_exports.string().optional().describe(`generate: one of ${ENTITLEMENT_PRESETS.map((p) => p.id).join(", ")}`),
+    capabilities: external_exports.array(external_exports.string()).optional().describe(`generate: shorthands \u2014 ${Object.keys(CAPABILITY_SHORTHANDS).join(", ")}`),
+    extra: external_exports.record(external_exports.string(), external_exports.any()).optional().describe("generate: additional raw key/value pairs."),
+    output_path: external_exports.string().optional().describe("generate: write the plist here (requires confirmation).")
+  },
+  async handler(args, ctx, extra) {
+    if (args.action === "explain") {
+      const items = args.keys?.length ? args.keys.map((k) => entitlementInfo(k) ?? { key: k, title: "(not in catalog)" }) : ENTITLEMENTS;
+      return {
+        summary: items.map((i) => `\u2022 ${i.key} \u2014 ${"description" in i ? `${i.title}: ${i.description}` : i.title}`).join("\n"),
+        data: { entitlements: items, presets: args.keys?.length ? void 0 : ENTITLEMENT_PRESETS }
+      };
+    }
+    if (args.action === "generate") {
+      const ent = {};
+      const notes = [];
+      if (args.preset) {
+        const p = ENTITLEMENT_PRESETS.find((x) => x.id === args.preset);
+        if (!p)
+          throw new ToolError(`Unknown preset ${args.preset}.`, {
+            hint: `Choose one of ${ENTITLEMENT_PRESETS.map((x) => x.id).join(", ")}`
+          });
+        Object.assign(ent, p.entitlements);
+        notes.push(...p.notes);
+      }
+      if (args.target === "mac-app-store" || args.target === "testflight-mac")
+        ent["com.apple.security.app-sandbox"] = true;
+      for (const c of args.capabilities ?? []) {
+        const v = CAPABILITY_SHORTHANDS[c];
+        if (!v)
+          throw new ToolError(`Unknown capability shorthand "${c}".`, {
+            hint: Object.keys(CAPABILITY_SHORTHANDS).join(", ")
+          });
+        Object.assign(ent, v);
+      }
+      Object.assign(ent, args.extra ?? {});
+      const xml = buildPlist(ent);
+      const findings2 = validateEntitlements({ entitlements: ent, target: args.target });
+      const usage = Object.keys(ent).map((k) => entitlementInfo(k)?.usageDescriptionKey).filter(Boolean);
+      if (usage.length) notes.push(`Add Info.plist usage descriptions: ${[...new Set(usage)].join(", ")}`);
+      const result = {
+        summary: `Generated entitlements (${Object.keys(ent).length} keys):
+${xml}${notes.length ? `
+Notes:
+- ${notes.join("\n- ")}` : ""}${findings2.length ? `
+
+${formatFindings(findings2)}` : ""}`,
+        data: { entitlements: ent, plist: xml, notes, findings: findings2 }
+      };
+      if (!args.output_path) return result;
+      const out = await resolveUserPath(ctx, args.output_path, false);
+      const overwriting = await pathExists(out);
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Write entitlements plist to ${out}`,
+          steps: [
+            {
+              description: `${overwriting ? "Overwrite" : "Create"} ${out} with ${Object.keys(ent).length} keys`
+            }
+          ],
+          warnings: overwriting ? ["The existing file will be replaced."] : [],
+          notes: [xml]
+        }),
+        async () => {
+          await writeFile3(out, xml);
+          return {
+            ...result,
+            summary: `Wrote ${out}.
+${result.summary}`,
+            data: { ...result.data, written: out }
+          };
+        }
+      );
+    }
+    if (!args.path) throw new ToolError("path is required for read/validate.");
+    const path = await resolveUserPath(ctx, args.path);
+    const loaded = await loadEntitlements(ctx, path);
+    if (args.action === "read") {
+      const ann = annotate(loaded.entitlements);
+      return {
+        summary: `Entitlements from ${loaded.source} (${path}):
+${ann.length ? ann.map((a) => `\u2022 ${a.key} = ${JSON.stringify(a.value)}${a.title ? ` \u2014 ${a.title}` : ""}${a.risk ? ` \u26A0 ${a.risk}` : ""}`).join("\n") : "(none)"}`,
+        data: { source: loaded.source, path, entitlements: loaded.entitlements, annotated: ann }
+      };
+    }
+    let profileEnt;
+    let profileSource;
+    if (args.profile) {
+      const pp = await resolveUserPath(ctx, args.profile);
+      const prof = await decodeProvisioningProfile(ctx.runner, pp, ctx.platform.isMac);
+      profileEnt = asDict(prof.Entitlements);
+      profileSource = pp;
+    } else if (await isDirectory(path)) {
+      for (const rel of ["Contents/embedded.provisionprofile", "embedded.mobileprovision"]) {
+        if (await pathExists(join7(path, rel))) {
+          const prof = await decodeProvisioningProfile(ctx.runner, join7(path, rel), ctx.platform.isMac);
+          profileEnt = asDict(prof.Entitlements);
+          profileSource = `${rel} (embedded)`;
+        }
+      }
+    }
+    const infoPlist = await isDirectory(path) ? await readBundleInfo(path) : void 0;
+    const findings = validateEntitlements({
+      entitlements: loaded.entitlements,
+      profileEntitlements: profileEnt,
+      target: args.target,
+      infoPlist
+    });
+    const errors = findings.filter((x) => x.severity === "error").length;
+    return {
+      summary: `Validated ${Object.keys(loaded.entitlements).length} entitlement(s) from ${loaded.source}${profileSource ? ` against ${profileSource}` : ""}${args.target ? ` for ${args.target}` : ""}: ${errors ? `${errors} error(s)` : "no errors"}.
+${formatFindings(findings) || "All good."}`,
+      data: { entitlements: loaded.entitlements, profileEntitlements: profileEnt, profileSource, findings }
+    };
+  }
+});
+
+// src/tools/gatekeeper.ts
+import { randomUUID } from "crypto";
+import { readdir as readdir6 } from "fs/promises";
+import { basename as basename5, extname as extname5, join as join8 } from "path";
+
+// src/parsers/spctl.ts
+function parseSpctl(text, exitCode) {
+  const first = text.split("\n").find((l) => /: (accepted|rejected)/.test(l)) ?? "";
+  const m = /^(.*): (accepted|rejected)(?:\s*\((.*)\))?/.exec(first.trim());
+  const source = /^source=(.*)$/m.exec(text)?.[1]?.trim();
+  const origin = /^origin=(.*)$/m.exec(text)?.[1]?.trim();
+  const accepted = m ? m[2] === "accepted" : exitCode === 0;
+  return {
+    path: m?.[1],
+    accepted,
+    source,
+    origin,
+    reason: m?.[3],
+    notarized: !!source && /^Notarized/i.test(source),
+    raw: text.trim()
+  };
+}
+function parseSyspolicyCheck(text, exitCode) {
+  const lines = text.split("\n").map((l) => l.trimEnd());
+  const issues = [];
+  let capture = false;
+  for (const line of lines) {
+    if (/^(Error|Warning|Issue|Notary|Codesign|Gatekeeper|XProtect)/i.test(line.trim()) && /:/.test(line)) {
+      capture = true;
+    }
+    if (capture && line.trim()) issues.push(line.trim());
+  }
+  const passed = exitCode === 0 && !/fail|error/i.test(text.replace(/0 errors?/gi, ""));
+  return { passed: passed || /App passed all pre-distribution checks/i.test(text), issues, raw: text.trim() };
+}
+
+// src/tools/gatekeeper.ts
+function spctlArgs(path) {
+  const ext = extname5(path).toLowerCase();
+  if (ext === ".pkg") return ["--assess", "--type", "install", "-vvv", path];
+  if (ext === ".dmg")
+    return ["--assess", "--type", "open", "--context", "context:primary-signature", "-vvv", path];
+  return ["--assess", "--type", "execute", "-vvv", path];
+}
+async function assess(ctx, path) {
+  const r = await ctx.runner.run("spctl", spctlArgs(path), { timeoutMs: 12e4 });
+  return parseSpctl(output2(r), r.code);
+}
+function explainAssessment(a) {
+  if (a.accepted) {
+    return [finding("info", `Gatekeeper accepts it (source: ${a.source ?? "?"}).`)];
+  }
+  const known = matchKnownErrors(a.raw, ["gatekeeper", "codesign"]);
+  if (known.length)
+    return known.map((k) => finding("error", `${k.title}: ${k.explanation}`, k.fix.join("; ")));
+  return [
+    finding(
+      "error",
+      `Rejected${a.reason ? ` (${a.reason})` : ""}${a.source ? ` \u2014 source=${a.source}` : ""}.`
+    )
+  ];
+}
+function quarantineValue(now, agent = "Safari") {
+  return `0083;${Math.floor(now.getTime() / 1e3).toString(16)};${agent};${randomUUID().toUpperCase()}`;
+}
+async function syspolicyCheck(ctx, path, mode = "distribution") {
+  const r = await ctx.runner.run("syspolicy_check", [mode, path], {
+    timeoutMs: 3e5,
+    logName: "syspolicy_check"
+  });
+  if (r.spawnError) return { available: false };
+  return { available: true, ...parseSyspolicyCheck(output2(r), r.code), logPath: r.logPath };
+}
+var gatekeeperTool = defineTool({
+  name: "gatekeeper",
+  title: "Test Gatekeeper acceptance like an end user",
+  description: "action=assess: spctl assessment with the right type for .app (execute), .pkg (install) and .dmg (open, primary signature), explaining rejections (unnotarized, no usable signature, wrong certificate\u2026). action=syspolicy_check: Apple's macOS 14+ pre-distribution checker (`syspolicy_check distribution|notary-submission`). action=simulate_download: copy the artifact to a temp folder, add the com.apple.quarantine attribute exactly like a Safari download (mounting DMGs / extracting zips), then assess it, check the stapled ticket and run syspolicy_check \u2014 the closest thing to a user's first launch. launch=true (confirm) also opens the app and collects Gatekeeper/AMFI log lines.",
+  mutating: true,
+  input: {
+    action: external_exports.enum(["assess", "syspolicy_check", "simulate_download"]),
+    path: external_exports.string().describe(".app, .dmg, .pkg or .zip"),
+    mode: external_exports.enum(["distribution", "notary-submission"]).optional().describe("syspolicy_check mode (default distribution)."),
+    launch: external_exports.boolean().optional().describe("simulate_download: also launch the quarantined copy (requires confirmation).")
+  },
+  async handler(args, ctx, extra) {
+    requireMacOS(ctx.platform, "Gatekeeper checks");
+    const path = await resolveUserPath(ctx, args.path);
+    if (args.action === "assess") {
+      const a = await assess(ctx, path);
+      const f = explainAssessment(a);
+      return {
+        summary: `${basename5(path)}: ${a.accepted ? "ACCEPTED" : "REJECTED"}${a.source ? ` (source=${a.source})` : ""}${a.origin ? `
+origin=${a.origin}` : ""}
+${formatFindings(f)}`,
+        data: { assessment: a, findings: f },
+        next_steps: a.accepted ? ["gatekeeper action=simulate_download for a full download simulation"] : [
+          "inspect_code_signature path=<same>",
+          "notarize_and_staple if it is signed with Developer ID but not notarized"
+        ]
+      };
+    }
+    if (args.action === "syspolicy_check") {
+      const r = await syspolicyCheck(ctx, path, args.mode);
+      if (!r.available)
+        throw new ToolError("syspolicy_check is not available (requires macOS 14 Sonoma or later).");
+      return {
+        summary: `syspolicy_check ${args.mode ?? "distribution"}: ${r.passed ? "PASSED" : "issues found"}
+${r.raw.slice(0, 3e3)}`,
+        data: r
+      };
+    }
+    const run = async () => simulate(ctx, path, !!args.launch);
+    if (!args.launch) {
+      const res = await run();
+      return res;
+    }
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `Simulate a download of ${basename5(path)} and launch it`,
+        steps: [
+          { description: "Copy to a temporary folder and apply com.apple.quarantine (as Safari would)" },
+          { description: "Assess with spctl / syspolicy_check / stapler validate" },
+          { description: "Open the quarantined copy (a Gatekeeper dialog may appear on screen)" },
+          { description: "Collect syspolicyd / AMFI log lines from the launch" }
+        ],
+        warnings: ["The app will actually run on this Mac."]
+      }),
+      run
+    );
+  }
+});
+async function simulate(ctx, path, launch) {
+  const dir = await scratchDir("download");
+  const name = basename5(path);
+  const copy = join8(dir, name);
+  const findings = [];
+  const qv = quarantineValue(ctx.now());
+  const cp = await ctx.runner.run("ditto", [path, copy], { timeoutMs: 6e5 });
+  if (!ok(cp)) throw new ToolError(`Copy failed: ${output2(cp)}`);
+  await ctx.runner.run("xattr", ["-w", "com.apple.quarantine", qv, copy], { timeoutMs: 3e4 });
+  const ext = extname5(path).toLowerCase();
+  const results = { tempDir: dir, quarantine: qv };
+  let appToCheck;
+  let mountPoint;
+  if (ext === ".dmg") {
+    const dmgAssess = await assess(ctx, copy);
+    results.dmgAssessment = dmgAssess;
+    findings.push(...explainAssessment(dmgAssess).map((f) => ({ ...f, message: `DMG: ${f.message}` })));
+    const st = await ctx.runner.run("stapler", ["validate", copy], { timeoutMs: 6e4 });
+    results.dmgStapled = ok(st);
+    if (!ok(st))
+      findings.push(
+        finding(
+          "warning",
+          "DMG has no stapled ticket (offline users may be blocked).",
+          "staple action=staple path=<dmg>"
+        )
+      );
+    const att = await ctx.runner.run(
+      "hdiutil",
+      ["attach", "-nobrowse", "-readonly", "-noautoopen", "-plist", copy],
+      { timeoutMs: 12e4 }
+    );
+    if (ok(att)) {
+      try {
+        const pl = parsePlistDict(att.stdout);
+        const ents = pl["system-entities"] ?? [];
+        mountPoint = ents.map((e) => e["mount-point"]).find(Boolean);
+      } catch {
+      }
+    }
+    if (mountPoint) {
+      const apps = (await readdir6(mountPoint)).filter((f) => f.endsWith(".app"));
+      if (apps[0]) appToCheck = join8(mountPoint, apps[0]);
+    } else findings.push(finding("error", `Could not mount the DMG: ${output2(att).slice(0, 300)}`));
+  } else if (ext === ".zip") {
+    const out = join8(dir, "extracted");
+    const x = await ctx.runner.run("ditto", ["-x", "-k", copy, out], { timeoutMs: 6e5 });
+    if (!ok(x)) throw new ToolError(`Unzip failed: ${output2(x)}`);
+    await ctx.runner.run("xattr", ["-w", "-r", "com.apple.quarantine", qv, out], { timeoutMs: 12e4 });
+    const apps = (await readdir6(out)).filter((f) => f.endsWith(".app"));
+    appToCheck = apps[0] ? join8(out, apps[0]) : void 0;
+    if (!appToCheck) findings.push(finding("warning", "No .app at the top level of the zip."));
+  } else if (ext === ".pkg") {
+    const a = await assess(ctx, copy);
+    results.pkgAssessment = a;
+    findings.push(...explainAssessment(a));
+  } else if (await isDirectory(copy)) {
+    await ctx.runner.run("xattr", ["-w", "-r", "com.apple.quarantine", qv, copy], { timeoutMs: 12e4 });
+    appToCheck = copy;
+  }
+  if (appToCheck) {
+    const a = await assess(ctx, appToCheck);
+    results.appAssessment = a;
+    findings.push(...explainAssessment(a).map((f) => ({ ...f, message: `App: ${f.message}` })));
+    const st = await ctx.runner.run("stapler", ["validate", appToCheck], { timeoutMs: 6e4 });
+    results.appStapled = ok(st);
+    if (!ok(st) && ext !== ".dmg")
+      findings.push(
+        finding(
+          "warning",
+          "App has no stapled ticket \u2014 first launch needs an internet connection to verify notarization.",
+          "staple the .app before zipping/distributing"
+        )
+      );
+    const sp = await syspolicyCheck(ctx, appToCheck);
+    if (sp.available) {
+      results.syspolicyCheck = { passed: sp.passed, issues: sp.issues.slice(0, 20), logPath: sp.logPath };
+      if (!sp.passed)
+        findings.push(
+          finding(
+            "error",
+            `syspolicy_check distribution reported issues: ${sp.issues.slice(0, 5).join(" | ")}`
+          )
+        );
+    }
+    if (launch) {
+      const started = ctx.now();
+      await ctx.runner.run("open", [appToCheck], { timeoutMs: 3e4 });
+      await new Promise((r) => setTimeout(r, 5e3));
+      const secs2 = Math.max(30, Math.ceil((Date.now() - started.getTime()) / 1e3) + 5);
+      const logs = await ctx.runner.run(
+        "log",
+        [
+          "show",
+          "--style",
+          "compact",
+          "--last",
+          `${secs2}s`,
+          "--predicate",
+          'process == "syspolicyd" OR process == "amfid" OR subsystem == "com.apple.syspolicy" OR process == "taskgated"'
+        ],
+        { timeoutMs: 12e4, logName: "launch-logs" }
+      );
+      const relevant = logs.stdout.split("\n").filter(
+        (l) => new RegExp(basename5(appToCheck, ".app"), "i").test(l) || /deny|reject|not notarized|malware|translocat/i.test(l)
+      ).slice(-40);
+      results.launchLogs = relevant;
+      results.launchLogPath = logs.logPath;
+    }
+  }
+  if (mountPoint) await ctx.runner.run("hdiutil", ["detach", mountPoint, "-quiet"], { timeoutMs: 6e4 });
+  const rejected = findings.some((f) => f.severity === "error");
+  return {
+    summary: `Simulated download of ${name}: ${rejected ? "users WILL see a Gatekeeper block/warning" : "Gatekeeper should open it without warnings"}.
+${formatFindings(findings)}`,
+    data: { ...results, findings },
+    next_steps: rejected ? ["inspect_code_signature path=<original>", "notarize_and_staple path=<original>"] : []
+  };
+}
+var quarantineTool = defineTool({
+  name: "quarantine",
+  title: "Read / set / clear the com.apple.quarantine attribute",
+  description: "action=get: show the quarantine attribute (flags, time, downloading agent) \u2014 present on downloaded files and what triggers Gatekeeper. action=set (confirm): add it to test first-launch behaviour. action=clear (confirm): remove it (recursive) \u2014 this only bypasses Gatekeeper on THIS Mac and is not a distribution fix. action=clear_all_xattrs (confirm): `xattr -cr`, the fix for codesign's 'resource fork, Finder information, or similar detritus not allowed'.",
+  mutating: true,
+  input: {
+    action: external_exports.enum(["get", "set", "clear", "clear_all_xattrs"]),
+    path: external_exports.string(),
+    recursive: external_exports.boolean().optional().describe("set/clear: apply to bundle contents too (default true for directories).")
+  },
+  async handler(args, ctx, extra) {
+    requireMacOS(ctx.platform, "quarantine");
+    const path = await resolveUserPath(ctx, args.path);
+    if (args.action === "get") {
+      const r = await ctx.runner.run("xattr", ["-p", "com.apple.quarantine", path], { timeoutMs: 15e3 });
+      if (!ok(r)) return { summary: `${basename5(path)} is not quarantined.`, data: { quarantined: false } };
+      const [flags, ts, agent, uuid3] = r.stdout.trim().split(";");
+      const when = Number.parseInt(ts, 16);
+      return {
+        summary: `${basename5(path)} is quarantined: flags=${flags} agent=${agent || "?"} time=${Number.isFinite(when) ? new Date(when * 1e3).toISOString() : ts}`,
+        data: {
+          quarantined: true,
+          raw: r.stdout.trim(),
+          flags,
+          agent,
+          uuid: uuid3,
+          time: Number.isFinite(when) ? new Date(when * 1e3).toISOString() : void 0
+        }
+      };
+    }
+    const recursive2 = args.recursive ?? await isDirectory(path);
+    let cmd;
+    let title;
+    const warnings = [];
+    if (args.action === "set") {
+      cmd = ["-w", ...recursive2 ? ["-r"] : [], "com.apple.quarantine", quarantineValue(ctx.now()), path];
+      title = `Quarantine ${basename5(path)}`;
+    } else if (args.action === "clear") {
+      cmd = [recursive2 ? "-dr" : "-d", "com.apple.quarantine", path];
+      title = `Remove quarantine from ${basename5(path)}`;
+      warnings.push(
+        "This only lets the app open on THIS Mac. Users downloading it will still be blocked unless it is signed with Developer ID, notarized and stapled."
+      );
+    } else {
+      cmd = ["-cr", path];
+      title = `Remove ALL extended attributes under ${basename5(path)}`;
+      warnings.push(
+        "If the bundle is already signed, removing attributes does not invalidate it, but re-sign afterwards if codesign complained about detritus."
+      );
+    }
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({ title, steps: [cmdStep(title, "xattr", cmd)], warnings }),
+      async () => {
+        const r = await ctx.runner.run("xattr", cmd, { timeoutMs: 12e4 });
+        if (!ok(r) && args.action !== "clear") throw new ToolError(`xattr failed: ${output2(r)}`);
+        return { summary: `Done: ${title}.`, data: { path, action: args.action } };
+      }
+    );
+  }
+});
+
+// src/tools/inspect.ts
+import { readdir as readdir7 } from "fs/promises";
+import { extname as extname6, join as join9 } from "path";
+var signingIdentitiesTool = defineTool({
+  name: "signing_identities",
+  title: "List keychain signing identities and certificates",
+  description: "List code-signing identities (certificate + private key) in the keychain with type (Developer ID Application/Installer, Apple Distribution, Apple Development, Mac Installer Distribution\u2026), team ID, SHA-1, expiry and validity; also lists developer certificates that are missing their private key and explains which certificate each distribution target needs. Read-only.",
+  input: {
+    keychain: external_exports.string().optional().describe("Specific keychain path (default: user search list)."),
+    include_reference: external_exports.boolean().optional().describe("Include the certificate-type reference table (default true).")
+  },
+  async handler(args, ctx) {
+    const ids = await listIdentities(ctx, args.keychain);
+    const orphans = await certificatesWithoutKeys(ctx, ids);
+    const lines = [`${ids.length} code-signing identit${ids.length === 1 ? "y" : "ies"}:`];
+    for (const i of ids) {
+      const exp = i.certificate ? ` expires ${i.certificate.validTo.slice(0, 10)}${i.certificate.expired ? " (EXPIRED)" : ""}` : "";
+      lines.push(
+        `${i.valid ? "\u2713" : "\u2717"} ${i.name}  [${i.typeName ?? "unknown type"}]  SHA-1 ${i.sha1}${exp}${i.invalidReason ? `  (${i.invalidReason})` : ""}`
+      );
+    }
+    if (orphans.length) {
+      lines.push(
+        "",
+        "Certificates WITHOUT a private key (cannot sign \u2014 import the .p12 from the Mac that created them, or create new ones):"
+      );
+      for (const c of orphans)
+        lines.push(`  \u2022 ${c.commonName} (SHA-1 ${c.sha1}, expires ${c.validTo.slice(0, 10)})`);
+    }
+    const reference = args.include_reference === false ? void 0 : CERTIFICATE_TYPES.filter((c) => !c.legacy).map((c) => ({
+      type: c.portalName,
+      purpose: c.purpose,
+      createdBy: c.createdBy,
+      limit: c.limit
+    }));
+    return {
+      summary: lines.join("\n"),
+      data: {
+        identities: ids.map((i) => ({
+          name: i.name,
+          sha1: i.sha1,
+          type: i.typeName,
+          teamId: i.teamId,
+          valid: i.valid,
+          invalidReason: i.invalidReason,
+          validTo: i.certificate?.validTo,
+          daysUntilExpiry: i.certificate?.daysUntilExpiry
+        })),
+        certificatesWithoutPrivateKey: orphans,
+        certificateTypes: reference
+      },
+      next_steps: ids.some((i) => i.type === "developer-id-application" && i.valid) ? ["sign / notarize_and_staple for Developer ID distribution"] : [
+        "Missing a certificate? keychain action=create_csr \u2192 asc_certificates action=create (or the portal for Developer ID)"
+      ]
+    };
+  }
+});
+var inspectCodeSignatureTool = defineTool({
+  name: "inspect_code_signature",
+  title: "Inspect and verify a code signature",
+  description: "Deep inspection of a signed .app/.framework/.appex/.dylib/binary/.dmg/.pkg/.ipa: signer and certificate chain, team ID, hardened runtime, secure timestamp, stapled ticket, entitlements, embedded provisioning profile, strict deep verification, and every nested component (unsigned, ad-hoc, missing runtime/timestamp, mismatched Team IDs). Pass a target to get readiness findings for that distribution path. Read-only.",
+  input: {
+    path: external_exports.string().describe("Path to the artifact."),
+    target: external_exports.enum(TARGET_IDS).optional().describe("Distribution target to evaluate readiness for."),
+    deep: external_exports.boolean().optional().describe("Inspect nested code individually (default true).")
+  },
+  async handler(args, ctx) {
+    requireMacOS(ctx.platform, "inspect_code_signature");
+    let path = await resolveUserPath(ctx, args.path);
+    if (extname6(path).toLowerCase() === ".ipa") path = await extractIpa(ctx, path);
+    const r = await inspectSignature(ctx, path, { target: args.target, deep: args.deep });
+    const d = r.display;
+    const head = r.pkg ? `Package ${path}
+Status: ${r.pkg.status}
+Notarized: ${r.pkg.notarized ? "yes" : "no"}
+Chain: ${r.pkg.chain.join(" \u2192 ")}` : [
+      `${path}`,
+      `Signed: ${r.signed ? `yes (${r.signer})` : "NO"}`,
+      d?.authorities.length ? `Authority: ${d.authorities.join(" \u2192 ")}` : void 0,
+      d?.identifier ? `Identifier: ${d.identifier}` : void 0,
+      d?.teamIdentifier ? `Team ID: ${d.teamIdentifier}` : void 0,
+      r.signed ? `Hardened runtime: ${d?.hardenedRuntime ? "yes" : "no"} \xB7 Secure timestamp: ${d?.hasSecureTimestamp ? "yes" : "no"} \xB7 Ticket: ${d?.notarizationTicket ?? "unknown"}` : void 0,
+      r.verify ? `Verify (deep, strict): ${r.verify.valid ? "valid" : "INVALID"}` : void 0,
+      r.entitlements ? `Entitlements: ${Object.keys(r.entitlements).join(", ") || "(none)"}` : void 0,
+      r.embeddedProfile ? `Embedded profile: ${r.embeddedProfile.name ?? r.embeddedProfile.path} (${r.embeddedProfile.type ?? "?"})` : void 0,
+      r.nested.length ? `Nested code: ${r.nested.length} item(s), ${r.nested.filter((n) => n.issues.length).length} with issues` : void 0
+    ].filter(Boolean).join("\n");
+    const errors = r.findings.filter((f) => f.severity === "error");
+    return {
+      summary: `${head}
+
+${r.findings.length ? formatFindings(r.findings) : "No problems found."}`,
+      data: {
+        ...r,
+        display: d ? { ...d, raw: void 0 } : void 0,
+        verify: r.verify ? {
+          valid: r.verify.valid,
+          messages: r.verify.messages.slice(0, 30),
+          problemPaths: r.verify.problemPaths
+        } : void 0
+      },
+      next_steps: errors.length ? ["Fix the errors above (sign tool re-signs inside-out), then inspect again."] : args.target === "mac-developer-id" || r.signer === "developer-id" ? [
+        "notarize_and_staple path=<artifact>",
+        "gatekeeper action=simulate_download to test as a user would"
+      ] : []
+    };
+  }
+});
+var inspectBinaryTool = defineTool({
+  name: "inspect_binary",
+  title: "Inspect Mach-O binaries (archs, SDK, linked libraries)",
+  description: "For a Mach-O file or every Mach-O in a bundle: architectures (lipo), platform / minimum OS / SDK version (LC_BUILD_VERSION), linked libraries and @rpath entries (otool). Flags binaries built with an SDK older than 10.9 (notarization rejects them), simulator slices in device builds, and @rpath libraries that are not embedded. Read-only.",
+  input: {
+    path: external_exports.string().describe("Binary or bundle path."),
+    max_files: external_exports.number().int().min(1).max(200).optional().describe("Max binaries to inspect in a bundle (default 40).")
+  },
+  async handler(args, ctx) {
+    requireMacOS(ctx.platform, "inspect_binary");
+    const root = await resolveUserPath(ctx, args.path);
+    const targets = [];
+    if (await isDirectory(root)) {
+      const nested = await discoverNestedCode(root);
+      for (const n of nested) {
+        if (n.kind === "dylib" || n.kind === "executable" || n.kind === "node-module") targets.push(n.path);
+        else targets.push(...await mainExecutables(n.path));
+      }
+    } else if (await isMachO(root)) targets.push(root);
+    else throw new ToolError(`${root} is not a Mach-O binary or bundle.`);
+    const limit = args.max_files ?? 40;
+    const results = [];
+    const findings = [];
+    for (const bin of targets.slice(0, limit)) {
+      const archs = await ctx.runner.run("lipo", ["-archs", bin], { timeoutMs: 15e3 });
+      const libs = await ctx.runner.run("otool", ["-L", bin], { timeoutMs: 15e3 });
+      const lc = await ctx.runner.run("otool", ["-l", bin], { timeoutMs: 15e3 });
+      const info = {
+        path: bin.startsWith(root) ? bin.slice(root.length + 1) || bin : bin,
+        archs: ok(archs) ? parseLipoArchs(archs.stdout) : [],
+        ...parseOtoolLoadCommands(lc.stdout),
+        linked: ok(libs) ? parseOtoolL(libs.stdout).map((l) => l.path) : []
+      };
+      results.push(info);
+      for (const bv of info.buildVersions) {
+        if (bv.platform === "macOS" && bv.sdk && compareVersions(bv.sdk, NOTARIZATION_MIN_SDK) < 0)
+          findings.push(
+            finding(
+              "error",
+              `Built with macOS SDK ${bv.sdk} (< 10.9) \u2014 notarization rejects it.`,
+              "Rebuild with a modern SDK or remove it.",
+              info.path
+            )
+          );
+        if (/simulator/.test(bv.platform))
+          findings.push(
+            finding(
+              "error",
+              `Contains a ${bv.platform} slice \u2014 App Store uploads reject simulator code (ITMS-90087).`,
+              "Use XCFrameworks or lipo -remove the slice before signing.",
+              info.path
+            )
+          );
+      }
+      for (const lib of info.linked.filter(
+        (l) => l.startsWith("/usr/local/") || l.startsWith("/opt/homebrew/")
+      ))
+        findings.push(
+          finding(
+            "error",
+            `Links ${lib}, which won't exist on users' Macs.`,
+            "Bundle the library and rewrite the install name with install_name_tool (before signing).",
+            info.path
+          )
+        );
+    }
+    if (targets.length > limit)
+      findings.push(finding("info", `Inspected ${limit} of ${targets.length} binaries.`));
+    return {
+      summary: `${results.length} binar${results.length === 1 ? "y" : "ies"} inspected.
+${results.slice(0, 15).map(
+        (r) => `\u2022 ${r.path}: ${r.archs.join("+") || "?"} ${r.buildVersions.map((b) => `${b.platform} min ${b.minos} sdk ${b.sdk}`).join(", ")}`
+      ).join("\n")}${findings.length ? `
+
+${formatFindings(findings)}` : ""}`,
+      data: { binaries: results, findings }
+    };
+  }
+});
+async function mainExecutables(bundle) {
+  for (const dir of [join9(bundle, "Contents", "MacOS"), bundle]) {
+    try {
+      const files = await readdir7(dir);
+      const out = [];
+      for (const f of files) if (await isMachO(join9(dir, f))) out.push(join9(dir, f));
+      if (out.length) return out;
+    } catch {
+    }
+  }
+  return [];
+}
+
+// src/tools/provisioning.ts
+import { copyFile, mkdir as mkdir3, readdir as readdir8, writeFile as writeFile4 } from "fs/promises";
+import { basename as basename6, extname as extname7, join as join10 } from "path";
+function profileDirs(home) {
+  return [
+    join10(home, "Library", "Developer", "Xcode", "UserData", "Provisioning Profiles"),
+    join10(home, "Library", "MobileDevice", "Provisioning Profiles")
+  ];
+}
+function summarizeProfile(pl, now, path) {
+  const ent = asDict(pl.Entitlements) ?? {};
+  const appId = ent["application-identifier"] ?? ent["com.apple.application-identifier"];
+  const teamId = asArray(pl.TeamIdentifier)[0];
+  const exp = pl.ExpirationDate instanceof Date ? pl.ExpirationDate : void 0;
+  const certs = asArray(pl.DeveloperCertificates).filter((c) => c instanceof Uint8Array).map((der) => {
+    try {
+      const d = describeCertificate(der, now);
+      return { commonName: d.commonName, sha1: d.sha1, expires: d.validTo, expired: d.expired };
+    } catch {
+      return { sha1: "?", expires: "?", expired: false };
+    }
+  });
+  return {
+    path,
+    name: pl.Name,
+    uuid: pl.UUID,
+    appIdName: pl.AppIDName,
+    applicationIdentifier: appId,
+    bundleId: appId && teamId && appId.startsWith(`${teamId}.`) ? appId.slice(teamId.length + 1) : appId,
+    teamId,
+    teamName: pl.TeamName,
+    platforms: asArray(pl.Platform).map(String),
+    kind: profileKind(pl),
+    created: pl.CreationDate instanceof Date ? pl.CreationDate.toISOString() : void 0,
+    expires: exp?.toISOString(),
+    expired: exp ? exp.getTime() < now.getTime() : false,
+    daysUntilExpiry: exp ? Math.floor((exp.getTime() - now.getTime()) / 864e5) : void 0,
+    deviceCount: asArray(pl.ProvisionedDevices).length,
+    provisionsAllDevices: pl.ProvisionsAllDevices === true,
+    certificates: certs,
+    entitlements: ent
+  };
+}
+async function listInstalledProfiles(ctx) {
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const dir of profileDirs(ctx.platform.homeDir)) {
+    let files = [];
+    try {
+      files = await readdir8(dir);
+    } catch {
+      continue;
+    }
+    for (const f of files.filter((x) => /\.(mobileprovision|provisionprofile)$/.test(x))) {
+      try {
+        const s = summarizeProfile(
+          await decodeProvisioningProfile(ctx.runner, join10(dir, f), ctx.platform.isMac),
+          ctx.now(),
+          join10(dir, f)
+        );
+        if (s.uuid && seen.has(s.uuid)) continue;
+        if (s.uuid) seen.add(s.uuid);
+        out.push(s);
+      } catch {
+      }
+    }
+  }
+  return out;
+}
+async function installProfileBytes(ctx, bytes, uuid3, isMac) {
+  const ext = isMac ? "provisionprofile" : "mobileprovision";
+  const written = [];
+  for (const dir of profileDirs(ctx.platform.homeDir)) {
+    await mkdir3(dir, { recursive: true });
+    const p = join10(dir, `${uuid3}.${ext}`);
+    await writeFile4(p, bytes);
+    written.push(p);
+  }
+  return written;
+}
+function profileText(s) {
+  return [
+    `${s.name ?? "(unnamed)"} \u2014 ${s.kind}`,
+    `  App ID: ${s.applicationIdentifier ?? "?"}  Team: ${s.teamId ?? "?"}${s.teamName ? ` (${s.teamName})` : ""}`,
+    `  UUID: ${s.uuid ?? "?"}  Platforms: ${s.platforms.join(", ") || "?"}`,
+    `  Expires: ${s.expires?.slice(0, 10) ?? "?"}${s.expired ? " (EXPIRED)" : ""}  Devices: ${s.provisionsAllDevices ? "all" : s.deviceCount}`,
+    `  Certificates: ${s.certificates.map((c) => `${c.commonName ?? "?"}${c.inKeychain === false ? " [not in keychain]" : c.inKeychain ? " [in keychain]" : ""}`).join("; ")}`
+  ].join("\n");
+}
+var provisioningProfilesTool = defineTool({
+  name: "provisioning_profiles",
+  title: "List, inspect, install or embed provisioning profiles",
+  description: "action=list_installed: profiles installed for Xcode (both ~/Library/Developer/Xcode/UserData/Provisioning Profiles and the legacy MobileDevice folder) with expiry and type, optionally filtered by bundle_id. action=inspect: decode a .mobileprovision/.provisionprofile (app ID, team, type, devices, entitlements, embedded certificates and whether their private keys are in this keychain). action=install (confirm): copy a profile into Xcode's folders. action=embed (confirm): copy a profile into an app bundle (Contents/embedded.provisionprofile or embedded.mobileprovision) \u2014 re-sign afterwards.",
+  mutating: true,
+  input: {
+    action: external_exports.enum(["list_installed", "inspect", "install", "embed"]),
+    path: external_exports.string().optional().describe("inspect/install/embed: the profile file."),
+    bundle_id: external_exports.string().optional().describe("list_installed: filter by bundle ID (wildcard profiles also match)."),
+    app_path: external_exports.string().optional().describe("embed: the .app bundle to embed into.")
+  },
+  async handler(args, ctx, extra) {
+    if (args.action === "list_installed") {
+      let list = await listInstalledProfiles(ctx);
+      if (args.bundle_id) {
+        list = list.filter((p) => {
+          const id = p.bundleId ?? "";
+          return id === args.bundle_id || id === "*" || id.endsWith("*") && args.bundle_id.startsWith(id.slice(0, -1));
+        });
+      }
+      list.sort((a, b) => (b.expires ?? "").localeCompare(a.expires ?? ""));
+      return {
+        summary: list.length ? `${list.length} installed profile(s):
+${list.map(profileText).join("\n")}` : "No matching provisioning profiles installed.",
+        data: { profiles: list.map((p) => ({ ...p, entitlements: Object.keys(p.entitlements) })) },
+        next_steps: list.length ? [] : ["asc_profiles action=list / create / download_install"]
+      };
+    }
+    if (!args.path) throw new ToolError("path (profile file) is required.");
+    const path = await resolveUserPath(ctx, args.path);
+    const pl = await decodeProvisioningProfile(ctx.runner, path, ctx.platform.isMac);
+    const summary = summarizeProfile(pl, ctx.now(), path);
+    const isMac = summary.platforms.some((p) => p === "OSX" || p === "macOS") || extname7(path) === ".provisionprofile";
+    if (args.action === "inspect") {
+      const findings = [];
+      if (ctx.platform.isMac) {
+        try {
+          const ids = await listIdentities(ctx);
+          const have = new Set(ids.map((i) => i.sha1));
+          for (const c of summary.certificates) c.inKeychain = have.has(c.sha1);
+          if (!summary.certificates.some((c) => c.inKeychain))
+            findings.push(
+              finding(
+                "error",
+                "None of the profile's certificates has a private key in this keychain \u2014 signing with this profile will fail.",
+                "Import the matching .p12, or regenerate the profile with a certificate you own (asc_profiles regenerate)."
+              )
+            );
+        } catch {
+        }
+      }
+      if (summary.expired)
+        findings.push(finding("error", "Profile has expired.", "asc_profiles action=regenerate"));
+      else if ((summary.daysUntilExpiry ?? 999) < 30)
+        findings.push(finding("warning", `Profile expires in ${summary.daysUntilExpiry} days.`));
+      if (summary.certificates.every((c) => c.expired))
+        findings.push(finding("error", "All certificates in the profile are expired."));
+      return {
+        summary: `${profileText(summary)}
+  Entitlements: ${Object.keys(summary.entitlements).join(", ")}${findings.length ? `
+
+${formatFindings(findings)}` : ""}`,
+        data: { profile: summary, findings }
+      };
+    }
+    if (args.action === "install") {
+      if (!summary.uuid) throw new ToolError("Profile has no UUID.");
+      const dests = profileDirs(ctx.platform.homeDir).map(
+        (d) => join10(d, `${summary.uuid}.${isMac ? "provisionprofile" : "mobileprovision"}`)
+      );
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Install profile "${summary.name}" (${summary.kind})`,
+          steps: dests.map((d) => ({ description: `Copy ${basename6(path)} \u2192 ${d}` }))
+        }),
+        async () => {
+          const { readFile: readFile7 } = await import("fs/promises");
+          const written = await installProfileBytes(
+            ctx,
+            new Uint8Array(await readFile7(path)),
+            summary.uuid,
+            isMac
+          );
+          return {
+            summary: `Installed "${summary.name}" to:
+${written.join("\n")}`,
+            data: { installed: written, profile: { ...summary, entitlements: void 0 } }
+          };
+        }
+      );
+    }
+    if (!args.app_path) throw new ToolError("app_path is required for embed.");
+    const app = await resolveUserPath(ctx, args.app_path);
+    if (!await isDirectory(app)) throw new ToolError(`${app} is not a bundle directory.`);
+    const isMacBundle = await pathExists(join10(app, "Contents"));
+    const dest = isMacBundle ? join10(app, "Contents", "embedded.provisionprofile") : join10(app, "embedded.mobileprovision");
+    const replacing = await pathExists(dest);
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `Embed "${summary.name}" into ${basename6(app)}`,
+        steps: [{ description: `${replacing ? "Replace" : "Create"} ${dest}` }],
+        warnings: [
+          "This invalidates the bundle's current signature \u2014 re-sign the bundle afterwards (sign tool)."
+        ]
+      }),
+      async () => {
+        await copyFile(path, dest);
+        return {
+          summary: `Embedded profile at ${dest}. Re-sign the bundle now.`,
+          data: { embedded: dest },
+          next_steps: ["sign path=<app> (with entitlements matching the profile)"]
+        };
+      }
+    );
+  }
+});
+
+// src/tools/index.ts
+var allTools = [
+  // discovery & diagnostics
+  doctorTool,
+  detectProjectTool,
+  signingIdentitiesTool,
+  inspectCodeSignatureTool,
+  inspectBinaryTool,
+  entitlementsTool,
+  provisioningProfilesTool,
+  gatekeeperTool,
+  quarantineTool,
+  systemLogsTool,
+  crashReportsTool,
+  privacyTool,
+  devicesTool,
+  jobsTool
+];
 
 // src/server.ts
 var SERVER_NAME = "notarize";
