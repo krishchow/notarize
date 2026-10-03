@@ -459,7 +459,11 @@ export const appStoreTool = defineTool({
       };
     }
     if (args.action === "review_status") {
-      const res = await client.list(`apps/${appId}/reviewSubmissions`, { "filter[platform]": platform }, 10);
+      const res = await client.list(
+        "reviewSubmissions",
+        { "filter[app]": appId, "filter[platform]": platform },
+        10,
+      );
       const rows = res.data.map(slimResource);
       return {
         summary: rows.length ? table(rows, ["state", "submittedDate", "id"]) : "No review submissions.",
