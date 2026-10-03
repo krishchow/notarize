@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__notarize__doctor",
+      "mcp__notarize__detect_project",
+      "mcp__notarize__distribution_checklist",
+      "mcp__notarize__signing_identities",
+      "mcp__notarize__inspect_code_signature",
+      "mcp__notarize__inspect_binary",
+      "mcp__notarize__system_logs",
+      "mcp__notarize__crash_reports",
+      "mcp__notarize__devices",
+      "mcp__notarize__asc_apps"
+    ]
+  }
+}

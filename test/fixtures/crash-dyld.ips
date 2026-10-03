@@ -1,0 +1,6 @@
+{"app_name":"Example","timestamp":"2026-01-02 10:00:00.00 -0800","app_version":"1.0","build_version":"7","bundleID":"com.example.app","os_version":"macOS 15.2 (24C101)","name":"Example"}
+{
+  "procName" : "Example",
+  "exception" : {"type":"EXC_CRASH","signal":"SIGABRT"},
+  "termination" : {"code":4,"flags":518,"namespace":"DYLD","indicator":"Library missing","details":["(terminated at launch; ignore backtrace)"],"reasons":["Library not loaded: @rpath/Sparkle.framework/Versions/B/Sparkle","Referenced from: <UUID> /Applications/Example.app/Contents/MacOS/Example","Reason: tried: '/Applications/Example.app/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle' (code signature in <UUID> '/Applications/Example.app/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle' not valid for use in process: mapping process and mapped file (non-platform) have different Team IDs)"]}
+}

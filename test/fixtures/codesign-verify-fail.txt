@@ -1,0 +1,4 @@
+/Users/jane/build/Example.app: a sealed resource is missing or invalid
+file added: /Users/jane/build/Example.app/Contents/Resources/extra.txt
+file modified: /Users/jane/build/Example.app/Contents/Resources/config.json
+In subcomponent: /Users/jane/build/Example.app/Contents/Frameworks/Sparkle.framework

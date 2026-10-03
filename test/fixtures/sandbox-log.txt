@@ -1,0 +1,7 @@
+Timestamp                       Thread     Type        Activity             PID    TTL
+2026-01-02 10:00:00.100000-0800 0x1a2b     Error       0x0                  0      0    kernel: (Sandbox) Sandbox: Example(812) deny(1) network-outbound 17.253.144.10:443
+2026-01-02 10:00:00.200000-0800 0x1a2b     Error       0x0                  0      0    kernel: (Sandbox) Sandbox: Example(812) deny(1) network-outbound 17.253.144.10:443
+2026-01-02 10:00:00.300000-0800 0x1a2b     Error       0x0                  0      0    kernel: (Sandbox) Sandbox: Example(812) deny(1) file-read-data /Users/jane/Downloads/report.pdf
+2026-01-02 10:00:00.400000-0800 0x1a2b     Error       0x0                  0      0    kernel: (Sandbox) Sandbox: Example(812) deny(1) file-write-create /Users/jane/Documents/out.txt
+2026-01-02 10:00:00.500000-0800 0x1a2b     Error       0x0                  0      0    kernel: (Sandbox) Sandbox: Example(812) deny(1) appleevent-send com.apple.finder
+2026-01-02 10:00:00.600000-0800 0x1a2b     Error       0x0                  0      0    kernel: (Sandbox) Sandbox: Example(812) deny(1) mach-lookup com.example.helper

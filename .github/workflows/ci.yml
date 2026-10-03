@@ -1,0 +1,83 @@
+name: CI
+
+# Manual only: the account has no spare GitHub Actions minutes, so nothing runs on push / PR.
+# Trigger from the Actions tab (or `gh workflow run ci.yml`) when you want a real macOS run.
+# The same checks run locally: `npm run check`, `bash scripts/smoke-macos.sh`, `bash scripts/record-fixtures.sh`.
+on:
+  workflow_dispatch:
+    inputs:
+      live:
+        description: "Also run the live Apple tests (needs ASC_* secrets; uploads a tiny app for notarization only if NOTARIZE_LIVE_NOTARIZE secret is '1')"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Lint, typecheck, test, bundle (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - name: Bundle is up to date
+        run: |
+          npm run build
+          git diff --exit-code -- dist/ || (echo "dist/ is stale: run 'npm run build' and commit." && exit 1)
+
+  macos:
+    name: Real macOS — record fixtures, recorded tests, smoke (no Apple credentials)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: bash scripts/record-fixtures.sh
+      - run: npm run test:recorded
+      - run: bash scripts/smoke-macos.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recorded-fixtures
+          path: test/fixtures/recorded/
+
+  live:
+    name: Live Apple account tests (opt-in)
+    if: ${{ inputs.live }}
+    runs-on: macos-latest
+    env:
+      NOTARIZE_LIVE: "1"
+      NOTARIZE_LIVE_NOTARIZE: ${{ secrets.NOTARIZE_LIVE_NOTARIZE }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Write API key
+        env:
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          if [ -z "$ASC_KEY_ID" ]; then echo "ASC_* secrets not set — skipping"; exit 0; fi
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$ASC_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          echo "ASC_PRIVATE_KEY_PATH=$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+      - name: Live tests
+        run: |
+          if [ -z "$ASC_KEY_ID" ]; then echo "skipped"; exit 0; fi
+          npm run test:live

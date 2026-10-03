@@ -1,0 +1,12 @@
+Executable=/Users/jane/build/Example.app/Contents/MacOS/Example
+Identifier=Example-555549449f1c3d6e
+Format=app bundle with Mach-O thin (arm64)
+CodeDirectory v=20400 size=530 flags=0x20002(adhoc,linker-signed) hashes=13+0 location=embedded
+Hash type=sha256 size=32
+CandidateCDHash sha256=aa11bb22cc33dd44ee55ff6677889900aabbccdd
+CDHash=aa11bb22cc33dd44ee55ff6677889900aabbccdd
+Signature=adhoc
+Info.plist=not bound
+TeamIdentifier=not set
+Sealed Resources=none
+Internal requirements count=0 size=12

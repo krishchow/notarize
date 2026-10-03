@@ -1,0 +1,53 @@
+# Certificates, App IDs and provisioning profiles
+
+## Certificates
+A signing identity = certificate (public, issued by Apple) **+ private key (only on the Mac that created the CSR)**.
+
+| Portal name | Keychain name prefix | Used for | Who can create | API `certificateType` |
+|---|---|---|---|---|
+| Developer ID Application | `Developer ID Application:` | Mac apps/DMGs outside the Mac App Store | Account Holder | `DEVELOPER_ID_APPLICATION_G2` (often refused for API keys → portal) |
+| Developer ID Installer | `Developer ID Installer:` | .pkg outside the Mac App Store | Account Holder | portal only |
+| Apple Distribution | `Apple Distribution:` | App Store, TestFlight, Ad Hoc (all platforms) | Account Holder / Admin | `DISTRIBUTION` |
+| Mac Installer Distribution | `3rd Party Mac Developer Installer:` / `Mac Installer Distribution:` | .pkg for Mac App Store upload | Account Holder / Admin | `MAC_INSTALLER_DISTRIBUTION` |
+| Apple Development | `Apple Development:` | Running on your devices | Anyone on the team | `DEVELOPMENT` |
+
+Legacy names you may still see: `iPhone Distribution`, `iPhone Developer`, `Mac Developer`, `3rd Party Mac Developer Application`.
+
+### Lifecycle with the tools
+1. `keychain action=create_csr key_name=dist` → private key (0600) + CSR in `~/.config/notarize-mcp/keys/`.
+2. `asc_certificates action=create certificate_type=DISTRIBUTION key_name=dist` → certificate issued, .cer saved, identity imported into the login keychain.
+   - Developer ID: upload `dist.csr` in the portal (developer.apple.com/account/resources/certificates/add), download the .cer, then `keychain action=import_certificate key_name=dist certificate_path=~/Downloads/developerID_application.cer`.
+3. `keychain action=export_p12` to back it up / use in CI.
+4. `signing_identities` shows validity, expiry, duplicates and certificates missing their keys.
+
+### Common problems
+- **Certificate in keychain but can't sign** → no private key (created on another Mac). Import that Mac's .p12, or make a new certificate.
+- **"ambiguous (matches …)"** → two identities with the same name; sign with the SHA-1 or delete the expired one.
+- **"unable to build chain" / errSecInternalComponent** → missing Apple intermediate (`keychain action=install_intermediates`), locked keychain, or someone set the cert to "Always Trust".
+- **Limits** → 3 Apple Distribution, 5 Developer ID per team. Reuse instead of creating more.
+- **Never revoke Developer ID casually**: Gatekeeper then blocks new launches of everything signed with it.
+
+## App IDs (bundle IDs) and capabilities
+- Register explicit IDs (`asc_bundle_ids action=create bundle_id=com.company.app name=App platform=IOS|MAC_OS|UNIVERSAL`). IDs are globally unique and permanent.
+- Capabilities (iCloud, Push, App Groups, Associated Domains, Sign in with Apple, Network Extensions, HealthKit…) are enabled on the App ID (`enable_capability`). Profiles generated **before** enabling a capability don't include it → regenerate.
+
+## Provisioning profiles
+A profile = App ID + certificate(s) + (devices) + allowed entitlements, signed by Apple.
+
+| Type | For |
+|---|---|
+| IOS_APP_DEVELOPMENT / MAC_APP_DEVELOPMENT | Running on registered devices |
+| IOS_APP_ADHOC | Ad Hoc distribution to registered devices |
+| IOS_APP_STORE / MAC_APP_STORE | App Store + TestFlight |
+| MAC_APP_DIRECT | Developer ID apps that use restricted capabilities |
+| IOS_APP_INHOUSE | Enterprise |
+
+- Installed for Xcode in `~/Library/Developer/Xcode/UserData/Provisioning Profiles` (Xcode 16+) and `~/Library/MobileDevice/Provisioning Profiles` (older) — the tools write both.
+- Embedded at `App.app/Contents/embedded.provisionprofile` (macOS) or `App.app/embedded.mobileprovision` (iOS). Re-sign after embedding.
+- `provisioning_profiles action=inspect` shows type, expiry, devices, entitlements and whether its certificates' private keys are in your keychain.
+- **Easiest path for Xcode projects**: automatic signing + `-allowProvisioningUpdates` with an API key (`xcode action=archive`) — Xcode creates/renews profiles itself.
+- After adding devices or capabilities: `asc_profiles action=regenerate profile_id=…`.
+
+## Devices
+- `devices` lists this Mac's provisioning UDID, connected devices (devicectl) and simulators.
+- `asc_devices action=register` — 100 per device family per membership year; disabling doesn't free a slot until renewal.

@@ -1,0 +1,13 @@
+{
+  "name": "notarize",
+  "owner": {
+    "name": "krishchow"
+  },
+  "plugins": [
+    {
+      "name": "notarize",
+      "source": "./",
+      "description": "Apple signing, notarization, provisioning, entitlements and App Store Connect MCP server + skill."
+    }
+  ]
+}
