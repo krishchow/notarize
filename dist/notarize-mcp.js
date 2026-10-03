@@ -2089,9 +2089,9 @@ var require_dom = __commonJS({
       if (parent.nodeType === Node.DOCUMENT_NODE) {
         (_inDocumentAssertion || assertPreInsertionValidityInDocument)(parent, node2, child);
       }
-      var cp = node2.parentNode;
-      if (cp) {
-        cp.removeChild(node2);
+      var cp2 = node2.parentNode;
+      if (cp2) {
+        cp2.removeChild(node2);
       }
       if (node2.nodeType === DOCUMENT_FRAGMENT_NODE) {
         var newFirst = node2.firstChild;
@@ -13789,14 +13789,14 @@ var require_utils = __commonJS({
         BYTE_HEX[i] = "%" + HEX_DIGITS[i >> 4] + HEX_DIGITS[i & 15];
       }
     }
-    function percentEncodeNonAscii(cp) {
-      if (cp < 2048) {
-        return BYTE_HEX[192 | cp >> 6] + BYTE_HEX[128 | cp & 63];
+    function percentEncodeNonAscii(cp2) {
+      if (cp2 < 2048) {
+        return BYTE_HEX[192 | cp2 >> 6] + BYTE_HEX[128 | cp2 & 63];
       }
-      if (cp < 65536) {
-        return BYTE_HEX[224 | cp >> 12] + BYTE_HEX[128 | cp >> 6 & 63] + BYTE_HEX[128 | cp & 63];
+      if (cp2 < 65536) {
+        return BYTE_HEX[224 | cp2 >> 12] + BYTE_HEX[128 | cp2 >> 6 & 63] + BYTE_HEX[128 | cp2 & 63];
       }
-      return BYTE_HEX[240 | cp >> 18] + BYTE_HEX[128 | cp >> 12 & 63] + BYTE_HEX[128 | cp >> 6 & 63] + BYTE_HEX[128 | cp & 63];
+      return BYTE_HEX[240 | cp2 >> 18] + BYTE_HEX[128 | cp2 >> 12 & 63] + BYTE_HEX[128 | cp2 >> 6 & 63] + BYTE_HEX[128 | cp2 & 63];
     }
     function stringArrayToHexStripped(input2) {
       let acc = "";
@@ -14160,8 +14160,8 @@ var require_utils = __commonJS({
     function encodeFragment(input2) {
       return encodeComponent(input2, isQueryFragmentCharacter);
     }
-    function isEscapeSafe(cp) {
-      return cp >= 48 && cp <= 57 || cp >= 65 && cp <= 90 || cp >= 97 && cp <= 122 || cp === 42 || cp === 43 || cp === 45 || cp === 46 || cp === 47 || cp === 64 || cp === 95;
+    function isEscapeSafe(cp2) {
+      return cp2 >= 48 && cp2 <= 57 || cp2 >= 65 && cp2 <= 90 || cp2 >= 97 && cp2 <= 122 || cp2 === 42 || cp2 === 43 || cp2 === 45 || cp2 === 46 || cp2 === 47 || cp2 === 64 || cp2 === 95;
     }
     function normalizeQueryFragmentEncoding(input2) {
       let output3 = "";
@@ -17865,6 +17865,9 @@ var require_dist = __commonJS({
     exports.default = formatsPlugin;
   }
 });
+
+// src/index.ts
+import { homedir as homedir3 } from "os";
 
 // node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
 import process2 from "process";
@@ -39172,13 +39175,451 @@ var StdioServerTransport = class {
   }
 };
 
+// src/cli/install.ts
+import { cp, mkdir as mkdir2, readFile, rm, stat, writeFile as writeFile2 } from "fs/promises";
+import { dirname, join as join2 } from "path";
+
+// src/core/exec.ts
+import { spawn } from "child_process";
+
+// src/core/logs.ts
+import { mkdir, writeFile } from "fs/promises";
+import { homedir } from "os";
+import { join } from "path";
+function defaultLogDir(platform = process.platform, home = homedir()) {
+  if (process.env.NOTARIZE_MCP_LOG_DIR) return process.env.NOTARIZE_MCP_LOG_DIR;
+  if (platform === "darwin") return join(home, "Library", "Logs", "notarize-mcp");
+  return join(process.env.XDG_STATE_HOME ?? join(home, ".local", "state"), "notarize-mcp", "logs");
+}
+var FileLogWriter = class {
+  constructor(dir = defaultLogDir()) {
+    this.dir = dir;
+  }
+  dir;
+  async write(name, content) {
+    try {
+      await mkdir(this.dir, { recursive: true, mode: 448 });
+      const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
+      const safe = name.replace(/[^A-Za-z0-9_.-]+/g, "_").slice(0, 60);
+      const path = join(this.dir, `${stamp}-${safe}.log`);
+      await writeFile(path, content, { mode: 384 });
+      return path;
+    } catch {
+      return void 0;
+    }
+  }
+};
+var NullLogWriter = class {
+  async write() {
+    return void 0;
+  }
+};
+function tail(text, maxLines = 40, maxChars = 4e3) {
+  const lines = text.trimEnd().split("\n");
+  let out = lines.slice(-maxLines).join("\n");
+  if (out.length > maxChars) out = `\u2026${out.slice(-maxChars)}`;
+  return lines.length > maxLines ? `\u2026(${lines.length - maxLines} earlier lines omitted)
+${out}` : out;
+}
+function defaultJobsDir(platform = process.platform, home = homedir()) {
+  if (process.env.NOTARIZE_MCP_STATE_DIR) return process.env.NOTARIZE_MCP_STATE_DIR;
+  return join(defaultLogDir(platform, home), "jobs");
+}
+
+// src/core/redact.ts
+var PEM_BLOCK = /-----BEGIN [A-Z0-9 ]*(PRIVATE KEY|ENCRYPTED PRIVATE KEY)-----[\s\S]*?-----END [A-Z0-9 ]*-----/g;
+var JWT = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g;
+var OPENSSL_PASS = /\bpass:[^\s"']+/g;
+var APP_SPECIFIC_PASSWORD = /\b[a-z]{4}-[a-z]{4}-[a-z]{4}-[a-z]{4}\b/g;
+var REDACTED = "***";
+function redact(text, secrets = []) {
+  let out = text;
+  for (const s of secrets) {
+    if (s && s.length >= 3) out = out.split(s).join(REDACTED);
+  }
+  return out.replace(PEM_BLOCK, "-----BEGIN PRIVATE KEY-----***-----END PRIVATE KEY-----").replace(JWT, REDACTED).replace(OPENSSL_PASS, `pass:${REDACTED}`).replace(APP_SPECIFIC_PASSWORD, REDACTED);
+}
+var SECRET_FLAGS = /* @__PURE__ */ new Set([
+  "--password",
+  "-P",
+  "--passphrase",
+  "--apiKeySecret",
+  "--app-specific-password"
+]);
+function formatCommand(cmd, args, secrets = []) {
+  const parts = [cmd];
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    const prev = i > 0 ? args[i - 1] : void 0;
+    if (prev && SECRET_FLAGS.has(prev)) {
+      parts.push(REDACTED);
+      continue;
+    }
+    parts.push(shellQuote(redact(arg, secrets)));
+  }
+  return parts.join(" ");
+}
+function shellQuote(arg) {
+  if (arg === "") return "''";
+  if (/^[A-Za-z0-9_\-+=/.,:@%^]+$/.test(arg)) return arg;
+  return `'${arg.replace(/'/g, `'\\''`)}'`;
+}
+function redactDeep(value, secrets = []) {
+  if (typeof value === "string") return redact(value, secrets);
+  if (Array.isArray(value)) return value.map((v) => redactDeep(v, secrets));
+  if (value && typeof value === "object" && !(value instanceof Date)) {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (/password|passphrase|secret|privateKey$|private_key$/i.test(k) && typeof v === "string") {
+        out[k] = REDACTED;
+      } else {
+        out[k] = redactDeep(v, secrets);
+      }
+    }
+    return out;
+  }
+  return value;
+}
+
+// src/core/exec.ts
+function ok(r) {
+  return r.code === 0 && !r.spawnError && !r.timedOut;
+}
+function output2(r) {
+  return [r.stdout, r.stderr].filter((s) => s?.trim()).join("\n").trim();
+}
+var MAX_CAPTURE = 32 * 1024 * 1024;
+var SpawnRunner = class {
+  constructor(logs = new NullLogWriter()) {
+    this.logs = logs;
+  }
+  logs;
+  run(cmd, args, opts = {}) {
+    return this.start(cmd, args, opts).result;
+  }
+  start(cmd, args, opts = {}) {
+    const started = Date.now();
+    const stdoutChunks = [];
+    let stdoutLen = 0;
+    let stderr = "";
+    let timedOut = false;
+    let killed = false;
+    const child = spawn(cmd, args, {
+      cwd: opts.cwd,
+      env: { ...process.env, ...opts.env },
+      shell: false,
+      stdio: ["pipe", "pipe", "pipe"]
+    });
+    const kill = (sig2 = "SIGTERM") => {
+      if (killed) return;
+      killed = true;
+      try {
+        child.kill(sig2);
+      } catch {
+      }
+    };
+    const timer = opts.timeoutMs ? setTimeout(() => {
+      timedOut = true;
+      kill("SIGTERM");
+      setTimeout(() => kill("SIGKILL"), 5e3).unref();
+    }, opts.timeoutMs) : void 0;
+    timer?.unref?.();
+    const onAbort = () => kill("SIGTERM");
+    opts.signal?.addEventListener("abort", onAbort, { once: true });
+    child.stdout?.on("data", (d) => {
+      if (stdoutLen < MAX_CAPTURE) {
+        stdoutChunks.push(d);
+        stdoutLen += d.length;
+      }
+      opts.onOutput?.(d.toString("utf8"));
+    });
+    child.stderr?.on("data", (d) => {
+      if (stderr.length < MAX_CAPTURE) stderr += d.toString("utf8");
+      opts.onOutput?.(d.toString("utf8"));
+    });
+    if (opts.stdin !== void 0) {
+      child.stdin?.end(opts.stdin);
+    } else {
+      child.stdin?.end();
+    }
+    const result = new Promise((resolve2) => {
+      let spawnError;
+      child.on("error", (err) => {
+        spawnError = err.code === "ENOENT" ? `command not found: ${cmd}` : err.message;
+      });
+      child.on("close", async (code, signal) => {
+        if (timer) clearTimeout(timer);
+        opts.signal?.removeEventListener("abort", onAbort);
+        const buf = Buffer.concat(stdoutChunks);
+        const res = {
+          command: cmd,
+          args,
+          code: spawnError ? null : code,
+          signal: signal ?? null,
+          stdout: buf.toString("utf8"),
+          stderr: spawnError ? `${stderr}${stderr ? "\n" : ""}${spawnError}` : stderr,
+          stdoutBytes: opts.binary ? new Uint8Array(buf) : void 0,
+          durationMs: Date.now() - started,
+          timedOut,
+          spawnError
+        };
+        if (opts.logName) {
+          res.logPath = await this.logs.write(opts.logName, transcript(res, opts.secrets));
+        }
+        resolve2(res);
+      });
+    });
+    return { result, kill };
+  }
+};
+function transcript(r, secrets = []) {
+  return redact(
+    [
+      `$ ${formatCommand(r.command, r.args, secrets)}`,
+      `# exit=${r.code} signal=${r.signal ?? ""} timedOut=${r.timedOut} durationMs=${r.durationMs}`,
+      "## stdout",
+      r.stdoutBytes ? "(binary output)" : r.stdout,
+      "## stderr",
+      r.stderr
+    ].join("\n"),
+    secrets
+  );
+}
+
+// src/cli/install.ts
+var CLIENTS = ["claude-code", "claude-desktop", "cursor"];
+var SERVER_NAME = "notarize";
+var PACKAGE_NAME = "notarize-mcp";
+var SKILL_NAME = "apple-distribution";
+var SKILL_MARKER = ".notarize-mcp-version";
+function serverEntry(version2, pin) {
+  return { command: "npx", args: ["-y", `${PACKAGE_NAME}@${pin ? version2 : "latest"}`] };
+}
+function claudeDesktopConfigPath(home, platform) {
+  if (platform === "darwin")
+    return join2(home, "Library", "Application Support", "Claude", "claude_desktop_config.json");
+  if (platform === "win32")
+    return join2(
+      process.env.APPDATA ?? join2(home, "AppData", "Roaming"),
+      "Claude",
+      "claude_desktop_config.json"
+    );
+  return join2(home, ".config", "Claude", "claude_desktop_config.json");
+}
+function cursorConfigPath(home, cwd, scope) {
+  return scope === "project" ? join2(cwd, ".cursor", "mcp.json") : join2(home, ".cursor", "mcp.json");
+}
+function skillTarget(home, cwd, scope) {
+  return join2(scope === "project" ? cwd : home, ".claude", "skills", SKILL_NAME);
+}
+async function exists(p) {
+  try {
+    await stat(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function hasCommand(runner, cmd) {
+  const r = await runner.run("which", [cmd], { timeoutMs: 5e3 });
+  return ok(r) && !!r.stdout.trim();
+}
+async function detectClients(deps) {
+  const found = [];
+  if (await hasCommand(deps.runner, "claude")) found.push("claude-code");
+  if (await exists(dirname(claudeDesktopConfigPath(deps.home, deps.platform)))) found.push("claude-desktop");
+  if (await exists(join2(deps.home, ".cursor"))) found.push("cursor");
+  return found.length ? found : ["claude-code"];
+}
+async function updateJsonConfig(path, entry, dryRun) {
+  let raw;
+  try {
+    raw = await readFile(path, "utf8");
+  } catch {
+    raw = void 0;
+  }
+  let cfg = {};
+  if (raw?.trim()) {
+    try {
+      cfg = JSON.parse(raw);
+    } catch {
+      throw new Error(`${path} is not valid JSON \u2014 fix or move it, then re-run.`);
+    }
+  }
+  const servers = { ...cfg.mcpServers ?? {} };
+  const before = servers[SERVER_NAME];
+  let result;
+  if (entry) {
+    if (JSON.stringify(before) === JSON.stringify(entry)) return "unchanged";
+    result = before ? "updated" : "added";
+    servers[SERVER_NAME] = entry;
+  } else {
+    if (!before) return "absent";
+    delete servers[SERVER_NAME];
+    result = "removed";
+  }
+  if (dryRun) return result;
+  await mkdir2(dirname(path), { recursive: true });
+  if (raw !== void 0) await writeFile2(`${path}.bak`, raw);
+  await writeFile2(path, `${JSON.stringify({ ...cfg, mcpServers: servers }, null, 2)}
+`);
+  return result;
+}
+function claudeAddArgs(scope, entry) {
+  return ["mcp", "add", "--scope", scope, SERVER_NAME, "--", entry.command, ...entry.args];
+}
+async function install(opts, deps) {
+  const p = deps.print;
+  const entry = serverEntry(deps.version, opts.pin);
+  const clients = opts.clients ?? await detectClients(deps);
+  const tag2 = opts.dryRun ? "[dry-run] " : "";
+  let failures = 0;
+  p(`${tag2}Installing ${PACKAGE_NAME} ${deps.version} for: ${clients.join(", ")} (scope: ${opts.scope})`);
+  p(`${tag2}Server command: ${entry.command} ${entry.args.join(" ")}`);
+  for (const client of clients) {
+    try {
+      if (client === "claude-code") {
+        const args = claudeAddArgs(opts.scope, entry);
+        const printable = `claude ${args.map(shellQuote).join(" ")}`;
+        if (!await hasCommand(deps.runner, "claude")) {
+          p(`\u2022 Claude Code: 'claude' CLI not found. Run this once it is installed:
+    ${printable}`);
+        } else if (opts.dryRun) {
+          p(`\u2022 Claude Code: would run ${printable}`);
+        } else {
+          if (opts.force)
+            await deps.runner.run("claude", ["mcp", "remove", "--scope", opts.scope, SERVER_NAME], {
+              timeoutMs: 3e4
+            });
+          const r = await deps.runner.run("claude", args, { timeoutMs: 6e4, cwd: deps.cwd });
+          if (ok(r)) p("\u2022 Claude Code: registered the notarize MCP server.");
+          else if (/already exists/i.test(output2(r)))
+            p("\u2022 Claude Code: already registered (use --force to re-register).");
+          else {
+            failures++;
+            p(
+              `\u2022 Claude Code: 'claude mcp add' failed: ${output2(r).slice(0, 300)}
+    Run manually: ${printable}`
+            );
+          }
+        }
+        if (opts.skill) await installSkill(opts, deps);
+      } else {
+        const path = client === "claude-desktop" ? claudeDesktopConfigPath(deps.home, deps.platform) : cursorConfigPath(deps.home, deps.cwd, opts.scope);
+        const hadFile = await exists(path);
+        const res = await updateJsonConfig(path, entry, opts.dryRun);
+        const label = client === "claude-desktop" ? "Claude Desktop" : "Cursor";
+        p(
+          `\u2022 ${label}: ${res === "unchanged" ? "already configured" : `${opts.dryRun ? "would be " : ""}${res}`} in ${path}${hadFile && res !== "unchanged" && !opts.dryRun ? ` (previous file saved as ${path}.bak)` : ""}`
+        );
+      }
+    } catch (e) {
+      failures++;
+      p(`\u2022 ${client}: ${e.message}`);
+    }
+  }
+  const xcode = deps.platform === "darwin" ? await deps.runner.run("xcode-select", ["-p"], { timeoutMs: 1e4 }) : void 0;
+  p("");
+  p("Next steps:");
+  if (deps.platform !== "darwin")
+    p("  \u26A0 Signing and notarization need macOS; on this OS only App Store Connect tools work.");
+  else if (!xcode || !ok(xcode))
+    p("  \u26A0 Install Xcode (or at least `xcode-select --install`) \u2014 codesign/notarytool come with it.");
+  if (clients.includes("claude-desktop") || clients.includes("cursor"))
+    p("  1. Restart Claude Desktop / Cursor so they pick up the new server.");
+  p(
+    "  2. Create an App Store Connect API key: App Store Connect \u2192 Users and Access \u2192 Integrations \u2192 Team Keys \u2192 + (Admin), download the .p8 (only once)."
+  );
+  p(
+    '  3. Ask your agent: "Run doctor, then asc_auth action=configure with my key", then "help me ship <path to my app>".'
+  );
+  return failures ? 1 : 0;
+}
+async function installSkill(opts, deps) {
+  const p = deps.print;
+  if (!deps.skillDir) {
+    p("\u2022 Skill: bundled skill files not found; skipping.");
+    return;
+  }
+  const target = skillTarget(deps.home, deps.cwd, opts.scope);
+  const ours = await exists(join2(target, SKILL_MARKER));
+  if (await exists(target) && !ours && !opts.force) {
+    p(
+      `\u2022 Skill: ${target} exists and was not installed by ${PACKAGE_NAME}; leaving it (use --force to replace).`
+    );
+    return;
+  }
+  if (opts.dryRun) {
+    p(`\u2022 Skill: would copy ${deps.skillDir} \u2192 ${target}`);
+    return;
+  }
+  await rm(target, { recursive: true, force: true });
+  await mkdir2(dirname(target), { recursive: true });
+  await cp(deps.skillDir, target, { recursive: true });
+  await writeFile2(join2(target, SKILL_MARKER), `${deps.version}
+`);
+  p(`\u2022 Skill: installed ${SKILL_NAME} \u2192 ${target}`);
+}
+async function uninstall(opts, deps) {
+  const p = deps.print;
+  const clients = opts.clients ?? [...CLIENTS];
+  const tag2 = opts.dryRun ? "[dry-run] " : "";
+  p(`${tag2}Uninstalling ${PACKAGE_NAME} from: ${clients.join(", ")} (scope: ${opts.scope})`);
+  for (const client of clients) {
+    if (client === "claude-code") {
+      if (await hasCommand(deps.runner, "claude")) {
+        if (opts.dryRun) p(`\u2022 Claude Code: would run claude mcp remove --scope ${opts.scope} ${SERVER_NAME}`);
+        else {
+          const r = await deps.runner.run("claude", ["mcp", "remove", "--scope", opts.scope, SERVER_NAME], {
+            timeoutMs: 3e4
+          });
+          p(`\u2022 Claude Code: ${ok(r) ? "removed" : `not registered (${output2(r).slice(0, 120)})`}`);
+        }
+      }
+      const target = skillTarget(deps.home, deps.cwd, opts.scope);
+      if (await exists(join2(target, SKILL_MARKER))) {
+        if (!opts.dryRun) await rm(target, { recursive: true, force: true });
+        p(`\u2022 Skill: ${opts.dryRun ? "would remove" : "removed"} ${target}`);
+      } else if (await exists(target))
+        p(`\u2022 Skill: ${target} was not installed by ${PACKAGE_NAME}; left in place.`);
+    } else {
+      const path = client === "claude-desktop" ? claudeDesktopConfigPath(deps.home, deps.platform) : cursorConfigPath(deps.home, deps.cwd, opts.scope);
+      const res = await updateJsonConfig(path, void 0, opts.dryRun);
+      p(
+        `\u2022 ${client === "claude-desktop" ? "Claude Desktop" : "Cursor"}: ${res === "absent" ? "not configured" : opts.dryRun ? "would remove" : "removed"} (${path})`
+      );
+    }
+  }
+  return 0;
+}
+function parseInstallFlags(flags) {
+  let clients;
+  if (flags.client) {
+    const list = flags.client === "all" ? [...CLIENTS] : flags.client.split(",").map((c) => c.trim());
+    for (const c of list)
+      if (!CLIENTS.includes(c))
+        throw new Error(`Unknown client "${c}". Use ${CLIENTS.join(", ")} or all.`);
+    clients = list;
+  }
+  const scope = flags.scope ?? "user";
+  if (scope !== "user" && scope !== "project") throw new Error('--scope must be "user" or "project".');
+  return {
+    clients,
+    scope,
+    skill: flags["no-skill"] === void 0,
+    dryRun: flags["dry-run"] !== void 0,
+    pin: flags.pin !== void 0,
+    force: flags.force !== void 0
+  };
+}
+
 // src/cli/watch.ts
-import { join as join9 } from "path";
+import { join as join10 } from "path";
 
 // src/core/jobs.ts
 import { randomBytes } from "crypto";
 import { mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "fs";
-import { join } from "path";
+import { join as join3 } from "path";
 var MAX_LINES = 2e3;
 var HEARTBEAT_MS = 3e4;
 var JobManager = class {
@@ -39188,7 +39629,7 @@ var JobManager = class {
   stateDir;
   jobs = /* @__PURE__ */ new Map();
   statePath(id) {
-    return this.stateDir ? join(this.stateDir, `${id}.json`) : void 0;
+    return this.stateDir ? join3(this.stateDir, `${id}.json`) : void 0;
   }
   persist(rec) {
     const path = this.statePath(rec.id);
@@ -39358,7 +39799,7 @@ function readPersistedJobs(stateDir, opts = {}) {
   }
   const out = [];
   for (const f of files) {
-    const path = join(stateDir, f);
+    const path = join3(stateDir, f);
     const s = readJobState(path);
     if (!s) continue;
     if (now - Date.parse(s.updatedAt) > maxAge) {
@@ -39379,50 +39820,6 @@ function readJobState(path) {
   } catch {
     return void 0;
   }
-}
-
-// src/core/logs.ts
-import { mkdir, writeFile } from "fs/promises";
-import { homedir } from "os";
-import { join as join2 } from "path";
-function defaultLogDir(platform = process.platform, home = homedir()) {
-  if (process.env.NOTARIZE_MCP_LOG_DIR) return process.env.NOTARIZE_MCP_LOG_DIR;
-  if (platform === "darwin") return join2(home, "Library", "Logs", "notarize-mcp");
-  return join2(process.env.XDG_STATE_HOME ?? join2(home, ".local", "state"), "notarize-mcp", "logs");
-}
-var FileLogWriter = class {
-  constructor(dir = defaultLogDir()) {
-    this.dir = dir;
-  }
-  dir;
-  async write(name, content) {
-    try {
-      await mkdir(this.dir, { recursive: true, mode: 448 });
-      const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
-      const safe = name.replace(/[^A-Za-z0-9_.-]+/g, "_").slice(0, 60);
-      const path = join2(this.dir, `${stamp}-${safe}.log`);
-      await writeFile(path, content, { mode: 384 });
-      return path;
-    } catch {
-      return void 0;
-    }
-  }
-};
-var NullLogWriter = class {
-  async write() {
-    return void 0;
-  }
-};
-function tail(text, maxLines = 40, maxChars = 4e3) {
-  const lines = text.trimEnd().split("\n");
-  let out = lines.slice(-maxLines).join("\n");
-  if (out.length > maxChars) out = `\u2026${out.slice(-maxChars)}`;
-  return lines.length > maxLines ? `\u2026(${lines.length - maxLines} earlier lines omitted)
-${out}` : out;
-}
-function defaultJobsDir(platform = process.platform, home = homedir()) {
-  if (process.env.NOTARIZE_MCP_STATE_DIR) return process.env.NOTARIZE_MCP_STATE_DIR;
-  return join2(defaultLogDir(platform, home), "jobs");
 }
 
 // src/core/result.ts
@@ -40232,68 +40629,11 @@ function extractJson(text) {
 }
 
 // src/tools/notary.ts
-import { chmod as chmod2, rm as rm2, writeFile as writeFile3 } from "fs/promises";
-import { basename as basename5, dirname as dirname3, extname as extname5, join as join8 } from "path";
+import { chmod as chmod2, rm as rm3, writeFile as writeFile4 } from "fs/promises";
+import { basename as basename5, dirname as dirname4, extname as extname5, join as join9 } from "path";
 
 // src/core/confirm.ts
 import { createHmac, randomBytes as randomBytes2, timingSafeEqual } from "crypto";
-
-// src/core/redact.ts
-var PEM_BLOCK = /-----BEGIN [A-Z0-9 ]*(PRIVATE KEY|ENCRYPTED PRIVATE KEY)-----[\s\S]*?-----END [A-Z0-9 ]*-----/g;
-var JWT = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g;
-var OPENSSL_PASS = /\bpass:[^\s"']+/g;
-var APP_SPECIFIC_PASSWORD = /\b[a-z]{4}-[a-z]{4}-[a-z]{4}-[a-z]{4}\b/g;
-var REDACTED = "***";
-function redact(text, secrets = []) {
-  let out = text;
-  for (const s of secrets) {
-    if (s && s.length >= 3) out = out.split(s).join(REDACTED);
-  }
-  return out.replace(PEM_BLOCK, "-----BEGIN PRIVATE KEY-----***-----END PRIVATE KEY-----").replace(JWT, REDACTED).replace(OPENSSL_PASS, `pass:${REDACTED}`).replace(APP_SPECIFIC_PASSWORD, REDACTED);
-}
-var SECRET_FLAGS = /* @__PURE__ */ new Set([
-  "--password",
-  "-P",
-  "--passphrase",
-  "--apiKeySecret",
-  "--app-specific-password"
-]);
-function formatCommand(cmd, args, secrets = []) {
-  const parts = [cmd];
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    const prev = i > 0 ? args[i - 1] : void 0;
-    if (prev && SECRET_FLAGS.has(prev)) {
-      parts.push(REDACTED);
-      continue;
-    }
-    parts.push(shellQuote(redact(arg, secrets)));
-  }
-  return parts.join(" ");
-}
-function shellQuote(arg) {
-  if (arg === "") return "''";
-  if (/^[A-Za-z0-9_\-+=/.,:@%^]+$/.test(arg)) return arg;
-  return `'${arg.replace(/'/g, `'\\''`)}'`;
-}
-function redactDeep(value, secrets = []) {
-  if (typeof value === "string") return redact(value, secrets);
-  if (Array.isArray(value)) return value.map((v) => redactDeep(v, secrets));
-  if (value && typeof value === "object" && !(value instanceof Date)) {
-    const out = {};
-    for (const [k, v] of Object.entries(value)) {
-      if (/password|passphrase|secret|privateKey$|private_key$/i.test(k) && typeof v === "string") {
-        out[k] = REDACTED;
-      } else {
-        out[k] = redactDeep(v, secrets);
-      }
-    }
-    return out;
-  }
-  return value;
-}
-
-// src/core/confirm.ts
 var CONFIRM_TOKEN_ARG = "confirm_token";
 function parseAutoConfirm(value) {
   const v = (value ?? "").trim();
@@ -40401,112 +40741,6 @@ function previewData(plan, token, ttlMs) {
     confirm_token: token,
     confirm_token_expires_in_seconds: Math.round(ttlMs / 1e3)
   });
-}
-
-// src/core/exec.ts
-import { spawn } from "child_process";
-function ok(r) {
-  return r.code === 0 && !r.spawnError && !r.timedOut;
-}
-function output2(r) {
-  return [r.stdout, r.stderr].filter((s) => s?.trim()).join("\n").trim();
-}
-var MAX_CAPTURE = 32 * 1024 * 1024;
-var SpawnRunner = class {
-  constructor(logs = new NullLogWriter()) {
-    this.logs = logs;
-  }
-  logs;
-  run(cmd, args, opts = {}) {
-    return this.start(cmd, args, opts).result;
-  }
-  start(cmd, args, opts = {}) {
-    const started = Date.now();
-    const stdoutChunks = [];
-    let stdoutLen = 0;
-    let stderr = "";
-    let timedOut = false;
-    let killed = false;
-    const child = spawn(cmd, args, {
-      cwd: opts.cwd,
-      env: { ...process.env, ...opts.env },
-      shell: false,
-      stdio: ["pipe", "pipe", "pipe"]
-    });
-    const kill = (sig2 = "SIGTERM") => {
-      if (killed) return;
-      killed = true;
-      try {
-        child.kill(sig2);
-      } catch {
-      }
-    };
-    const timer = opts.timeoutMs ? setTimeout(() => {
-      timedOut = true;
-      kill("SIGTERM");
-      setTimeout(() => kill("SIGKILL"), 5e3).unref();
-    }, opts.timeoutMs) : void 0;
-    timer?.unref?.();
-    const onAbort = () => kill("SIGTERM");
-    opts.signal?.addEventListener("abort", onAbort, { once: true });
-    child.stdout?.on("data", (d) => {
-      if (stdoutLen < MAX_CAPTURE) {
-        stdoutChunks.push(d);
-        stdoutLen += d.length;
-      }
-      opts.onOutput?.(d.toString("utf8"));
-    });
-    child.stderr?.on("data", (d) => {
-      if (stderr.length < MAX_CAPTURE) stderr += d.toString("utf8");
-      opts.onOutput?.(d.toString("utf8"));
-    });
-    if (opts.stdin !== void 0) {
-      child.stdin?.end(opts.stdin);
-    } else {
-      child.stdin?.end();
-    }
-    const result = new Promise((resolve2) => {
-      let spawnError;
-      child.on("error", (err) => {
-        spawnError = err.code === "ENOENT" ? `command not found: ${cmd}` : err.message;
-      });
-      child.on("close", async (code, signal) => {
-        if (timer) clearTimeout(timer);
-        opts.signal?.removeEventListener("abort", onAbort);
-        const buf = Buffer.concat(stdoutChunks);
-        const res = {
-          command: cmd,
-          args,
-          code: spawnError ? null : code,
-          signal: signal ?? null,
-          stdout: buf.toString("utf8"),
-          stderr: spawnError ? `${stderr}${stderr ? "\n" : ""}${spawnError}` : stderr,
-          stdoutBytes: opts.binary ? new Uint8Array(buf) : void 0,
-          durationMs: Date.now() - started,
-          timedOut,
-          spawnError
-        };
-        if (opts.logName) {
-          res.logPath = await this.logs.write(opts.logName, transcript(res, opts.secrets));
-        }
-        resolve2(res);
-      });
-    });
-    return { result, kill };
-  }
-};
-function transcript(r, secrets = []) {
-  return redact(
-    [
-      `$ ${formatCommand(r.command, r.args, secrets)}`,
-      `# exit=${r.code} signal=${r.signal ?? ""} timedOut=${r.timedOut} durationMs=${r.durationMs}`,
-      "## stdout",
-      r.stdoutBytes ? "(binary output)" : r.stdout,
-      "## stderr",
-      r.stderr
-    ].join("\n"),
-    secrets
-  );
 }
 
 // src/core/monitor.ts
@@ -40620,10 +40854,10 @@ function detachedOutput(ctx, jobId, what, extraLines = []) {
 // src/tools/gatekeeper.ts
 import { randomUUID } from "crypto";
 import { readdir as readdir4 } from "fs/promises";
-import { basename as basename3, extname as extname3, join as join6 } from "path";
+import { basename as basename3, extname as extname3, join as join7 } from "path";
 
 // src/core/plist.ts
-import { readFile } from "fs/promises";
+import { readFile as readFile2 } from "fs/promises";
 
 // node_modules/plist/dist/parse.js
 var import_xmldom = __toESM(require_lib(), 1);
@@ -41208,7 +41442,7 @@ async function decodeProvisioningProfile(runner, path, isMac) {
     });
     if (ok(r) && r.stdout.includes("<plist")) return parsePlistDict(r.stdout);
   }
-  const buf = await readFile(path).catch((e) => {
+  const buf = await readFile2(path).catch((e) => {
     throw new ToolError(`Cannot read ${path}: ${e.message}`);
   });
   return extractEmbeddedPlist(new Uint8Array(buf));
@@ -41260,42 +41494,42 @@ function parseSyspolicyCheck(text, exitCode) {
 }
 
 // src/tools/shared.ts
-import { mkdtemp, readdir as readdir3, stat as stat2 } from "fs/promises";
+import { mkdtemp, readdir as readdir3, stat as stat3 } from "fs/promises";
 import { tmpdir } from "os";
-import { basename as basename2, extname as extname2, isAbsolute, join as join5, resolve } from "path";
+import { basename as basename2, extname as extname2, isAbsolute, join as join6, resolve } from "path";
 
 // src/core/config.ts
-import { chmod, mkdir as mkdir2, readdir, readFile as readFile2, writeFile as writeFile2 } from "fs/promises";
-import { dirname, join as join3 } from "path";
+import { chmod, mkdir as mkdir3, readdir, readFile as readFile3, writeFile as writeFile3 } from "fs/promises";
+import { dirname as dirname2, join as join4 } from "path";
 function defaultConfigDir(home) {
   if (process.env.NOTARIZE_MCP_CONFIG_DIR) return process.env.NOTARIZE_MCP_CONFIG_DIR;
-  return join3(process.env.XDG_CONFIG_HOME ?? join3(home, ".config"), "notarize-mcp");
+  return join4(process.env.XDG_CONFIG_HOME ?? join4(home, ".config"), "notarize-mcp");
 }
 var ConfigStore = class {
   constructor(home, env = process.env, dir) {
     this.home = home;
     this.env = env;
     this.dir = dir ?? defaultConfigDir(home);
-    this.path = join3(this.dir, "config.json");
+    this.path = join4(this.dir, "config.json");
   }
   home;
   env;
   path;
   dir;
   get keysDir() {
-    return join3(this.dir, "keys");
+    return join4(this.dir, "keys");
   }
   async load() {
     try {
-      const raw = JSON.parse(await readFile2(this.path, "utf8"));
+      const raw = JSON.parse(await readFile3(this.path, "utf8"));
       return { defaultProfile: raw.defaultProfile, profiles: raw.profiles ?? {} };
     } catch {
       return { profiles: {} };
     }
   }
   async save(cfg) {
-    await mkdir2(dirname(this.path), { recursive: true, mode: 448 });
-    await writeFile2(this.path, `${JSON.stringify(cfg, null, 2)}
+    await mkdir3(dirname2(this.path), { recursive: true, mode: 448 });
+    await writeFile3(this.path, `${JSON.stringify(cfg, null, 2)}
 `, { mode: 384 });
     await chmod(this.path, 384).catch(() => {
     });
@@ -41342,7 +41576,7 @@ var ConfigStore = class {
       privateKeyPem = inlineKey.includes("BEGIN") ? inlineKey : Buffer.from(inlineKey, "base64").toString("utf8");
     } else if (privateKeyPath) {
       try {
-        privateKeyPem = await readFile2(expandHome(privateKeyPath, this.home), "utf8");
+        privateKeyPem = await readFile3(expandHome(privateKeyPath, this.home), "utf8");
       } catch (e) {
         throw new ToolError(
           `Cannot read App Store Connect private key at ${privateKeyPath}: ${e.message}`
@@ -41366,9 +41600,9 @@ var ConfigStore = class {
   /** altool / xcodebuild conventional locations for AuthKey_<id>.p8. */
   p8SearchDirs() {
     return [
-      join3(this.home, ".appstoreconnect", "private_keys"),
-      join3(this.home, "private_keys"),
-      join3(this.home, ".private_keys"),
+      join4(this.home, ".appstoreconnect", "private_keys"),
+      join4(this.home, "private_keys"),
+      join4(this.home, ".private_keys"),
       this.keysDir
     ];
   }
@@ -41377,7 +41611,7 @@ var ConfigStore = class {
       try {
         const files = await readdir(dir);
         const match = files.find((f) => keyId ? f === `AuthKey_${keyId}.p8` : /^AuthKey_.+\.p8$/.test(f));
-        if (match) return join3(dir, match);
+        if (match) return join4(dir, match);
       } catch {
       }
     }
@@ -41389,7 +41623,7 @@ var ConfigStore = class {
       try {
         for (const f of await readdir(dir)) {
           const m = /^AuthKey_(.+)\.p8$/.exec(f);
-          if (m) out.push({ keyId: m[1], path: join3(dir, f) });
+          if (m) out.push({ keyId: m[1], path: join4(dir, f) });
         }
       } catch {
       }
@@ -41404,7 +41638,7 @@ var ConfigStore = class {
   }
 };
 function expandHome(p, home) {
-  return p === "~" ? home : p.startsWith("~/") ? join3(home, p.slice(2)) : p;
+  return p === "~" ? home : p.startsWith("~/") ? join4(home, p.slice(2)) : p;
 }
 function stripUndefined(o) {
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== void 0 && v !== ""));
@@ -42292,8 +42526,8 @@ function parseCodesignVerify(text, exitCode) {
 }
 
 // src/parsers/macho.ts
-import { open as open2, readdir as readdir2, readFile as readFile3, readlink, stat } from "fs/promises";
-import { basename, extname, join as join4, relative } from "path";
+import { open as open2, readdir as readdir2, readFile as readFile4, readlink, stat as stat2 } from "fs/promises";
+import { basename, extname, join as join5, relative } from "path";
 var MAGICS = /* @__PURE__ */ new Set([4277009102, 4277009103, 3472551422, 3489328638]);
 var FAT_MAGICS = /* @__PURE__ */ new Set([3405691582, 3199925962, 3405691583, 3216703178]);
 async function isMachO(path) {
@@ -42340,7 +42574,7 @@ async function discoverNestedCode(root) {
       return;
     }
     for (const e of entries) {
-      const full = join4(dir, e.name);
+      const full = join5(dir, e.name);
       if (e.isSymbolicLink()) continue;
       if (e.isDirectory()) {
         const kind = BUNDLE_EXTS[extname(e.name).toLowerCase()];
@@ -42387,9 +42621,9 @@ async function discoverNestedCode(root) {
 }
 async function frameworkSignTarget(fw) {
   try {
-    const current = await readlink(join4(fw, "Versions", "Current"));
-    const versioned = join4(fw, "Versions", current);
-    await stat(versioned);
+    const current = await readlink(join5(fw, "Versions", "Current"));
+    const versioned = join5(fw, "Versions", current);
+    await stat2(versioned);
     return versioned;
   } catch {
     return fw;
@@ -42398,9 +42632,9 @@ async function frameworkSignTarget(fw) {
 async function isMainExecutable(file2, bundleRoot) {
   const name = basename(bundleRoot).replace(/\.[^.]+$/, "");
   const candidates = [
-    join4(bundleRoot, "Contents", "MacOS", name),
-    join4(bundleRoot, name),
-    join4(bundleRoot, "Versions", "A", name)
+    join5(bundleRoot, "Contents", "MacOS", name),
+    join5(bundleRoot, name),
+    join5(bundleRoot, "Versions", "A", name)
   ];
   if (candidates.includes(file2)) return true;
   const rel2 = relative(bundleRoot, file2);
@@ -42412,13 +42646,13 @@ async function isMainExecutable(file2, bundleRoot) {
 }
 async function readBundleExecutable(bundleRoot) {
   for (const p of [
-    join4(bundleRoot, "Contents", "Info.plist"),
-    join4(bundleRoot, "Info.plist"),
-    join4(bundleRoot, "Resources", "Info.plist"),
-    join4(bundleRoot, "Versions", "Current", "Resources", "Info.plist")
+    join5(bundleRoot, "Contents", "Info.plist"),
+    join5(bundleRoot, "Info.plist"),
+    join5(bundleRoot, "Resources", "Info.plist"),
+    join5(bundleRoot, "Versions", "Current", "Resources", "Info.plist")
   ]) {
     try {
-      const v = parsePlistDict(new Uint8Array(await readFile3(p)));
+      const v = parsePlistDict(new Uint8Array(await readFile4(p)));
       if (typeof v?.CFBundleExecutable === "string") return v.CFBundleExecutable;
     } catch {
     }
@@ -42427,7 +42661,7 @@ async function readBundleExecutable(bundleRoot) {
 }
 async function isExecutableCandidate(path) {
   try {
-    const s = await stat(path);
+    const s = await stat2(path);
     return (s.mode & 73) !== 0 || extname(path) === "";
   } catch {
     return false;
@@ -42532,7 +42766,7 @@ async function resolveUserPath(ctx, p, mustExist = true) {
   const abs = isAbsolute(expanded) ? expanded : resolve(expanded);
   if (mustExist) {
     try {
-      await stat2(abs);
+      await stat3(abs);
     } catch {
       throw new ToolError(`Path does not exist: ${abs}`);
     }
@@ -42541,21 +42775,21 @@ async function resolveUserPath(ctx, p, mustExist = true) {
 }
 async function isDirectory(p) {
   try {
-    return (await stat2(p)).isDirectory();
+    return (await stat3(p)).isDirectory();
   } catch {
     return false;
   }
 }
 async function pathExists(p) {
   try {
-    await stat2(p);
+    await stat3(p);
     return true;
   } catch {
     return false;
   }
 }
 async function scratchDir(prefix) {
-  return mkdtemp(join5(tmpdir(), `notarize-${prefix}-`));
+  return mkdtemp(join6(tmpdir(), `notarize-${prefix}-`));
 }
 async function listIdentities(ctx, keychain) {
   requireMacOS(ctx.platform, "Listing signing identities");
@@ -42679,7 +42913,7 @@ async function inspectSignature(ctx, path, opts = {}) {
   }
   if (isBundle) {
     for (const prof of ["Contents/embedded.provisionprofile", "embedded.mobileprovision"]) {
-      const p = join5(path, prof);
+      const p = join6(path, prof);
       if (await pathExists(p)) {
         try {
           const pl = await decodeProvisioningProfile(ctx.runner, p, ctx.platform.isMac);
@@ -42923,10 +43157,10 @@ async function extractIpa(ctx, ipa) {
   const dir = await scratchDir("ipa");
   const r = ctx.platform.isMac ? await ctx.runner.run("ditto", ["-x", "-k", ipa, dir], { timeoutMs: 3e5 }) : await ctx.runner.run("unzip", ["-q", ipa, "-d", dir], { timeoutMs: 3e5 });
   if (!ok(r)) throw new ToolError(`Could not extract ${basename2(ipa)}: ${output2(r)}`);
-  const payload = join5(dir, "Payload");
+  const payload = join6(dir, "Payload");
   const apps = (await readdir3(payload)).filter((f) => f.endsWith(".app"));
   if (!apps.length) throw new ToolError("No .app found in Payload/ of the IPA.");
-  return join5(payload, apps[0]);
+  return join6(payload, apps[0]);
 }
 
 // src/tools/types.ts
@@ -43073,11 +43307,11 @@ ${r.raw.slice(0, 3e3)}`,
 async function simulate(ctx, path, launch) {
   const dir = await scratchDir("download");
   const name = basename3(path);
-  const copy = join6(dir, name);
+  const copy = join7(dir, name);
   const findings = [];
   const qv = quarantineValue(ctx.now());
-  const cp = await ctx.runner.run("ditto", [path, copy], { timeoutMs: 6e5 });
-  if (!ok(cp)) throw new ToolError(`Copy failed: ${output2(cp)}`);
+  const cp2 = await ctx.runner.run("ditto", [path, copy], { timeoutMs: 6e5 });
+  if (!ok(cp2)) throw new ToolError(`Copy failed: ${output2(cp2)}`);
   await ctx.runner.run("xattr", ["-w", "com.apple.quarantine", qv, copy], { timeoutMs: 3e4 });
   const ext = extname3(path).toLowerCase();
   const results = { tempDir: dir, quarantine: qv };
@@ -43112,15 +43346,15 @@ async function simulate(ctx, path, launch) {
     }
     if (mountPoint) {
       const apps = (await readdir4(mountPoint)).filter((f) => f.endsWith(".app"));
-      if (apps[0]) appToCheck = join6(mountPoint, apps[0]);
+      if (apps[0]) appToCheck = join7(mountPoint, apps[0]);
     } else findings.push(finding("error", `Could not mount the DMG: ${output2(att).slice(0, 300)}`));
   } else if (ext === ".zip") {
-    const out = join6(dir, "extracted");
+    const out = join7(dir, "extracted");
     const x = await ctx.runner.run("ditto", ["-x", "-k", copy, out], { timeoutMs: 6e5 });
     if (!ok(x)) throw new ToolError(`Unzip failed: ${output2(x)}`);
     await ctx.runner.run("xattr", ["-w", "-r", "com.apple.quarantine", qv, out], { timeoutMs: 12e4 });
     const apps = (await readdir4(out)).filter((f) => f.endsWith(".app"));
-    appToCheck = apps[0] ? join6(out, apps[0]) : void 0;
+    appToCheck = apps[0] ? join7(out, apps[0]) : void 0;
     if (!appToCheck) findings.push(finding("warning", "No .app at the top level of the zip."));
   } else if (ext === ".pkg") {
     const a = await assess(ctx, copy);
@@ -43254,8 +43488,8 @@ var quarantineTool = defineTool({
 });
 
 // src/tools/package.ts
-import { mkdir as mkdir3, rm, symlink } from "fs/promises";
-import { basename as basename4, dirname as dirname2, extname as extname4, join as join7 } from "path";
+import { mkdir as mkdir4, rm as rm2, symlink } from "fs/promises";
+import { basename as basename4, dirname as dirname3, extname as extname4, join as join8 } from "path";
 
 // src/knowledge/targets.ts
 var TARGET_IDS = [
@@ -43590,13 +43824,13 @@ var packageTool = defineTool({
     const src = await resolveUserPath(ctx, args.path);
     const name = basename4(src, extname4(src));
     const defaultOut = {
-      zip: join7(dirname2(src), `${name}.zip`),
-      dmg: join7(dirname2(src), `${name}.dmg`),
-      pkg: join7(dirname2(src), `${name}.pkg`),
-      sign_pkg: join7(dirname2(src), `${name}-signed.pkg`)
+      zip: join8(dirname3(src), `${name}.zip`),
+      dmg: join8(dirname3(src), `${name}.dmg`),
+      pkg: join8(dirname3(src), `${name}.pkg`),
+      sign_pkg: join8(dirname3(src), `${name}-signed.pkg`)
     }[args.action];
     const out = args.output_path ? await resolveUserPath(ctx, args.output_path, false) : defaultOut;
-    const exists2 = await pathExists(out);
+    const exists3 = await pathExists(out);
     const steps = [];
     let run;
     let signing = false;
@@ -43608,7 +43842,7 @@ var packageTool = defineTool({
         return { ok: ok(r), detail: output2(r) };
       };
     } else if (args.action === "dmg") {
-      const staging = join7(await scratchDir("dmg"), args.volume_name ?? name);
+      const staging = join8(await scratchDir("dmg"), args.volume_name ?? name);
       const vol = args.volume_name ?? name;
       const create = ["create", "-volname", vol, "-srcfolder", staging, "-ov", "-format", "UDZO", out];
       const identity = args.identity && args.identity !== "none" ? args.identity === "auto" ? await autoDevId(ctx) : args.identity : void 0;
@@ -43620,13 +43854,13 @@ var packageTool = defineTool({
         ...sign ? [cmdStep("Sign the DMG with Developer ID", "codesign", sign)] : []
       );
       run = async () => {
-        await mkdir3(staging, { recursive: true });
-        const cp = await ctx.runner.run("ditto", [src, join7(staging, basename4(src))], { timeoutMs: 18e5 });
-        if (!ok(cp)) return { ok: false, detail: output2(cp) };
-        await symlink("/Applications", join7(staging, "Applications")).catch(() => {
+        await mkdir4(staging, { recursive: true });
+        const cp2 = await ctx.runner.run("ditto", [src, join8(staging, basename4(src))], { timeoutMs: 18e5 });
+        if (!ok(cp2)) return { ok: false, detail: output2(cp2) };
+        await symlink("/Applications", join8(staging, "Applications")).catch(() => {
         });
         const r = await ctx.runner.run("hdiutil", create, { timeoutMs: 18e5, logName: "hdiutil" });
-        await rm(dirname2(staging), { recursive: true, force: true }).catch(() => {
+        await rm2(dirname3(staging), { recursive: true, force: true }).catch(() => {
         });
         if (!ok(r)) return { ok: false, detail: output2(r) };
         if (sign) {
@@ -43662,7 +43896,7 @@ var packageTool = defineTool({
       };
     }
     const execute = async () => {
-      if (exists2 && args.action !== "dmg") await rm(out, { force: true, recursive: true });
+      if (exists3 && args.action !== "dmg") await rm2(out, { force: true, recursive: true });
       const r = await run();
       if (!r.ok) {
         const known = matchKnownErrors(r.detail);
@@ -43681,7 +43915,7 @@ ${formatMatches(known)}` : ""}`,
         next_steps: args.action === "zip" ? ["notary action=submit path=<zip> (or notarize_and_staple on the .app, which zips for you)"] : args.action === "pkg" && (args.target === "mac-app-store" || args.target === "testflight-mac") ? ["upload_build path=<pkg>"] : ["notarize_and_staple path=<this file>"]
       };
     };
-    if (!exists2 && !signing) return execute();
+    if (!exists3 && !signing) return execute();
     return withConfirmation(
       ctx,
       extra,
@@ -43689,7 +43923,7 @@ ${formatMatches(known)}` : ""}`,
       () => ({
         title: `${args.action} ${basename4(src)} \u2192 ${out}`,
         steps,
-        warnings: exists2 ? [`${out} already exists and will be replaced.`] : []
+        warnings: exists3 ? [`${out} already exists and will be replaced.`] : []
       }),
       execute
     );
@@ -43732,10 +43966,10 @@ async function notaryAuth(ctx, keychainProfile, profile) {
   };
   if (!keyPath) {
     const dir = await scratchDir("p8");
-    keyPath = join8(dir, `AuthKey_${creds.keyId}.p8`);
-    await writeFile3(keyPath, creds.privateKeyPem, { mode: 384 });
+    keyPath = join9(dir, `AuthKey_${creds.keyId}.p8`);
+    await writeFile4(keyPath, creds.privateKeyPem, { mode: 384 });
     await chmod2(keyPath, 384);
-    cleanup = async () => rm2(dir, { recursive: true, force: true });
+    cleanup = async () => rm3(dir, { recursive: true, force: true });
   }
   return {
     args: ["--key", keyPath, "--key-id", creds.keyId, "--issuer", creds.issuerId],
@@ -43841,7 +44075,7 @@ function refuseDuplicate(ctx, path) {
 }
 async function uploadable(ctx, path) {
   if (await isDirectory(path) && extname5(path) === ".app") {
-    const out = join8(await scratchDir("notarize"), `${basename5(path, ".app")}.zip`);
+    const out = join9(await scratchDir("notarize"), `${basename5(path, ".app")}.zip`);
     const r = await ctx.runner.run("ditto", dittoZipArgs(path, out), { timeoutMs: 18e5 });
     if (!ok(r)) throw new ToolError(`Could not zip ${basename5(path)}: ${output2(r)}`);
     return { file: out, zipped: true };
@@ -44021,7 +44255,7 @@ var notaryTool = defineTool({
                     isError: s.status === "Invalid" || s.status === "Rejected"
                   };
                 } finally {
-                  if (up.zipped) await rm2(dirname3(up.file), { recursive: true, force: true });
+                  if (up.zipped) await rm3(dirname4(up.file), { recursive: true, force: true });
                   await auth2.cleanup();
                 }
               }
@@ -44210,7 +44444,7 @@ var notarizeAndStapleTool = defineTool({
               try {
                 s = await submitAndWait(ctx, up.file, auth, j, args.wait_minutes ?? 60);
               } finally {
-                if (up.zipped) await rm2(dirname3(up.file), { recursive: true, force: true });
+                if (up.zipped) await rm3(dirname4(up.file), { recursive: true, force: true });
                 await auth.cleanup();
               }
               if (s.status !== "Accepted") {
@@ -44289,7 +44523,7 @@ function oneLine(text, max = 400) {
 }
 async function watchJob(jobId, opts = {}, io = defaultIO) {
   const dir = opts.stateDir ?? defaultJobsDir();
-  const path = join9(dir, `${jobId}.json`);
+  const path = join10(dir, `${jobId}.json`);
   const interval = opts.intervalMs ?? 1e4;
   const stale = opts.staleMs ?? HEARTBEAT_MS * 4;
   const started = io.now();
@@ -45336,6 +45570,402 @@ function createContext(o = {}) {
       return client;
     }
   };
+}
+
+// src/resources/index.ts
+import { existsSync, readdirSync as readdirSync2, readFileSync as readFileSync2, statSync } from "fs";
+import { join as join11, relative as relative2 } from "path";
+import { fileURLToPath } from "url";
+
+// src/knowledge/privacy-keys.ts
+var PRIVACY_RESOURCES = [
+  {
+    id: "camera",
+    title: "Camera",
+    usageKeys: ["NSCameraUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["AVFoundation", "AVKit", "VisionKit"],
+    tccService: "Camera",
+    macEntitlement: "com.apple.security.device.camera"
+  },
+  {
+    id: "microphone",
+    title: "Microphone",
+    usageKeys: ["NSMicrophoneUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["AVFoundation", "AVFAudio", "Speech"],
+    tccService: "Microphone",
+    macEntitlement: "com.apple.security.device.audio-input"
+  },
+  {
+    id: "location",
+    title: "Location",
+    usageKeys: [
+      "NSLocationWhenInUseUsageDescription",
+      "NSLocationAlwaysAndWhenInUseUsageDescription",
+      "NSLocationUsageDescription"
+    ],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["CoreLocation", "MapKit"],
+    macEntitlement: "com.apple.security.personal-information.location",
+    notes: "MapKit alone does not require location permission; only CLLocationManager usage does."
+  },
+  {
+    id: "contacts",
+    title: "Contacts",
+    usageKeys: ["NSContactsUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["Contacts", "ContactsUI", "AddressBook"],
+    tccService: "AddressBook",
+    macEntitlement: "com.apple.security.personal-information.addressbook"
+  },
+  {
+    id: "calendars",
+    title: "Calendars",
+    usageKeys: [
+      "NSCalendarsFullAccessUsageDescription",
+      "NSCalendarsWriteOnlyAccessUsageDescription",
+      "NSCalendarsUsageDescription"
+    ],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["EventKit", "EventKitUI"],
+    tccService: "Calendar",
+    macEntitlement: "com.apple.security.personal-information.calendars"
+  },
+  {
+    id: "reminders",
+    title: "Reminders",
+    usageKeys: ["NSRemindersFullAccessUsageDescription", "NSRemindersUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["EventKit"],
+    tccService: "Reminders",
+    macEntitlement: "com.apple.security.personal-information.calendars"
+  },
+  {
+    id: "photos",
+    title: "Photos",
+    usageKeys: ["NSPhotoLibraryUsageDescription", "NSPhotoLibraryAddUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["Photos", "PhotosUI"],
+    tccService: "Photos",
+    macEntitlement: "com.apple.security.personal-information.photos-library",
+    notes: "PHPickerViewController (PhotosUI) does not need permission; direct PHPhotoLibrary access does."
+  },
+  {
+    id: "bluetooth",
+    title: "Bluetooth",
+    usageKeys: ["NSBluetoothAlwaysUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["CoreBluetooth"],
+    tccService: "BluetoothAlways",
+    macEntitlement: "com.apple.security.device.bluetooth"
+  },
+  {
+    id: "speech",
+    title: "Speech recognition",
+    usageKeys: ["NSSpeechRecognitionUsageDescription"],
+    platforms: ["macOS", "iOS"],
+    frameworks: ["Speech"],
+    tccService: "SpeechRecognition"
+  },
+  {
+    id: "motion",
+    title: "Motion & fitness",
+    usageKeys: ["NSMotionUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["CoreMotion"],
+    tccService: "Motion"
+  },
+  {
+    id: "health",
+    title: "Health",
+    usageKeys: ["NSHealthShareUsageDescription", "NSHealthUpdateUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["HealthKit"]
+  },
+  {
+    id: "homekit",
+    title: "HomeKit",
+    usageKeys: ["NSHomeKitUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["HomeKit"],
+    tccService: "Willow"
+  },
+  {
+    id: "faceid",
+    title: "Face ID",
+    usageKeys: ["NSFaceIDUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["LocalAuthentication"]
+  },
+  {
+    id: "tracking",
+    title: "App Tracking Transparency",
+    usageKeys: ["NSUserTrackingUsageDescription"],
+    platforms: ["iOS", "macOS"],
+    frameworks: ["AppTrackingTransparency", "AdSupport"]
+  },
+  {
+    id: "local-network",
+    title: "Local network",
+    usageKeys: ["NSLocalNetworkUsageDescription"],
+    platforms: ["iOS", "macOS"],
+    frameworks: ["Network", "MultipeerConnectivity"],
+    notes: "Also declare NSBonjourServices for Bonjour browsing. macOS 15+ prompts for local network access too."
+  },
+  {
+    id: "apple-events",
+    title: "Automation (Apple Events)",
+    usageKeys: ["NSAppleEventsUsageDescription"],
+    platforms: ["macOS"],
+    frameworks: ["ScriptingBridge", "OSAKit"],
+    tccService: "AppleEvents",
+    macEntitlement: "com.apple.security.automation.apple-events"
+  },
+  {
+    id: "nfc",
+    title: "NFC",
+    usageKeys: ["NFCReaderUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["CoreNFC"]
+  },
+  {
+    id: "media-library",
+    title: "Media library",
+    usageKeys: ["NSAppleMusicUsageDescription"],
+    platforms: ["iOS"],
+    frameworks: ["MediaPlayer", "MusicKit"],
+    tccService: "MediaLibrary"
+  },
+  {
+    id: "screen-capture",
+    title: "Screen recording",
+    usageKeys: [],
+    platforms: ["macOS"],
+    frameworks: ["ScreenCaptureKit"],
+    tccService: "ScreenCapture",
+    notes: "No Info.plist key: the user must enable the app in System Settings \u2192 Privacy & Security \u2192 Screen & System Audio Recording."
+  },
+  {
+    id: "accessibility",
+    title: "Accessibility",
+    usageKeys: [],
+    platforms: ["macOS"],
+    frameworks: [],
+    tccService: "Accessibility",
+    notes: "No Info.plist key; AXIsProcessTrustedWithOptions prompts and the user enables it in System Settings. Not allowed for sandboxed Mac App Store apps."
+  },
+  {
+    id: "files-desktop",
+    title: "Desktop / Documents / Downloads folders",
+    usageKeys: [
+      "NSDesktopFolderUsageDescription",
+      "NSDocumentsFolderUsageDescription",
+      "NSDownloadsFolderUsageDescription"
+    ],
+    platforms: ["macOS"],
+    frameworks: [],
+    tccService: "SystemPolicyDesktopFolder",
+    notes: "Non-sandboxed apps reading these folders trigger a TCC prompt on first access; provide the usage strings."
+  },
+  {
+    id: "removable-volumes",
+    title: "Removable / network volumes",
+    usageKeys: ["NSRemovableVolumesUsageDescription", "NSNetworkVolumesUsageDescription"],
+    platforms: ["macOS"],
+    frameworks: [],
+    tccService: "SystemPolicyRemovableVolumes"
+  }
+];
+var TCC_SERVICES = [
+  "All",
+  "Accessibility",
+  "AddressBook",
+  "AppleEvents",
+  "BluetoothAlways",
+  "Calendar",
+  "Camera",
+  "ListenEvent",
+  "MediaLibrary",
+  "Microphone",
+  "Motion",
+  "Photos",
+  "PostEvent",
+  "Reminders",
+  "ScreenCapture",
+  "SpeechRecognition",
+  "SystemPolicyAllFiles",
+  "SystemPolicyDesktopFolder",
+  "SystemPolicyDocumentsFolder",
+  "SystemPolicyDownloadsFolder",
+  "SystemPolicyNetworkVolumes",
+  "SystemPolicyRemovableVolumes",
+  "Willow"
+];
+var REQUIRED_REASON_APIS = [
+  {
+    category: "NSPrivacyAccessedAPICategoryUserDefaults",
+    title: "User defaults",
+    markers: ["NSUserDefaults"],
+    commonReasons: [
+      { code: "CA92.1", meaning: "Access info from the same app that wrote it" },
+      { code: "1C8F.1", meaning: "Shared via App Group with apps/extensions of the same developer" }
+    ]
+  },
+  {
+    category: "NSPrivacyAccessedAPICategoryFileTimestamp",
+    title: "File timestamp APIs",
+    markers: [
+      "\0_stat\0",
+      "\0_fstat\0",
+      "\0_lstat\0",
+      "\0_fstatat\0",
+      "\0_getattrlist\0",
+      "\0_getattrlistbulk\0",
+      "NSFileModificationDate",
+      "NSFileCreationDate",
+      "contentModificationDate",
+      "creationDate"
+    ],
+    commonReasons: [
+      { code: "C617.1", meaning: "Timestamps of files inside the app container / app group" },
+      { code: "3B52.1", meaning: "Timestamps of files the user granted access to" },
+      { code: "DDA9.1", meaning: "Display timestamps to the user" }
+    ]
+  },
+  {
+    category: "NSPrivacyAccessedAPICategorySystemBootTime",
+    title: "System boot time",
+    markers: ["systemUptime", "\0_mach_absolute_time\0"],
+    commonReasons: [{ code: "35F9.1", meaning: "Measure elapsed time between in-app events" }]
+  },
+  {
+    category: "NSPrivacyAccessedAPICategoryDiskSpace",
+    title: "Disk space",
+    markers: [
+      "\0_statfs\0",
+      "\0_statvfs\0",
+      "\0_fstatfs\0",
+      "\0_fstatvfs\0",
+      "NSFileSystemFreeSize",
+      "NSFileSystemSize",
+      "volumeAvailableCapacity"
+    ],
+    commonReasons: [
+      { code: "E174.1", meaning: "Check there is enough space before writing files" },
+      { code: "85F4.1", meaning: "Display disk space to the user" }
+    ]
+  },
+  {
+    category: "NSPrivacyAccessedAPICategoryActiveKeyboards",
+    title: "Active keyboards",
+    markers: ["activeInputModes"],
+    commonReasons: [{ code: "3EC4.1", meaning: "Custom keyboard app determining active keyboards" }]
+  }
+];
+
+// src/knowledge/sdk-requirements.ts
+var SDK_REQUIREMENTS = [
+  {
+    effective: "2024-04-29",
+    minXcode: "15.0",
+    sdks: "iOS 17 / iPadOS 17 / tvOS 17 / watchOS 10 / visionOS 1 SDKs",
+    source: "https://developer.apple.com/news/upcoming-requirements/"
+  },
+  {
+    effective: "2025-04-24",
+    minXcode: "16.0",
+    sdks: "iOS 18 / iPadOS 18 / tvOS 18 / visionOS 2 / watchOS 11 SDKs",
+    source: "https://developer.apple.com/news/upcoming-requirements/"
+  },
+  {
+    effective: "2026-04-28",
+    minXcode: "26.0",
+    sdks: "iOS 26 / iPadOS 26 / tvOS 26 / visionOS 26 / watchOS 26 SDKs",
+    source: "https://developer.apple.com/news/upcoming-requirements/"
+  }
+];
+var SDK_REQUIREMENTS_LAST_REVIEWED = "2026-06-01";
+function currentSdkRequirement(date5) {
+  const iso = date5.toISOString().slice(0, 10);
+  return [...SDK_REQUIREMENTS].reverse().find((r) => r.effective <= iso);
+}
+var NOTARIZATION_MIN_SDK = "10.9";
+
+// src/resources/index.ts
+function findSkillDir() {
+  const candidates = [
+    process.env.NOTARIZE_MCP_SKILL_DIR,
+    fileURLToPath(new URL("../skills/apple-distribution", import.meta.url)),
+    fileURLToPath(new URL("../../skills/apple-distribution", import.meta.url))
+  ].filter((x) => !!x);
+  return candidates.find((c) => existsSync(join11(c, "SKILL.md")));
+}
+function walk(dir) {
+  const out = [];
+  for (const e of readdirSync2(dir)) {
+    const p = join11(dir, e);
+    if (statSync(p).isDirectory()) out.push(...walk(p));
+    else if (e.endsWith(".md")) out.push(p);
+  }
+  return out;
+}
+function guideTopics(skillDir) {
+  const refs = join11(skillDir, "references");
+  const files = [join11(skillDir, "SKILL.md"), ...existsSync(refs) ? walk(refs) : []];
+  return files.map((p) => {
+    const rel2 = p.endsWith("SKILL.md") ? "overview" : relative2(refs, p).replace(/\.md$/, "").replace(/[\\/]/g, "-");
+    const text = readFileSync2(p, "utf8");
+    const title = /^#\s+(.+)$/m.exec(text)?.[1] ?? rel2;
+    return { topic: rel2, path: p, title };
+  });
+}
+var CATALOGS = {
+  targets: { description: "Distribution targets and what each requires", data: () => TARGETS },
+  "certificate-types": {
+    description: "Apple certificate types, who can create them, keychain names",
+    data: () => CERTIFICATE_TYPES
+  },
+  entitlements: {
+    description: "Entitlement catalog + presets",
+    data: () => ({ entitlements: ENTITLEMENTS, presets: ENTITLEMENT_PRESETS })
+  },
+  errors: {
+    description: "Known codesign/notarization/Gatekeeper/xcodebuild/ITMS errors with fixes",
+    data: () => ERROR_CATALOG.map((e) => ({ ...e, pattern: e.pattern.source }))
+  },
+  privacy: {
+    description: "Privacy usage strings, TCC services, required-reason APIs",
+    data: () => ({ resources: PRIVACY_RESOURCES, requiredReasonApis: REQUIRED_REASON_APIS })
+  },
+  "sdk-requirements": { description: "App Store minimum Xcode/SDK by date", data: () => SDK_REQUIREMENTS }
+};
+function registerResources(server) {
+  const skillDir = findSkillDir();
+  if (skillDir) {
+    for (const g of guideTopics(skillDir)) {
+      const uri = `notarize://guides/${g.topic}`;
+      server.registerResource(
+        g.topic,
+        uri,
+        { title: g.title, description: `Guide: ${g.title}`, mimeType: "text/markdown" },
+        async () => ({
+          contents: [{ uri, mimeType: "text/markdown", text: readFileSync2(g.path, "utf8") }]
+        })
+      );
+    }
+  }
+  for (const [name, c] of Object.entries(CATALOGS)) {
+    const uri = `notarize://catalog/${name}`;
+    server.registerResource(
+      `catalog-${name}`,
+      uri,
+      { title: `Catalog: ${name}`, description: c.description, mimeType: "application/json" },
+      async () => ({
+        contents: [{ uri, mimeType: "application/json", text: JSON.stringify(c.data(), null, 2) }]
+      })
+    );
+  }
 }
 
 // node_modules/zod/v3/helpers/util.js
@@ -53402,7 +54032,8 @@ var package_default = {
     "test:watch": "vitest",
     check: "npm run lint && npm run typecheck && npm test",
     "test:recorded": "vitest run test/recorded.test.ts",
-    "test:live": "vitest run --config vitest.live.config.ts"
+    "test:live": "vitest run --config vitest.live.config.ts",
+    prepublishOnly: "npm run check && npm run build"
   },
   keywords: [
     "mcp",
@@ -53420,18 +54051,19 @@ var package_default = {
     type: "git",
     url: "https://github.com/krishchow/notarize.git"
   },
-  dependencies: {
-    "@modelcontextprotocol/sdk": "^1.32.0",
-    jose: "^6.2.12",
-    plist: "^5.0.0",
-    zod: "^4.6.5"
-  },
   devDependencies: {
     "@biomejs/biome": "^2.5.15",
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "@types/node": "^26.6.4",
+    jose: "^6.2.12",
+    plist: "^5.0.0",
     tsup: "^8.5.1",
     typescript: "^7.0.2",
-    vitest: "^5.0.3"
+    vitest: "^5.0.3",
+    zod: "^4.6.5"
+  },
+  publishConfig: {
+    access: "public"
   }
 };
 
@@ -53500,402 +54132,6 @@ function registerPrompts(server) {
       `A feature fails in ${app_name}. Ask me to reproduce it, then run system_logs preset=sandbox process=${app_name} last=5m and preset=tcc, ${path ? `privacy action=audit path=${path} and entitlements action=read path=${path}, ` : ""}and tell me which entitlements / Info.plist usage strings to add. Preview any file changes and re-sign afterwards.`
     )
   );
-}
-
-// src/resources/index.ts
-import { existsSync, readdirSync as readdirSync2, readFileSync as readFileSync2, statSync } from "fs";
-import { join as join10, relative as relative2 } from "path";
-import { fileURLToPath } from "url";
-
-// src/knowledge/privacy-keys.ts
-var PRIVACY_RESOURCES = [
-  {
-    id: "camera",
-    title: "Camera",
-    usageKeys: ["NSCameraUsageDescription"],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["AVFoundation", "AVKit", "VisionKit"],
-    tccService: "Camera",
-    macEntitlement: "com.apple.security.device.camera"
-  },
-  {
-    id: "microphone",
-    title: "Microphone",
-    usageKeys: ["NSMicrophoneUsageDescription"],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["AVFoundation", "AVFAudio", "Speech"],
-    tccService: "Microphone",
-    macEntitlement: "com.apple.security.device.audio-input"
-  },
-  {
-    id: "location",
-    title: "Location",
-    usageKeys: [
-      "NSLocationWhenInUseUsageDescription",
-      "NSLocationAlwaysAndWhenInUseUsageDescription",
-      "NSLocationUsageDescription"
-    ],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["CoreLocation", "MapKit"],
-    macEntitlement: "com.apple.security.personal-information.location",
-    notes: "MapKit alone does not require location permission; only CLLocationManager usage does."
-  },
-  {
-    id: "contacts",
-    title: "Contacts",
-    usageKeys: ["NSContactsUsageDescription"],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["Contacts", "ContactsUI", "AddressBook"],
-    tccService: "AddressBook",
-    macEntitlement: "com.apple.security.personal-information.addressbook"
-  },
-  {
-    id: "calendars",
-    title: "Calendars",
-    usageKeys: [
-      "NSCalendarsFullAccessUsageDescription",
-      "NSCalendarsWriteOnlyAccessUsageDescription",
-      "NSCalendarsUsageDescription"
-    ],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["EventKit", "EventKitUI"],
-    tccService: "Calendar",
-    macEntitlement: "com.apple.security.personal-information.calendars"
-  },
-  {
-    id: "reminders",
-    title: "Reminders",
-    usageKeys: ["NSRemindersFullAccessUsageDescription", "NSRemindersUsageDescription"],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["EventKit"],
-    tccService: "Reminders",
-    macEntitlement: "com.apple.security.personal-information.calendars"
-  },
-  {
-    id: "photos",
-    title: "Photos",
-    usageKeys: ["NSPhotoLibraryUsageDescription", "NSPhotoLibraryAddUsageDescription"],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["Photos", "PhotosUI"],
-    tccService: "Photos",
-    macEntitlement: "com.apple.security.personal-information.photos-library",
-    notes: "PHPickerViewController (PhotosUI) does not need permission; direct PHPhotoLibrary access does."
-  },
-  {
-    id: "bluetooth",
-    title: "Bluetooth",
-    usageKeys: ["NSBluetoothAlwaysUsageDescription"],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["CoreBluetooth"],
-    tccService: "BluetoothAlways",
-    macEntitlement: "com.apple.security.device.bluetooth"
-  },
-  {
-    id: "speech",
-    title: "Speech recognition",
-    usageKeys: ["NSSpeechRecognitionUsageDescription"],
-    platforms: ["macOS", "iOS"],
-    frameworks: ["Speech"],
-    tccService: "SpeechRecognition"
-  },
-  {
-    id: "motion",
-    title: "Motion & fitness",
-    usageKeys: ["NSMotionUsageDescription"],
-    platforms: ["iOS"],
-    frameworks: ["CoreMotion"],
-    tccService: "Motion"
-  },
-  {
-    id: "health",
-    title: "Health",
-    usageKeys: ["NSHealthShareUsageDescription", "NSHealthUpdateUsageDescription"],
-    platforms: ["iOS"],
-    frameworks: ["HealthKit"]
-  },
-  {
-    id: "homekit",
-    title: "HomeKit",
-    usageKeys: ["NSHomeKitUsageDescription"],
-    platforms: ["iOS"],
-    frameworks: ["HomeKit"],
-    tccService: "Willow"
-  },
-  {
-    id: "faceid",
-    title: "Face ID",
-    usageKeys: ["NSFaceIDUsageDescription"],
-    platforms: ["iOS"],
-    frameworks: ["LocalAuthentication"]
-  },
-  {
-    id: "tracking",
-    title: "App Tracking Transparency",
-    usageKeys: ["NSUserTrackingUsageDescription"],
-    platforms: ["iOS", "macOS"],
-    frameworks: ["AppTrackingTransparency", "AdSupport"]
-  },
-  {
-    id: "local-network",
-    title: "Local network",
-    usageKeys: ["NSLocalNetworkUsageDescription"],
-    platforms: ["iOS", "macOS"],
-    frameworks: ["Network", "MultipeerConnectivity"],
-    notes: "Also declare NSBonjourServices for Bonjour browsing. macOS 15+ prompts for local network access too."
-  },
-  {
-    id: "apple-events",
-    title: "Automation (Apple Events)",
-    usageKeys: ["NSAppleEventsUsageDescription"],
-    platforms: ["macOS"],
-    frameworks: ["ScriptingBridge", "OSAKit"],
-    tccService: "AppleEvents",
-    macEntitlement: "com.apple.security.automation.apple-events"
-  },
-  {
-    id: "nfc",
-    title: "NFC",
-    usageKeys: ["NFCReaderUsageDescription"],
-    platforms: ["iOS"],
-    frameworks: ["CoreNFC"]
-  },
-  {
-    id: "media-library",
-    title: "Media library",
-    usageKeys: ["NSAppleMusicUsageDescription"],
-    platforms: ["iOS"],
-    frameworks: ["MediaPlayer", "MusicKit"],
-    tccService: "MediaLibrary"
-  },
-  {
-    id: "screen-capture",
-    title: "Screen recording",
-    usageKeys: [],
-    platforms: ["macOS"],
-    frameworks: ["ScreenCaptureKit"],
-    tccService: "ScreenCapture",
-    notes: "No Info.plist key: the user must enable the app in System Settings \u2192 Privacy & Security \u2192 Screen & System Audio Recording."
-  },
-  {
-    id: "accessibility",
-    title: "Accessibility",
-    usageKeys: [],
-    platforms: ["macOS"],
-    frameworks: [],
-    tccService: "Accessibility",
-    notes: "No Info.plist key; AXIsProcessTrustedWithOptions prompts and the user enables it in System Settings. Not allowed for sandboxed Mac App Store apps."
-  },
-  {
-    id: "files-desktop",
-    title: "Desktop / Documents / Downloads folders",
-    usageKeys: [
-      "NSDesktopFolderUsageDescription",
-      "NSDocumentsFolderUsageDescription",
-      "NSDownloadsFolderUsageDescription"
-    ],
-    platforms: ["macOS"],
-    frameworks: [],
-    tccService: "SystemPolicyDesktopFolder",
-    notes: "Non-sandboxed apps reading these folders trigger a TCC prompt on first access; provide the usage strings."
-  },
-  {
-    id: "removable-volumes",
-    title: "Removable / network volumes",
-    usageKeys: ["NSRemovableVolumesUsageDescription", "NSNetworkVolumesUsageDescription"],
-    platforms: ["macOS"],
-    frameworks: [],
-    tccService: "SystemPolicyRemovableVolumes"
-  }
-];
-var TCC_SERVICES = [
-  "All",
-  "Accessibility",
-  "AddressBook",
-  "AppleEvents",
-  "BluetoothAlways",
-  "Calendar",
-  "Camera",
-  "ListenEvent",
-  "MediaLibrary",
-  "Microphone",
-  "Motion",
-  "Photos",
-  "PostEvent",
-  "Reminders",
-  "ScreenCapture",
-  "SpeechRecognition",
-  "SystemPolicyAllFiles",
-  "SystemPolicyDesktopFolder",
-  "SystemPolicyDocumentsFolder",
-  "SystemPolicyDownloadsFolder",
-  "SystemPolicyNetworkVolumes",
-  "SystemPolicyRemovableVolumes",
-  "Willow"
-];
-var REQUIRED_REASON_APIS = [
-  {
-    category: "NSPrivacyAccessedAPICategoryUserDefaults",
-    title: "User defaults",
-    markers: ["NSUserDefaults"],
-    commonReasons: [
-      { code: "CA92.1", meaning: "Access info from the same app that wrote it" },
-      { code: "1C8F.1", meaning: "Shared via App Group with apps/extensions of the same developer" }
-    ]
-  },
-  {
-    category: "NSPrivacyAccessedAPICategoryFileTimestamp",
-    title: "File timestamp APIs",
-    markers: [
-      "\0_stat\0",
-      "\0_fstat\0",
-      "\0_lstat\0",
-      "\0_fstatat\0",
-      "\0_getattrlist\0",
-      "\0_getattrlistbulk\0",
-      "NSFileModificationDate",
-      "NSFileCreationDate",
-      "contentModificationDate",
-      "creationDate"
-    ],
-    commonReasons: [
-      { code: "C617.1", meaning: "Timestamps of files inside the app container / app group" },
-      { code: "3B52.1", meaning: "Timestamps of files the user granted access to" },
-      { code: "DDA9.1", meaning: "Display timestamps to the user" }
-    ]
-  },
-  {
-    category: "NSPrivacyAccessedAPICategorySystemBootTime",
-    title: "System boot time",
-    markers: ["systemUptime", "\0_mach_absolute_time\0"],
-    commonReasons: [{ code: "35F9.1", meaning: "Measure elapsed time between in-app events" }]
-  },
-  {
-    category: "NSPrivacyAccessedAPICategoryDiskSpace",
-    title: "Disk space",
-    markers: [
-      "\0_statfs\0",
-      "\0_statvfs\0",
-      "\0_fstatfs\0",
-      "\0_fstatvfs\0",
-      "NSFileSystemFreeSize",
-      "NSFileSystemSize",
-      "volumeAvailableCapacity"
-    ],
-    commonReasons: [
-      { code: "E174.1", meaning: "Check there is enough space before writing files" },
-      { code: "85F4.1", meaning: "Display disk space to the user" }
-    ]
-  },
-  {
-    category: "NSPrivacyAccessedAPICategoryActiveKeyboards",
-    title: "Active keyboards",
-    markers: ["activeInputModes"],
-    commonReasons: [{ code: "3EC4.1", meaning: "Custom keyboard app determining active keyboards" }]
-  }
-];
-
-// src/knowledge/sdk-requirements.ts
-var SDK_REQUIREMENTS = [
-  {
-    effective: "2024-04-29",
-    minXcode: "15.0",
-    sdks: "iOS 17 / iPadOS 17 / tvOS 17 / watchOS 10 / visionOS 1 SDKs",
-    source: "https://developer.apple.com/news/upcoming-requirements/"
-  },
-  {
-    effective: "2025-04-24",
-    minXcode: "16.0",
-    sdks: "iOS 18 / iPadOS 18 / tvOS 18 / visionOS 2 / watchOS 11 SDKs",
-    source: "https://developer.apple.com/news/upcoming-requirements/"
-  },
-  {
-    effective: "2026-04-28",
-    minXcode: "26.0",
-    sdks: "iOS 26 / iPadOS 26 / tvOS 26 / visionOS 26 / watchOS 26 SDKs",
-    source: "https://developer.apple.com/news/upcoming-requirements/"
-  }
-];
-var SDK_REQUIREMENTS_LAST_REVIEWED = "2026-06-01";
-function currentSdkRequirement(date5) {
-  const iso = date5.toISOString().slice(0, 10);
-  return [...SDK_REQUIREMENTS].reverse().find((r) => r.effective <= iso);
-}
-var NOTARIZATION_MIN_SDK = "10.9";
-
-// src/resources/index.ts
-function findSkillDir() {
-  const candidates = [
-    process.env.NOTARIZE_MCP_SKILL_DIR,
-    fileURLToPath(new URL("../skills/apple-distribution", import.meta.url)),
-    fileURLToPath(new URL("../../skills/apple-distribution", import.meta.url))
-  ].filter((x) => !!x);
-  return candidates.find((c) => existsSync(join10(c, "SKILL.md")));
-}
-function walk(dir) {
-  const out = [];
-  for (const e of readdirSync2(dir)) {
-    const p = join10(dir, e);
-    if (statSync(p).isDirectory()) out.push(...walk(p));
-    else if (e.endsWith(".md")) out.push(p);
-  }
-  return out;
-}
-function guideTopics(skillDir) {
-  const refs = join10(skillDir, "references");
-  const files = [join10(skillDir, "SKILL.md"), ...existsSync(refs) ? walk(refs) : []];
-  return files.map((p) => {
-    const rel2 = p.endsWith("SKILL.md") ? "overview" : relative2(refs, p).replace(/\.md$/, "").replace(/[\\/]/g, "-");
-    const text = readFileSync2(p, "utf8");
-    const title = /^#\s+(.+)$/m.exec(text)?.[1] ?? rel2;
-    return { topic: rel2, path: p, title };
-  });
-}
-var CATALOGS = {
-  targets: { description: "Distribution targets and what each requires", data: () => TARGETS },
-  "certificate-types": {
-    description: "Apple certificate types, who can create them, keychain names",
-    data: () => CERTIFICATE_TYPES
-  },
-  entitlements: {
-    description: "Entitlement catalog + presets",
-    data: () => ({ entitlements: ENTITLEMENTS, presets: ENTITLEMENT_PRESETS })
-  },
-  errors: {
-    description: "Known codesign/notarization/Gatekeeper/xcodebuild/ITMS errors with fixes",
-    data: () => ERROR_CATALOG.map((e) => ({ ...e, pattern: e.pattern.source }))
-  },
-  privacy: {
-    description: "Privacy usage strings, TCC services, required-reason APIs",
-    data: () => ({ resources: PRIVACY_RESOURCES, requiredReasonApis: REQUIRED_REASON_APIS })
-  },
-  "sdk-requirements": { description: "App Store minimum Xcode/SDK by date", data: () => SDK_REQUIREMENTS }
-};
-function registerResources(server) {
-  const skillDir = findSkillDir();
-  if (skillDir) {
-    for (const g of guideTopics(skillDir)) {
-      const uri = `notarize://guides/${g.topic}`;
-      server.registerResource(
-        g.topic,
-        uri,
-        { title: g.title, description: `Guide: ${g.title}`, mimeType: "text/markdown" },
-        async () => ({
-          contents: [{ uri, mimeType: "text/markdown", text: readFileSync2(g.path, "utf8") }]
-        })
-      );
-    }
-  }
-  for (const [name, c] of Object.entries(CATALOGS)) {
-    const uri = `notarize://catalog/${name}`;
-    server.registerResource(
-      `catalog-${name}`,
-      uri,
-      { title: `Catalog: ${name}`, description: c.description, mimeType: "application/json" },
-      async () => ({
-        contents: [{ uri, mimeType: "application/json", text: JSON.stringify(c.data(), null, 2) }]
-      })
-    );
-  }
 }
 
 // src/tools/asc-common.ts
@@ -54210,15 +54446,15 @@ var ascApiTool = defineTool({
 });
 
 // src/tools/asc-signing.ts
-import { mkdir as mkdir6, readFile as readFile5, writeFile as writeFile6 } from "fs/promises";
-import { join as join13 } from "path";
+import { mkdir as mkdir7, readFile as readFile6, writeFile as writeFile7 } from "fs/promises";
+import { join as join14 } from "path";
 
 // src/tools/keychain.ts
 import { randomBytes as randomBytes3 } from "crypto";
-import { chmod as chmod3, mkdir as mkdir4, readFile as readFile4, unlink, writeFile as writeFile4 } from "fs/promises";
-import { basename as basename6, join as join11 } from "path";
+import { chmod as chmod3, mkdir as mkdir5, readFile as readFile5, unlink, writeFile as writeFile5 } from "fs/promises";
+import { basename as basename6, join as join12 } from "path";
 function loginKeychain(home) {
-  return join11(home, "Library", "Keychains", "login.keychain-db");
+  return join12(home, "Library", "Keychains", "login.keychain-db");
 }
 var TRUSTED_APPS = [
   "/usr/bin/codesign",
@@ -54235,16 +54471,16 @@ function readSecretEnv(name) {
   return v;
 }
 async function certToPem(path) {
-  const buf = await readFile4(path);
+  const buf = await readFile5(path);
   const text = buf.toString("latin1");
   return text.includes("-----BEGIN CERTIFICATE-----") ? text : derToPem(new Uint8Array(buf));
 }
 async function importKeyAndCert(ctx, keyPath, certPem, keychain) {
   const dir = await scratchDir("p12");
-  const certPath = join11(dir, "cert.pem");
-  const p12 = join11(dir, "identity.p12");
+  const certPath = join12(dir, "cert.pem");
+  const p12 = join12(dir, "identity.p12");
   const pass = randomBytes3(18).toString("base64url");
-  await writeFile4(certPath, certPem, { mode: 384 });
+  await writeFile5(certPath, certPem, { mode: 384 });
   try {
     const exp = await ctx.runner.run(
       "openssl",
@@ -54308,8 +54544,8 @@ var keychainTool = defineTool({
     const keychain = args.keychain ? await resolveUserPath(ctx, args.keychain, false) : loginKeychain(ctx.platform.homeDir);
     if (args.action === "create_csr") {
       const name = args.key_name ?? `signing-${ctx.now().toISOString().slice(0, 10)}`;
-      const keyPath2 = join11(keysDir, `${name}.key`);
-      const csrPath = join11(keysDir, `${name}.csr`);
+      const keyPath2 = join12(keysDir, `${name}.key`);
+      const csrPath = join12(keysDir, `${name}.csr`);
       if (await pathExists(keyPath2))
         throw new ToolError(`A key named ${name} already exists at ${keyPath2}. Choose another key_name.`);
       const subjParts = [
@@ -54346,12 +54582,12 @@ var keychainTool = defineTool({
           ]
         }),
         async () => {
-          await mkdir4(keysDir, { recursive: true, mode: 448 });
+          await mkdir5(keysDir, { recursive: true, mode: 448 });
           const r = await ctx.runner.run("openssl", cmd, { timeoutMs: 6e4 });
           if (!ok(r)) throw new ToolError(`openssl req failed: ${output2(r)}`);
           await chmod3(keyPath2, 384).catch(() => {
           });
-          const csr = await readFile4(csrPath, "utf8");
+          const csr = await readFile5(csrPath, "utf8");
           return {
             summary: `Created key ${keyPath2} and CSR ${csrPath}.`,
             data: { keyName: name, keyPath: keyPath2, csrPath, csrPem: csr },
@@ -54368,7 +54604,7 @@ var keychainTool = defineTool({
       if (!args.certificate_path || !args.key_name)
         throw new ToolError("certificate_path and key_name are required.");
       const certPath2 = await resolveUserPath(ctx, args.certificate_path);
-      const keyPath2 = join11(keysDir, `${args.key_name}.key`);
+      const keyPath2 = join12(keysDir, `${args.key_name}.key`);
       if (!await pathExists(keyPath2))
         throw new ToolError(
           `No key ${keyPath2}. It must be the key used to create the CSR for this certificate.`
@@ -54462,8 +54698,8 @@ var keychainTool = defineTool({
               results.push({ name: im.name, ok: false, error: `HTTP ${res.status}` });
               continue;
             }
-            const file2 = join11(dir, basename6(im.url));
-            await writeFile4(file2, new Uint8Array(await res.arrayBuffer()));
+            const file2 = join12(dir, basename6(im.url));
+            await writeFile5(file2, new Uint8Array(await res.arrayBuffer()));
             const r = await ctx.runner.run("security", ["import", file2, "-k", keychain], {
               timeoutMs: 3e4
             });
@@ -54482,7 +54718,7 @@ var keychainTool = defineTool({
     }
     if (!args.key_name || !args.certificate_path || !args.output_path)
       throw new ToolError("key_name, certificate_path and output_path are required.");
-    const keyPath = join11(keysDir, `${args.key_name}.key`);
+    const keyPath = join12(keysDir, `${args.key_name}.key`);
     if (!await pathExists(keyPath)) throw new ToolError(`No key ${keyPath}.`);
     const certPath = await resolveUserPath(ctx, args.certificate_path);
     const out = await resolveUserPath(ctx, args.output_path, false);
@@ -54505,8 +54741,8 @@ var keychainTool = defineTool({
       }),
       async () => {
         const password = readSecretEnv(args.password_env) ?? randomBytes3(18).toString("base64url");
-        const pemPath = join11(await scratchDir("export"), "cert.pem");
-        await writeFile4(pemPath, await certToPem(certPath), { mode: 384 });
+        const pemPath = join12(await scratchDir("export"), "cert.pem");
+        await writeFile5(pemPath, await certToPem(certPath), { mode: 384 });
         const r = await ctx.runner.run(
           "openssl",
           [
@@ -54529,8 +54765,8 @@ var keychainTool = defineTool({
         if (!ok(r)) throw new ToolError(`openssl pkcs12 failed: ${output2(r)}`);
         await chmod3(out, 384).catch(() => {
         });
-        await writeFile4(`${out}.base64`, (await readFile4(out)).toString("base64"), { mode: 384 });
-        if (!args.password_env) await writeFile4(`${out}.password`, password, { mode: 384 });
+        await writeFile5(`${out}.base64`, (await readFile5(out)).toString("base64"), { mode: 384 });
+        if (!args.password_env) await writeFile5(`${out}.password`, password, { mode: 384 });
         return {
           summary: `Exported ${out} (+ ${out}.base64${args.password_env ? "" : `, password in ${out}.password`}).`,
           data: {
@@ -54546,12 +54782,12 @@ var keychainTool = defineTool({
 });
 
 // src/tools/provisioning.ts
-import { copyFile, mkdir as mkdir5, readdir as readdir5, writeFile as writeFile5 } from "fs/promises";
-import { basename as basename7, extname as extname6, join as join12 } from "path";
+import { copyFile, mkdir as mkdir6, readdir as readdir5, writeFile as writeFile6 } from "fs/promises";
+import { basename as basename7, extname as extname6, join as join13 } from "path";
 function profileDirs(home) {
   return [
-    join12(home, "Library", "Developer", "Xcode", "UserData", "Provisioning Profiles"),
-    join12(home, "Library", "MobileDevice", "Provisioning Profiles")
+    join13(home, "Library", "Developer", "Xcode", "UserData", "Provisioning Profiles"),
+    join13(home, "Library", "MobileDevice", "Provisioning Profiles")
   ];
 }
 function summarizeProfile(pl, now, path) {
@@ -54601,9 +54837,9 @@ async function listInstalledProfiles(ctx) {
     for (const f of files.filter((x) => /\.(mobileprovision|provisionprofile)$/.test(x))) {
       try {
         const s = summarizeProfile(
-          await decodeProvisioningProfile(ctx.runner, join12(dir, f), ctx.platform.isMac),
+          await decodeProvisioningProfile(ctx.runner, join13(dir, f), ctx.platform.isMac),
           ctx.now(),
-          join12(dir, f)
+          join13(dir, f)
         );
         if (s.uuid && seen.has(s.uuid)) continue;
         if (s.uuid) seen.add(s.uuid);
@@ -54618,9 +54854,9 @@ async function installProfileBytes(ctx, bytes, uuid3, isMac) {
   const ext = isMac ? "provisionprofile" : "mobileprovision";
   const written = [];
   for (const dir of profileDirs(ctx.platform.homeDir)) {
-    await mkdir5(dir, { recursive: true });
-    const p = join12(dir, `${uuid3}.${ext}`);
-    await writeFile5(p, bytes);
+    await mkdir6(dir, { recursive: true });
+    const p = join13(dir, `${uuid3}.${ext}`);
+    await writeFile6(p, bytes);
     written.push(p);
   }
   return written;
@@ -54702,7 +54938,7 @@ ${formatFindings(findings)}` : ""}`,
     if (args.action === "install") {
       if (!summary.uuid) throw new ToolError("Profile has no UUID.");
       const dests = profileDirs(ctx.platform.homeDir).map(
-        (d) => join12(d, `${summary.uuid}.${isMac ? "provisionprofile" : "mobileprovision"}`)
+        (d) => join13(d, `${summary.uuid}.${isMac ? "provisionprofile" : "mobileprovision"}`)
       );
       return withConfirmation(
         ctx,
@@ -54713,10 +54949,10 @@ ${formatFindings(findings)}` : ""}`,
           steps: dests.map((d) => ({ description: `Copy ${basename7(path)} \u2192 ${d}` }))
         }),
         async () => {
-          const { readFile: readFile10 } = await import("fs/promises");
+          const { readFile: readFile11 } = await import("fs/promises");
           const written = await installProfileBytes(
             ctx,
-            new Uint8Array(await readFile10(path)),
+            new Uint8Array(await readFile11(path)),
             summary.uuid,
             isMac
           );
@@ -54731,8 +54967,8 @@ ${written.join("\n")}`,
     if (!args.app_path) throw new ToolError("app_path is required for embed.");
     const app = await resolveUserPath(ctx, args.app_path);
     if (!await isDirectory(app)) throw new ToolError(`${app} is not a bundle directory.`);
-    const isMacBundle = await pathExists(join12(app, "Contents"));
-    const dest = isMacBundle ? join12(app, "Contents", "embedded.provisionprofile") : join12(app, "embedded.mobileprovision");
+    const isMacBundle = await pathExists(join13(app, "Contents"));
+    const dest = isMacBundle ? join13(app, "Contents", "embedded.provisionprofile") : join13(app, "embedded.mobileprovision");
     const replacing = await pathExists(dest);
     return withConfirmation(
       ctx,
@@ -54832,7 +55068,7 @@ Discovered .p8 keys: ${discovered.map((d) => d.path).join(", ") || "(none)"}`,
         ]
       }),
       async () => {
-        const pem = await readFile5(keyPath, "utf8");
+        const pem = await readFile6(keyPath, "utf8");
         const client = clientFromKey(ctx, args.key_id, args.issuer_id, pem);
         await client.list("apps", {}, 1);
         await ctx.config.saveProfile(
@@ -55060,10 +55296,10 @@ var ascCertificatesTool = defineTool({
     const keysDir = ctx.config.keysDir;
     if (args.action === "create") {
       if (!args.certificate_type) throw new ToolError("certificate_type is required.");
-      const csrPath = args.csr_path ? await resolveUserPath(ctx, args.csr_path) : args.key_name ? join13(keysDir, `${args.key_name}.csr`) : void 0;
+      const csrPath = args.csr_path ? await resolveUserPath(ctx, args.csr_path) : args.key_name ? join14(keysDir, `${args.key_name}.csr`) : void 0;
       if (!csrPath || !await pathExists(csrPath))
         throw new ToolError("Provide key_name (from keychain create_csr) or csr_path.");
-      const install = args.install ?? !!args.key_name;
+      const install2 = args.install ?? !!args.key_name;
       const isDevId2 = args.certificate_type.startsWith("DEVELOPER_ID");
       return withConfirmation(
         ctx,
@@ -55073,7 +55309,7 @@ var ascCertificatesTool = defineTool({
           title: `Request a ${args.certificate_type} certificate`,
           steps: [
             { description: `POST /v1/certificates with ${csrPath}` },
-            ...install ? [
+            ...install2 ? [
               {
                 description: `Save the .cer to ${keysDir} and import it with ${args.key_name}.key into the login keychain`
               }
@@ -55085,7 +55321,7 @@ var ascCertificatesTool = defineTool({
           notes: ["Per-team limits apply (e.g. 3 Apple Distribution, 5 Developer ID)."]
         }),
         async () => {
-          const csr = await readFile5(csrPath, "utf8");
+          const csr = await readFile6(csrPath, "utf8");
           let created;
           try {
             created = (await client.post("certificates", {
@@ -55108,16 +55344,16 @@ var ascCertificatesTool = defineTool({
           const data = { certificate: slimResource(created) };
           const content = created.attributes?.certificateContent;
           if (content) {
-            await mkdir6(keysDir, { recursive: true, mode: 448 });
-            const cerPath = join13(keysDir, `${args.key_name ?? created.id}.cer`);
-            await writeFile6(cerPath, Buffer.from(content, "base64"));
+            await mkdir7(keysDir, { recursive: true, mode: 448 });
+            const cerPath = join14(keysDir, `${args.key_name ?? created.id}.cer`);
+            await writeFile7(cerPath, Buffer.from(content, "base64"));
             data.cerPath = cerPath;
             lines.push(`Saved ${cerPath}.`);
-            if (install && args.key_name) {
+            if (install2 && args.key_name) {
               requireMacOS(ctx.platform, "Keychain import");
               const res = await importKeyAndCert(
                 ctx,
-                join13(keysDir, `${args.key_name}.key`),
+                join14(keysDir, `${args.key_name}.key`),
                 derToPem(Buffer.from(content, "base64")),
                 loginKeychain(ctx.platform.homeDir)
               );
@@ -55140,7 +55376,7 @@ var ascCertificatesTool = defineTool({
     if (args.action === "download_install") {
       if (!args.key_name)
         throw new ToolError("key_name is required: the private key that created this certificate's CSR.");
-      const keyPath = join13(keysDir, `${args.key_name}.key`);
+      const keyPath = join14(keysDir, `${args.key_name}.key`);
       if (!await pathExists(keyPath))
         throw new ToolError(
           `No private key ${keyPath}. A certificate is useless without the key that created its CSR \u2014 create a new certificate instead.`
@@ -55284,7 +55520,7 @@ var ascProfilesTool = defineTool({
   },
   async handler(args, ctx, extra) {
     const client = await ctx.asc(args.profile);
-    const install = (args.install ?? true) && ctx.platform.isMac;
+    const install2 = (args.install ?? true) && ctx.platform.isMac;
     if (args.action === "list") {
       const path = args.bundle_id ? `bundleIds/${(await resolveBundleIdResource(client, args.bundle_id)).id}/profiles` : "profiles";
       const res = await client.list(
@@ -55333,7 +55569,7 @@ var ascProfilesTool = defineTool({
       };
       const created = (await client.post("profiles", body)).data;
       let installed;
-      if (install && created.attributes?.profileContent) {
+      if (install2 && created.attributes?.profileContent) {
         installed = await installProfileBytes(
           ctx,
           Buffer.from(String(created.attributes.profileContent), "base64"),
@@ -55364,7 +55600,7 @@ var ascProfilesTool = defineTool({
               }
             ] : [],
             { description: "POST /v1/profiles" },
-            ...install ? [{ description: "Install into Xcode's Provisioning Profiles folders" }] : []
+            ...install2 ? [{ description: "Install into Xcode's Provisioning Profiles folders" }] : []
           ]
         }),
         async () => {
@@ -55440,7 +55676,7 @@ Installed: ${r.installed.join(", ")}` : ""}`,
           {
             description: `POST /v1/profiles with the same name/type for ${bundle.attributes?.identifier}, current certificates${profileNeedsDevices(type) ? " and devices" : ""}`
           },
-          ...install ? [{ description: "Install the new profile for Xcode" }] : []
+          ...install2 ? [{ description: "Install the new profile for Xcode" }] : []
         ],
         warnings: ["Builds must be re-signed/re-exported with the new profile."]
       }),
@@ -55457,12 +55693,12 @@ Installed: ${r.installed.join(", ")}` : ""}`,
 });
 
 // src/tools/checklist.ts
-import { readFile as readFile7 } from "fs/promises";
-import { dirname as dirname4, extname as extname8, isAbsolute as isAbsolute2, join as join15 } from "path";
+import { readFile as readFile8 } from "fs/promises";
+import { dirname as dirname5, extname as extname8, isAbsolute as isAbsolute2, join as join16 } from "path";
 
 // src/parsers/project/detect.ts
-import { readdir as readdir6, readFile as readFile6, stat as stat3 } from "fs/promises";
-import { basename as basename8, extname as extname7, join as join14, relative as relative3 } from "path";
+import { readdir as readdir6, readFile as readFile7, stat as stat4 } from "fs/promises";
+import { basename as basename8, extname as extname7, join as join15, relative as relative3 } from "path";
 var SKIP_DIRS = /* @__PURE__ */ new Set([
   "node_modules",
   "Pods",
@@ -55494,9 +55730,9 @@ function component(kind, path, extra = {}) {
     ...extra
   };
 }
-async function exists(p) {
+async function exists2(p) {
   try {
-    await stat3(p);
+    await stat4(p);
     return true;
   } catch {
     return false;
@@ -55504,14 +55740,14 @@ async function exists(p) {
 }
 async function readJson(p) {
   try {
-    return JSON.parse(await readFile6(p, "utf8"));
+    return JSON.parse(await readFile7(p, "utf8"));
   } catch {
     return void 0;
   }
 }
 async function readText(p) {
   try {
-    return await readFile6(p, "utf8");
+    return await readFile7(p, "utf8");
   } catch {
     return void 0;
   }
@@ -55556,11 +55792,11 @@ async function detectXcode(dir, path, kind) {
   const c = component(kind, path, { name });
   let pbxPaths = [];
   if (kind === "xcode-project") {
-    pbxPaths = [join14(path, "project.pbxproj")];
+    pbxPaths = [join15(path, "project.pbxproj")];
   } else {
-    const contents = await readText(join14(path, "contents.xcworkspacedata"));
+    const contents = await readText(join15(path, "contents.xcworkspacedata"));
     const refs = [...(contents ?? "").matchAll(/location = "group:([^"]+\.xcodeproj)"/g)].map((m) => m[1]);
-    pbxPaths = refs.filter((r) => !r.startsWith("Pods/")).map((r) => join14(dir, r, "project.pbxproj"));
+    pbxPaths = refs.filter((r) => !r.startsWith("Pods/")).map((r) => join15(dir, r, "project.pbxproj"));
     c.signing.projects = refs;
     if (refs.some((r) => r.startsWith("Pods/")))
       c.findings.push("CocoaPods workspace: always build the .xcworkspace, not the .xcodeproj.");
@@ -55619,14 +55855,14 @@ async function detectXcode(dir, path, kind) {
   return c;
 }
 async function detectSwiftPM(dir) {
-  const pkg = await readText(join14(dir, "Package.swift"));
+  const pkg = await readText(join15(dir, "Package.swift"));
   if (!pkg) return void 0;
   const name = /name:\s*"([^"]+)"/.exec(pkg)?.[1];
   const execs = [...pkg.matchAll(/\.executableTarget\(\s*name:\s*"([^"]+)"/g)].map((m) => m[1]);
   const platforms = [];
   if (/\.macOS\(/.test(pkg)) platforms.push("macOS");
   if (/\.iOS\(/.test(pkg)) platforms.push("iOS");
-  const c = component("swiftpm", join14(dir, "Package.swift"), {
+  const c = component("swiftpm", join15(dir, "Package.swift"), {
     name,
     platforms: platforms.length ? platforms : ["macOS"],
     signing: { executableTargets: execs },
@@ -55706,13 +55942,13 @@ async function detectElectron(dir, pkg) {
     "electron-builder.json5",
     "electron-builder.config.js"
   ];
-  const builderFile = (await Promise.all(builderFiles.map(async (f) => await exists(join14(dir, f)) ? f : void 0))).find(Boolean);
-  const forgeFile = await exists(join14(dir, "forge.config.js")) ? "forge.config.js" : await exists(join14(dir, "forge.config.ts")) ? "forge.config.ts" : void 0;
+  const builderFile = (await Promise.all(builderFiles.map(async (f) => await exists2(join15(dir, f)) ? f : void 0))).find(Boolean);
+  const forgeFile = await exists2(join15(dir, "forge.config.js")) ? "forge.config.js" : await exists2(join15(dir, "forge.config.ts")) ? "forge.config.ts" : void 0;
   const build2 = pkg.build ?? {};
-  const builderText = builderFile ? await readText(join14(dir, builderFile)) : void 0;
+  const builderText = builderFile ? await readText(join15(dir, builderFile)) : void 0;
   const appId = build2.appId ?? (builderText ? /appId:\s*["']?([\w.-]+)/.exec(builderText)?.[1] : void 0);
   const mac4 = build2.mac ?? {};
-  const c = component("electron", join14(dir, "package.json"), {
+  const c = component("electron", join15(dir, "package.json"), {
     name: pkg.productName ?? pkg.name,
     platforms: ["macOS"],
     bundleIds: appId ? [appId] : [],
@@ -55746,7 +55982,7 @@ async function detectElectron(dir, pkg) {
   return c;
 }
 async function detectTauri(dir) {
-  const confPath = ["src-tauri/tauri.conf.json", "tauri.conf.json"].map((p) => join14(dir, p));
+  const confPath = ["src-tauri/tauri.conf.json", "tauri.conf.json"].map((p) => join15(dir, p));
   let file2;
   let conf;
   for (const p of confPath) {
@@ -55757,8 +55993,8 @@ async function detectTauri(dir) {
     }
   }
   if (!conf || !file2) {
-    if (await exists(join14(dir, "src-tauri", "Tauri.toml")))
-      return component("tauri", join14(dir, "src-tauri", "Tauri.toml"), {
+    if (await exists2(join15(dir, "src-tauri", "Tauri.toml")))
+      return component("tauri", join15(dir, "src-tauri", "Tauri.toml"), {
         platforms: ["macOS"],
         findings: ["Tauri.toml config detected; signing keys live under [bundle.macOS]."],
         suggestedTargets: ["mac-developer-id"]
@@ -55771,7 +56007,7 @@ async function detectTauri(dir) {
   const macOS = bundle.macOS ?? {};
   const iOS = bundle.iOS ?? {};
   const platforms = ["macOS"];
-  if (await exists(join14(dir, "src-tauri", "gen", "apple"))) platforms.push("iOS");
+  if (await exists2(join15(dir, "src-tauri", "gen", "apple"))) platforms.push("iOS");
   const c = component("tauri", file2, {
     name: conf.productName ?? conf.package?.productName,
     platforms,
@@ -55827,13 +56063,13 @@ async function nativeIds(dir, sub) {
   const teamIds = [];
   let entries = [];
   try {
-    entries = await readdir6(join14(dir, sub), { withFileTypes: true });
+    entries = await readdir6(join15(dir, sub), { withFileTypes: true });
   } catch {
     return { bundleIds, teamIds };
   }
   for (const e of entries) {
     if (e.isDirectory() && e.name.endsWith(".xcodeproj")) {
-      const text = await readText(join14(dir, sub, e.name, "project.pbxproj"));
+      const text = await readText(join15(dir, sub, e.name, "project.pbxproj"));
       if (text) {
         const s = summarizePbxproj(text);
         bundleIds.push(...s.bundleIds);
@@ -55844,7 +56080,7 @@ async function nativeIds(dir, sub) {
   return { bundleIds: uniq(bundleIds), teamIds: uniq(teamIds) };
 }
 async function detectFlutter(dir) {
-  const pubspec = await readText(join14(dir, "pubspec.yaml"));
+  const pubspec = await readText(join15(dir, "pubspec.yaml"));
   if (!pubspec || !/^\s*flutter:/m.test(pubspec)) return void 0;
   const platforms = [];
   const ids = { bundleIds: [], teamIds: [] };
@@ -55852,14 +56088,14 @@ async function detectFlutter(dir) {
     ["ios", "iOS"],
     ["macos", "macOS"]
   ]) {
-    if (await exists(join14(dir, sub, "Runner.xcodeproj"))) {
+    if (await exists2(join15(dir, sub, "Runner.xcodeproj"))) {
       platforms.push(plat);
       const n = await nativeIds(dir, sub);
       ids.bundleIds.push(...n.bundleIds);
       ids.teamIds.push(...n.teamIds);
     }
   }
-  const c = component("flutter", join14(dir, "pubspec.yaml"), {
+  const c = component("flutter", join15(dir, "pubspec.yaml"), {
     name: /^name:\s*(\S+)/m.exec(pubspec)?.[1],
     platforms,
     bundleIds: uniq(ids.bundleIds),
@@ -55885,13 +56121,13 @@ async function detectReactNativeOrExpo(dir, pkg) {
   const isExpo = !!deps.expo;
   const isRN = !!deps["react-native"];
   if (!isExpo && !isRN) return void 0;
-  const hasIos = await exists(join14(dir, "ios"));
+  const hasIos = await exists2(join15(dir, "ios"));
   const ids = hasIos ? await nativeIds(dir, "ios") : { bundleIds: [], teamIds: [] };
   if (isExpo) {
-    const appJson = await readJson(join14(dir, "app.json")) ?? {};
+    const appJson = await readJson(join15(dir, "app.json")) ?? {};
     const expo = appJson.expo ?? appJson;
-    const eas = await readJson(join14(dir, "eas.json"));
-    const c2 = component("expo", join14(dir, "package.json"), {
+    const eas = await readJson(join15(dir, "eas.json"));
+    const c2 = component("expo", join15(dir, "package.json"), {
       name: expo.name ?? pkg.name,
       platforms: ["iOS"],
       bundleIds: uniq([expo.ios?.bundleIdentifier, ...ids.bundleIds]),
@@ -55902,7 +56138,7 @@ async function detectReactNativeOrExpo(dir, pkg) {
         version: expo.version,
         easBuildProfiles: eas?.build ? Object.keys(eas.build) : void 0,
         easSubmitIos: eas?.submit?.production?.ios,
-        appConfigDynamic: await exists(join14(dir, "app.config.js")) || await exists(join14(dir, "app.config.ts"))
+        appConfigDynamic: await exists2(join15(dir, "app.config.js")) || await exists2(join15(dir, "app.config.ts"))
       },
       suggestedTargets: ["testflight-ios", "ios-app-store"]
     });
@@ -55936,7 +56172,7 @@ async function detectReactNativeOrExpo(dir, pkg) {
     c2.buildCommands = ["eas build -p ios --profile production", "eas submit -p ios --latest"];
     return c2;
   }
-  const c = component("react-native", join14(dir, "package.json"), {
+  const c = component("react-native", join15(dir, "package.json"), {
     name: pkg.name,
     platforms: hasIos ? ["iOS"] : [],
     bundleIds: ids.bundleIds,
@@ -55953,9 +56189,9 @@ async function detectReactNativeOrExpo(dir, pkg) {
   return c;
 }
 async function readBundleInfo(appPath) {
-  for (const p of [join14(appPath, "Contents", "Info.plist"), join14(appPath, "Info.plist")]) {
+  for (const p of [join15(appPath, "Contents", "Info.plist"), join15(appPath, "Info.plist")]) {
     try {
-      return parsePlistDict(new Uint8Array(await readFile6(p)));
+      return parsePlistDict(new Uint8Array(await readFile7(p)));
     } catch {
     }
   }
@@ -55965,7 +56201,7 @@ async function detectArtifact(path) {
   const ext = extname7(path).toLowerCase();
   if (ext === ".app") {
     const info = await readBundleInfo(path);
-    const isMac = await exists(join14(path, "Contents"));
+    const isMac = await exists2(join15(path, "Contents"));
     const c = component("app-bundle", path, {
       name: info?.CFBundleName ?? basename8(path, ".app"),
       platforms: [isMac ? "macOS" : "iOS"],
@@ -55974,7 +56210,7 @@ async function detectArtifact(path) {
         version: info?.CFBundleShortVersionString,
         build: info?.CFBundleVersion,
         minimumSystemVersion: info?.LSMinimumSystemVersion ?? info?.MinimumOSVersion,
-        embeddedProfile: await exists(join14(path, "Contents", "embedded.provisionprofile")) ? "Contents/embedded.provisionprofile" : await exists(join14(path, "embedded.mobileprovision")) ? "embedded.mobileprovision" : void 0
+        embeddedProfile: await exists2(join15(path, "Contents", "embedded.provisionprofile")) ? "Contents/embedded.provisionprofile" : await exists2(join15(path, "embedded.mobileprovision")) ? "embedded.mobileprovision" : void 0
       },
       suggestedTargets: isMac ? ["mac-developer-id"] : ["ios-ad-hoc"]
     });
@@ -55986,14 +56222,14 @@ async function detectArtifact(path) {
   if (ext === ".xcarchive") {
     let info;
     try {
-      info = parsePlistDict(new Uint8Array(await readFile6(join14(path, "Info.plist"))));
+      info = parsePlistDict(new Uint8Array(await readFile7(join15(path, "Info.plist"))));
     } catch {
     }
     const props = info?.ApplicationProperties ?? {};
     const appPath = String(props.ApplicationPath ?? "");
     return component("xcarchive", path, {
       name: String(info?.Name ?? basename8(path, ".xcarchive")),
-      platforms: appPath.includes("Applications/") && await exists(join14(path, "Products", appPath, "Contents")) ? ["macOS"] : ["iOS"],
+      platforms: appPath.includes("Applications/") && await exists2(join15(path, "Products", appPath, "Contents")) ? ["macOS"] : ["iOS"],
       bundleIds: props.CFBundleIdentifier ? [String(props.CFBundleIdentifier)] : [],
       teamIds: props.Team ? [String(props.Team)] : [],
       signing: {
@@ -56044,7 +56280,7 @@ async function detectArtifact(path) {
   return void 0;
 }
 async function detectProject(root, maxDepth = 2) {
-  const st = await stat3(root);
+  const st = await stat4(root);
   const artifact = await detectArtifact(root);
   if (artifact) return { root, components: [artifact] };
   if (!st.isDirectory()) {
@@ -56062,26 +56298,26 @@ async function detectProject(root, maxDepth = 2) {
   const components = [];
   const claimed = /* @__PURE__ */ new Set();
   async function scanDir(dir, depth) {
-    const pkg = await readJson(join14(dir, "package.json"));
+    const pkg = await readJson(join15(dir, "package.json"));
     if (pkg) {
       const deps = { ...pkg.dependencies, ...pkg.devDependencies };
       if (deps.electron) components.push(await detectElectron(dir, pkg));
       const rn = await detectReactNativeOrExpo(dir, pkg);
       if (rn) {
         components.push(rn);
-        claimed.add(join14(dir, "ios"));
+        claimed.add(join15(dir, "ios"));
       }
     }
     const tauri = await detectTauri(dir);
     if (tauri) {
       components.push(tauri);
-      claimed.add(join14(dir, "src-tauri"));
+      claimed.add(join15(dir, "src-tauri"));
     }
     const flutter = await detectFlutter(dir);
     if (flutter) {
       components.push(flutter);
-      claimed.add(join14(dir, "ios"));
-      claimed.add(join14(dir, "macos"));
+      claimed.add(join15(dir, "ios"));
+      claimed.add(join15(dir, "macos"));
     }
     const spm = await detectSwiftPM(dir);
     if (spm) components.push(spm);
@@ -56095,19 +56331,19 @@ async function detectProject(root, maxDepth = 2) {
     const projects = entries.filter((e) => e.isDirectory() && e.name.endsWith(".xcodeproj"));
     if (!claimed.has(dir)) {
       for (const w of workspaces)
-        components.push(await detectXcode(dir, join14(dir, w.name), "xcode-workspace"));
+        components.push(await detectXcode(dir, join15(dir, w.name), "xcode-workspace"));
       if (!workspaces.length)
-        for (const p of projects) components.push(await detectXcode(dir, join14(dir, p.name), "xcode-project"));
+        for (const p of projects) components.push(await detectXcode(dir, join15(dir, p.name), "xcode-project"));
     } else if (workspaces.length || projects.length) {
       const owner = components.find((c) => ["flutter", "react-native", "expo"].includes(c.kind));
       if (owner)
         owner.signing.nativeProjects = [...workspaces, ...projects].map(
-          (e) => relative3(root, join14(dir, e.name))
+          (e) => relative3(root, join15(dir, e.name))
         );
     }
     for (const e of entries) {
       if (e.isDirectory() && /\.(app|xcarchive)$/.test(e.name) && depth === 0) {
-        const a = await detectArtifact(join14(dir, e.name));
+        const a = await detectArtifact(join15(dir, e.name));
         if (a) components.push(a);
       }
     }
@@ -56115,7 +56351,7 @@ async function detectProject(root, maxDepth = 2) {
     for (const e of entries) {
       if (!e.isDirectory() || SKIP_DIRS.has(e.name) || e.name.startsWith(".")) continue;
       if (/\.(xcodeproj|xcworkspace|app|xcarchive|framework|bundle|lproj|xcassets)$/.test(e.name)) continue;
-      await scanDir(join14(dir, e.name), depth + 1);
+      await scanDir(join15(dir, e.name), depth + 1);
     }
   }
   await scanDir(root, 0);
@@ -56126,7 +56362,7 @@ async function detectProject(root, maxDepth = 2) {
 var ICON = { ok: "\u2713", missing: "\u2717", warn: "\u26A0", unknown: "?", manual: "\u2610" };
 async function readEntitlementsFiles(component2) {
   if (!component2) return {};
-  const base = dirname4(component2.path);
+  const base = dirname5(component2.path);
   const files = [];
   const s = component2.signing;
   for (const f of s.entitlementsFiles ?? []) if (!f.includes("$(")) files.push(f);
@@ -56134,9 +56370,9 @@ async function readEntitlementsFiles(component2) {
   if (s.macOS?.entitlements) files.push(s.macOS.entitlements);
   const out = {};
   for (const f of files) {
-    for (const candidate of [isAbsolute2(f) ? f : join15(base, f), join15(base, "..", f)]) {
+    for (const candidate of [isAbsolute2(f) ? f : join16(base, f), join16(base, "..", f)]) {
       try {
-        Object.assign(out, parsePlistDict(new Uint8Array(await readFile7(candidate))));
+        Object.assign(out, parsePlistDict(new Uint8Array(await readFile8(candidate))));
         break;
       } catch {
       }
@@ -56566,8 +56802,8 @@ var distributionChecklistTool = defineTool({
 });
 
 // src/tools/ci.ts
-import { mkdir as mkdir7, writeFile as writeFile7 } from "fs/promises";
-import { dirname as dirname5 } from "path";
+import { mkdir as mkdir8, writeFile as writeFile8 } from "fs/promises";
+import { dirname as dirname6 } from "path";
 var FRAMEWORKS = [
   "xcode",
   "electron",
@@ -56847,8 +57083,8 @@ ${secrets.map((s) => `\u2022 ${s.name}: ${s.how}`).join("\n")}`;
     if (!args.output_path) return result;
     const out = await resolveUserPath(ctx, args.output_path, false);
     const write = async () => {
-      await mkdir7(dirname5(out), { recursive: true });
-      await writeFile7(out, yaml);
+      await mkdir8(dirname6(out), { recursive: true });
+      await writeFile8(out, yaml);
       return { ...result, summary: `Wrote ${out}.
 
 ${summary}`, data: { ...result.data, written: out } };
@@ -57013,8 +57249,8 @@ var detectProjectTool = defineTool({
 });
 
 // src/tools/diagnostics.ts
-import { readdir as readdir7, readFile as readFile8, stat as stat4, unlink as unlink2 } from "fs/promises";
-import { basename as basename9, join as join16 } from "path";
+import { readdir as readdir7, readFile as readFile9, stat as stat5, unlink as unlink2 } from "fs/promises";
+import { basename as basename9, join as join17 } from "path";
 
 // src/parsers/ips.ts
 function parseCrashReport(text) {
@@ -57358,7 +57594,7 @@ var crashReportsTool = defineTool({
   },
   async handler(args, ctx) {
     const dirs = [
-      join16(ctx.platform.homeDir, "Library", "Logs", "DiagnosticReports"),
+      join17(ctx.platform.homeDir, "Library", "Logs", "DiagnosticReports"),
       "/Library/Logs/DiagnosticReports"
     ];
     const files = [];
@@ -57368,8 +57604,8 @@ var crashReportsTool = defineTool({
           if (!/\.(ips|crash)$/.test(f)) continue;
           if (args.process && !f.toLowerCase().includes(args.process.toLowerCase().split(".").pop()))
             continue;
-          const p = join16(d, f);
-          files.push({ path: p, mtime: (await stat4(p)).mtimeMs });
+          const p = join17(d, f);
+          files.push({ path: p, mtime: (await stat5(p)).mtimeMs });
         }
       } catch {
       }
@@ -57378,7 +57614,7 @@ var crashReportsTool = defineTool({
     const reports = [];
     for (const f of files.slice(0, args.limit ?? 10)) {
       try {
-        const s = parseCrashReport(await readFile8(f.path, "utf8"));
+        const s = parseCrashReport(await readFile9(f.path, "utf8"));
         if (args.process && ![s.process, s.bundleId, basename9(f.path)].some(
           (x) => x?.toLowerCase().includes(args.process.toLowerCase())
         ))
@@ -57402,14 +57638,14 @@ var crashReportsTool = defineTool({
   }
 });
 async function scanRequiredReasonApis(binary) {
-  const buf = await readFile8(binary);
+  const buf = await readFile9(binary);
   return REQUIRED_REASON_APIS.filter(
     (c) => c.markers.some((m) => buf.includes(Buffer.from(m, "latin1")))
   ).map((c) => c.category);
 }
 async function mainExecutable(app, info) {
   const exe = info?.CFBundleExecutable;
-  for (const p of [exe && join16(app, "Contents", "MacOS", exe), exe && join16(app, exe)])
+  for (const p of [exe && join17(app, "Contents", "MacOS", exe), exe && join17(app, exe)])
     if (p && await pathExists(p)) return p;
   return void 0;
 }
@@ -57453,7 +57689,7 @@ var privacyTool = defineTool({
     const app = await resolveUserPath(ctx, args.path);
     if (!await isDirectory(app)) throw new ToolError("audit expects an .app bundle.");
     const info = await readBundleInfo(app) ?? {};
-    const isMac = await pathExists(join16(app, "Contents"));
+    const isMac = await pathExists(join17(app, "Contents"));
     const platform = isMac ? "macOS" : "iOS";
     const exe = await mainExecutable(app, info);
     const findings = [];
@@ -57505,14 +57741,14 @@ var privacyTool = defineTool({
         findings.push(finding("info", `${res.title}: ${res.notes}`));
     }
     const manifestPath = [
-      join16(app, "PrivacyInfo.xcprivacy"),
-      join16(app, "Contents", "Resources", "PrivacyInfo.xcprivacy")
+      join17(app, "PrivacyInfo.xcprivacy"),
+      join17(app, "Contents", "Resources", "PrivacyInfo.xcprivacy")
     ];
     let manifest;
     for (const p of manifestPath) {
       if (await pathExists(p)) {
         try {
-          manifest = parsePlistDict(new Uint8Array(await readFile8(p)));
+          manifest = parsePlistDict(new Uint8Array(await readFile9(p)));
         } catch {
           findings.push(finding("error", `PrivacyInfo.xcprivacy at ${p} is not a valid plist.`));
         }
@@ -57594,13 +57830,13 @@ var devicesTool = defineTool({
       } catch {
       }
     }
-    const tmp = join16(await scratchDir("devicectl"), "devices.json");
+    const tmp = join17(await scratchDir("devicectl"), "devices.json");
     const dc = await ctx.runner.run("xcrun", ["devicectl", "list", "devices", "--json-output", tmp], {
       timeoutMs: 6e4
     });
     if (ok(dc)) {
       try {
-        const j = JSON.parse(await readFile8(tmp, "utf8"));
+        const j = JSON.parse(await readFile9(tmp, "utf8"));
         data.connected = (j.result?.devices ?? []).map((d) => ({
           name: d.deviceProperties?.name,
           udid: d.hardwareProperties?.udid,
@@ -58033,8 +58269,8 @@ ${formatFindings(findings)}`,
 });
 
 // src/tools/entitlements.ts
-import { readFile as readFile9, writeFile as writeFile8 } from "fs/promises";
-import { extname as extname9, join as join17 } from "path";
+import { readFile as readFile10, writeFile as writeFile9 } from "fs/promises";
+import { extname as extname9, join as join18 } from "path";
 async function loadEntitlements(ctx, path) {
   const ext = extname9(path).toLowerCase();
   if (ext === ".mobileprovision" || ext === ".provisionprofile") {
@@ -58042,7 +58278,7 @@ async function loadEntitlements(ctx, path) {
     return { source: "profile", entitlements: asDict(profile.Entitlements) ?? {}, profile };
   }
   if (ext === ".entitlements" || ext === ".plist" || ext === ".xcent") {
-    return { source: "file", entitlements: parsePlistDict(new Uint8Array(await readFile9(path))) };
+    return { source: "file", entitlements: parsePlistDict(new Uint8Array(await readFile10(path))) };
   }
   if (!ctx.platform.isMac)
     throw new ToolError("Reading entitlements from a signed binary requires macOS (codesign).");
@@ -58249,7 +58485,7 @@ ${formatFindings(findings2)}` : ""}`,
           notes: [xml]
         }),
         async () => {
-          await writeFile8(out, xml);
+          await writeFile9(out, xml);
           return {
             ...result,
             summary: `Wrote ${out}.
@@ -58279,8 +58515,8 @@ ${ann.length ? ann.map((a) => `\u2022 ${a.key} = ${JSON.stringify(a.value)}${a.t
       profileSource = pp;
     } else if (await isDirectory(path)) {
       for (const rel2 of ["Contents/embedded.provisionprofile", "embedded.mobileprovision"]) {
-        if (await pathExists(join17(path, rel2))) {
-          const prof = await decodeProvisioningProfile(ctx.runner, join17(path, rel2), ctx.platform.isMac);
+        if (await pathExists(join18(path, rel2))) {
+          const prof = await decodeProvisioningProfile(ctx.runner, join18(path, rel2), ctx.platform.isMac);
           profileEnt = asDict(prof.Entitlements);
           profileSource = `${rel2} (embedded)`;
         }
@@ -58304,7 +58540,7 @@ ${formatFindings(findings) || "All good."}`,
 
 // src/tools/inspect.ts
 import { readdir as readdir8 } from "fs/promises";
-import { extname as extname10, join as join18 } from "path";
+import { extname as extname10, join as join19 } from "path";
 var signingIdentitiesTool = defineTool({
   name: "signing_identities",
   title: "List keychain signing identities and certificates",
@@ -58490,11 +58726,11 @@ ${formatFindings(findings)}` : ""}`,
   }
 });
 async function mainExecutables(bundle) {
-  for (const dir of [join18(bundle, "Contents", "MacOS"), bundle]) {
+  for (const dir of [join19(bundle, "Contents", "MacOS"), bundle]) {
     try {
       const files = await readdir8(dir);
       const out = [];
-      for (const f of files) if (await isMachO(join18(dir, f))) out.push(join18(dir, f));
+      for (const f of files) if (await isMachO(join19(dir, f))) out.push(join19(dir, f));
       if (out.length) return out;
     } catch {
     }
@@ -58503,8 +58739,8 @@ async function mainExecutables(bundle) {
 }
 
 // src/tools/signing.ts
-import { copyFile as copyFile2, readdir as readdir9, writeFile as writeFile9 } from "fs/promises";
-import { basename as basename10, dirname as dirname6, extname as extname11, join as join19 } from "path";
+import { copyFile as copyFile2, readdir as readdir9, writeFile as writeFile10 } from "fs/promises";
+import { basename as basename10, dirname as dirname7, extname as extname11, join as join20 } from "path";
 var ENTITLED_KINDS = /* @__PURE__ */ new Set(["app", "xpc", "appex", "executable", "systemextension"]);
 function codesignArgs(item, s, isRoot) {
   const adhoc = s.identity === "-";
@@ -58641,7 +58877,7 @@ var signTool = defineTool({
     const isBundle = await isDirectory(path);
     const pre = [];
     const profile = await resolve2(args.embed_profile);
-    const profileDest = profile && isBundle ? await pathExists(join19(path, "Contents")) ? join19(path, "Contents", "embedded.provisionprofile") : join19(path, "embedded.mobileprovision") : void 0;
+    const profileDest = profile && isBundle ? await pathExists(join20(path, "Contents")) ? join20(path, "Contents", "embedded.provisionprofile") : join20(path, "embedded.mobileprovision") : void 0;
     if (profileDest) pre.push({ description: `Embed ${basename10(profile)} at ${profileDest}` });
     if (args.clear_xattrs !== false && isBundle)
       pre.push(cmdStep("Remove extended attributes (avoids 'detritus' errors)", "xattr", ["-cr", path]));
@@ -58757,7 +58993,7 @@ var resignTool = defineTool({
     if (ext === ".xcarchive")
       throw new ToolError("For .xcarchive use xcode action=export with the export method you need.");
     if (ext !== ".app" && ext !== ".ipa") throw new ToolError("resign supports .app and .ipa.");
-    const out = args.output_path ? await resolveUserPath(ctx, args.output_path, false) : join19(dirname6(src), `${basename10(src, ext)}-resigned${ext}`);
+    const out = args.output_path ? await resolveUserPath(ctx, args.output_path, false) : join20(dirname7(src), `${basename10(src, ext)}-resigned${ext}`);
     const identity = await resolveIdentity(ctx, args.identity, args.target);
     const profile = args.profile ? await resolveUserPath(ctx, args.profile) : void 0;
     const isDist = !args.target || !["ios-development", "mac-development"].includes(args.target);
@@ -58793,27 +59029,27 @@ var resignTool = defineTool({
             if (ext === ".ipa") {
               const x = await ctx.runner.run("ditto", ["-x", "-k", src, work], { timeoutMs: 6e5 });
               if (!ok(x)) throw new ToolError(`Extract failed: ${output2(x)}`);
-              const apps = (await readdir9(join19(work, "Payload"))).filter((f) => f.endsWith(".app"));
+              const apps = (await readdir9(join20(work, "Payload"))).filter((f) => f.endsWith(".app"));
               if (!apps[0]) throw new ToolError("No app in Payload/.");
-              app = join19(work, "Payload", apps[0]);
+              app = join20(work, "Payload", apps[0]);
             } else {
               const c = await ctx.runner.run("ditto", [src, out], { timeoutMs: 6e5 });
               if (!ok(c)) throw new ToolError(`Copy failed: ${output2(c)}`);
               app = out;
             }
-            const isMacApp = await pathExists(join19(app, "Contents"));
-            const profilePath = isMacApp ? join19(app, "Contents", "embedded.provisionprofile") : join19(app, "embedded.mobileprovision");
+            const isMacApp = await pathExists(join20(app, "Contents"));
+            const profilePath = isMacApp ? join20(app, "Contents", "embedded.provisionprofile") : join20(app, "embedded.mobileprovision");
             const entDir = await scratchDir("resign-ent");
             const nestedEnt = {};
             for (const [rel2, prof] of Object.entries(args.extension_profiles ?? {})) {
-              const appex = join19(app, rel2);
+              const appex = join20(app, rel2);
               const pp = await resolveUserPath(ctx, prof);
-              const dest = isMacApp ? join19(appex, "Contents", "embedded.provisionprofile") : join19(appex, "embedded.mobileprovision");
+              const dest = isMacApp ? join20(appex, "Contents", "embedded.provisionprofile") : join20(appex, "embedded.mobileprovision");
               await copyFile2(pp, dest);
               const pl = await decodeProvisioningProfile(ctx.runner, pp, true);
               const existing = await readSignedEntitlements(ctx, appex);
-              const f = join19(entDir, `${basename10(rel2)}.plist`);
-              await writeFile9(
+              const f = join20(entDir, `${basename10(rel2)}.plist`);
+              await writeFile10(
                 f,
                 buildPlist(entitlementsFromProfile(pl, existing, args.target))
               );
@@ -58836,8 +59072,8 @@ var resignTool = defineTool({
                 delete derived2["com.apple.security.get-task-allow"];
               }
               if (derived2) {
-                mainEnt = join19(entDir, "main.plist");
-                await writeFile9(mainEnt, buildPlist(derived2));
+                mainEnt = join20(entDir, "main.plist");
+                await writeFile10(mainEnt, buildPlist(derived2));
               }
             } else if (profile) await copyFile2(profile, profilePath);
             await ctx.runner.run("xattr", ["-cr", app], { timeoutMs: 12e4 });
@@ -58864,7 +59100,7 @@ ${formatMatches(known)}`,
             if (ext === ".ipa") {
               const z1 = await ctx.runner.run(
                 "ditto",
-                ["-c", "-k", "--sequesterRsrc", "--keepParent", join19(work, "Payload"), out],
+                ["-c", "-k", "--sequesterRsrc", "--keepParent", join20(work, "Payload"), out],
                 { timeoutMs: 6e5 }
               );
               if (!ok(z1)) throw new ToolError(`Zip failed: ${output2(z1)}`);
@@ -59395,8 +59631,8 @@ var appStoreTool = defineTool({
 });
 
 // src/tools/upload.ts
-import { copyFile as copyFile3, mkdir as mkdir8 } from "fs/promises";
-import { basename as basename11, extname as extname12, join as join20 } from "path";
+import { copyFile as copyFile3, mkdir as mkdir9 } from "fs/promises";
+import { basename as basename11, extname as extname12, join as join21 } from "path";
 async function ipaInfo(ctx, ipa) {
   const list = await ctx.runner.run("unzip", ["-Z1", ipa], { timeoutMs: 6e4 });
   const plistEntry = list.stdout.split("\n").find((l) => /^Payload\/[^/]+\.app\/Info\.plist$/.test(l.trim()));
@@ -59459,8 +59695,8 @@ var uploadBuildTool = defineTool({
       throw new ToolError("altool not available \u2014 install Xcode (not just Command Line Tools).");
     const supportsPackage = helpText.includes("--upload-package");
     const supportsP8Flag = helpText.includes("--p8-file-path");
-    const keyDir = join20(ctx.platform.homeDir, ".appstoreconnect", "private_keys");
-    const keyDest = join20(keyDir, `AuthKey_${creds.keyId}.p8`);
+    const keyDir = join21(ctx.platform.homeDir, ".appstoreconnect", "private_keys");
+    const keyDest = join21(keyDir, `AuthKey_${creds.keyId}.p8`);
     const needsCopy = !supportsP8Flag && !await pathExists(keyDest);
     const type = args.platform ?? (ext === ".ipa" ? "ios" : "macos");
     const cmd = supportsPackage ? [
@@ -59517,7 +59753,7 @@ var uploadBuildTool = defineTool({
         if (needsCopy) {
           if (!creds.privateKeyPath)
             throw new ToolError("The API key must be a file on disk for altool (set privateKeyPath).");
-          await mkdir8(keyDir, { recursive: true, mode: 448 });
+          await mkdir9(keyDir, { recursive: true, mode: 448 });
           await copyFile3(creds.privateKeyPath, keyDest);
         }
         const job = await ctx.jobs.runWithDeadline(
@@ -59562,8 +59798,8 @@ ${formatMatches(known)}` : ""}`,
 });
 
 // src/tools/xcode.ts
-import { mkdir as mkdir9, readdir as readdir10, writeFile as writeFile10 } from "fs/promises";
-import { basename as basename12, dirname as dirname7, extname as extname13, join as join21 } from "path";
+import { mkdir as mkdir10, readdir as readdir10, writeFile as writeFile11 } from "fs/promises";
+import { basename as basename12, dirname as dirname8, extname as extname13, join as join22 } from "path";
 async function containerArgs(ctx, path) {
   const p = await resolveUserPath(ctx, path);
   if (p.endsWith(".xcworkspace")) return { flag: "-workspace", path: p };
@@ -59571,9 +59807,9 @@ async function containerArgs(ctx, path) {
   if (await isDirectory(p)) {
     const entries = await readdir10(p);
     const ws = entries.find((e) => e.endsWith(".xcworkspace"));
-    if (ws) return { flag: "-workspace", path: join21(p, ws) };
+    if (ws) return { flag: "-workspace", path: join22(p, ws) };
     const proj = entries.find((e) => e.endsWith(".xcodeproj"));
-    if (proj) return { flag: "-project", path: join21(p, proj) };
+    if (proj) return { flag: "-project", path: join22(p, proj) };
   }
   throw new ToolError(`No .xcworkspace or .xcodeproj at ${p}.`, {
     hint: "Flutter: ios/Runner.xcworkspace or macos/Runner.xcworkspace; React Native: ios/<Name>.xcworkspace (run pod install first)."
@@ -59727,7 +59963,7 @@ ${formatFindings(findings)}` : ""}`,
       const c = await containerArgs(ctx, args.path);
       const platform = args.target ? TARGETS[args.target].platform : void 0;
       if (!platform) throw new ToolError("target is required for archive (it decides the platform).");
-      const archivePath = args.archive_path ? await resolveUserPath(ctx, args.archive_path, false) : join21(dirname7(c.path), "build", `${args.scheme}.xcarchive`);
+      const archivePath = args.archive_path ? await resolveUserPath(ctx, args.archive_path, false) : join22(dirname8(c.path), "build", `${args.scheme}.xcarchive`);
       const cmd2 = [
         "archive",
         c.flag,
@@ -59802,7 +60038,7 @@ Full log: ${r.logPath ?? "(not written)"}`,
     if (!args.archive_path || !args.target) throw new ToolError("archive_path and target are required.");
     const archive = await resolveUserPath(ctx, args.archive_path);
     const method = await exportMethodFor(ctx, args.target);
-    const exportPath = args.export_path ? await resolveUserPath(ctx, args.export_path, false) : join21(dirname7(archive), `${basename12(archive, extname13(archive))}-${method}`);
+    const exportPath = args.export_path ? await resolveUserPath(ctx, args.export_path, false) : join22(dirname8(archive), `${basename12(archive, extname13(archive))}-${method}`);
     const opts = exportOptions({
       method,
       destination: args.destination ?? "export",
@@ -59811,7 +60047,7 @@ Full log: ${r.logPath ?? "(not written)"}`,
       provisioningProfiles: args.provisioning_profiles,
       signingCertificate: args.signing_certificate
     });
-    const optsPath = join21(exportPath, "ExportOptions.plist");
+    const optsPath = join22(exportPath, "ExportOptions.plist");
     const cmd = [
       "-exportArchive",
       "-archivePath",
@@ -59836,8 +60072,8 @@ Full log: ${r.logPath ?? "(not written)"}`,
         warnings: args.destination === "upload" ? ["Uploads the build to App Store Connect (build numbers cannot be reused)."] : []
       }),
       async () => {
-        await mkdir9(exportPath, { recursive: true });
-        await writeFile10(optsPath, buildPlist(opts));
+        await mkdir10(exportPath, { recursive: true });
+        await writeFile11(optsPath, buildPlist(opts));
         const job = await ctx.jobs.runWithDeadline(
           "export",
           `Export ${basename12(archive)}`,
@@ -59864,9 +60100,9 @@ ${formatMatches(known)}` : ""}`,
             }
             const files = await readdir10(exportPath).catch(() => []);
             const next = args.destination === "upload" ? ["asc_builds action=wait_processing app=<bundle id> build_number=<CFBundleVersion>"] : args.target === "mac-developer-id" ? [
-              `notarize_and_staple path=${join21(exportPath, files.find((f) => f.endsWith(".app")) ?? "<App>.app")}`
+              `notarize_and_staple path=${join22(exportPath, files.find((f) => f.endsWith(".app")) ?? "<App>.app")}`
             ] : TARGETS[args.target].ascAppRecord ? [
-              `upload_build path=${join21(exportPath, files.find((f) => /\.(ipa|pkg)$/.test(f)) ?? "<file>")}`
+              `upload_build path=${join22(exportPath, files.find((f) => /\.(ipa|pkg)$/.test(f)) ?? "<file>")}`
             ] : [];
             return {
               summary: `Exported to ${exportPath}: ${files.join(", ")}${args.destination === "upload" ? "\nUploaded to App Store Connect." : ""}`,
@@ -59931,7 +60167,7 @@ var allTools = [
 ];
 
 // src/server.ts
-var SERVER_NAME = "notarize";
+var SERVER_NAME2 = "notarize";
 var SERVER_VERSION = package_default.version;
 var SERVER_INSTRUCTIONS = `Apple code signing, notarization, certificates, provisioning, entitlements, Gatekeeper/sandbox/TCC debugging, TestFlight and App Store Connect.
 
@@ -59942,7 +60178,7 @@ Mutating tools (signing, keychain, notarization submits, uploads, App Store Conn
 Read notarize://guides/* resources (or the apple-distribution skill) for background on any topic.`;
 function createServer(ctx, tools = allTools) {
   const server = new McpServer(
-    { name: SERVER_NAME, version: SERVER_VERSION },
+    { name: SERVER_NAME2, version: SERVER_VERSION },
     { instructions: SERVER_INSTRUCTIONS, capabilities: { logging: {} } }
   );
   for (const def of tools) {
@@ -59989,11 +60225,15 @@ function createServer(ctx, tools = allTools) {
 
 // src/index.ts
 var HELP = [
-  `${SERVER_NAME} ${SERVER_VERSION} \u2014 stdio MCP server for Apple signing, notarization and App Store Connect.`,
+  `${SERVER_NAME2} ${SERVER_VERSION} \u2014 stdio MCP server for Apple signing, notarization and App Store Connect.`,
   "",
   "Usage:",
   "  notarize-mcp                              speak MCP over stdio (what MCP clients run)",
   "  notarize-mcp --list-tools",
+  "  notarize-mcp install [--client claude-code|claude-desktop|cursor|all] [--scope user|project] [--no-skill] [--pin] [--force] [--dry-run]",
+  "      Register the MCP server with your AI clients (default: the ones detected) and install the skill.",
+  "      e.g.  npx -y notarize-mcp install",
+  "  notarize-mcp uninstall [--client \u2026] [--scope \u2026] [--dry-run]",
   "  notarize-mcp watch-job <job-id> [--state-dir DIR] [--interval SECONDS] [--max-minutes N]",
   "      Follow a background job (notarization, signing, upload\u2026). One line per status change;",
   "      exits 0 succeeded, 1 failed, 3 lost (server stopped), 4 max time reached. Built for Claude Code's Monitor tool.",
@@ -60014,6 +60254,21 @@ var HELP = [
 async function main() {
   const argv = process.argv.slice(2);
   const [command, ...rest] = argv;
+  if (command === "install" || command === "uninstall") {
+    const { flags } = parseFlags(rest);
+    const opts = parseInstallFlags(flags);
+    const deps = {
+      runner: new SpawnRunner(),
+      home: homedir3(),
+      cwd: process.cwd(),
+      platform: process.platform,
+      version: SERVER_VERSION,
+      skillDir: findSkillDir(),
+      print: (line) => process.stdout.write(`${line}
+`)
+    };
+    return command === "install" ? install(opts, deps) : uninstall(opts, deps);
+  }
   if (command === "watch-job") {
     const { positional, flags } = parseFlags(rest);
     const id = requireArg(positional[0], "notarize-mcp watch-job <job-id>");
@@ -60058,7 +60313,7 @@ ${HELP}`);
   const server = createServer(ctx);
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  process.stderr.write(`${SERVER_NAME} MCP server ${SERVER_VERSION} running on stdio (${ctx.platform.os})
+  process.stderr.write(`${SERVER_NAME2} MCP server ${SERVER_VERSION} running on stdio (${ctx.platform.os})
 `);
   return void 0;
 }
@@ -60067,7 +60322,7 @@ main().then(
     if (code !== void 0) process.exit(code);
   },
   (err) => {
-    process.stderr.write(`${SERVER_NAME}: ${err instanceof Error ? err.message : String(err)}
+    process.stderr.write(`${SERVER_NAME2}: ${err instanceof Error ? err.message : String(err)}
 `);
     process.exit(2);
   }
