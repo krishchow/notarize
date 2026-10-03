@@ -56014,6 +56014,308 @@ var distributionChecklistTool = defineTool({
   }
 });
 
+// src/tools/ci.ts
+import { mkdir as mkdir7, writeFile as writeFile7 } from "fs/promises";
+import { dirname as dirname5 } from "path";
+var FRAMEWORKS = [
+  "xcode",
+  "electron",
+  "tauri",
+  "flutter",
+  "react-native",
+  "expo",
+  "swiftpm",
+  "prebuilt"
+];
+var CI_TARGETS = [
+  "mac-developer-id",
+  "testflight-ios",
+  "ios-app-store",
+  "mac-app-store",
+  "testflight-mac"
+];
+var KEYCHAIN_SETUP = `      - name: Import signing certificate into a temporary keychain
+        env:
+          P12_BASE64: \${{ secrets.SIGNING_CERTIFICATE_P12_BASE64 }}
+          P12_PASSWORD: \${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          echo "$P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          # Without this, codesign fails with errSecInternalComponent on CI
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          security find-identity -v -p codesigning "$KEYCHAIN"
+`;
+var API_KEY_SETUP = `      - name: Write App Store Connect API key
+        env:
+          ASC_PRIVATE_KEY: \${{ secrets.ASC_PRIVATE_KEY }}
+          ASC_KEY_ID: \${{ secrets.ASC_KEY_ID }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$ASC_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey_\${ASC_KEY_ID}.p8
+          echo "ASC_KEY_PATH=$HOME/.appstoreconnect/private_keys/AuthKey_\${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+`;
+var CLEANUP = `      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
+`;
+function notarizeSteps(appPathExpr, appName) {
+  return `      - name: Notarize and staple
+        env:
+          ASC_KEY_ID: \${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: \${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          APP="${appPathExpr}"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$RUNNER_TEMP/${appName}-notarize.zip"
+          # Notarization usually takes a few minutes; --wait blocks the CI job (not a human).
+          xcrun notarytool submit "$RUNNER_TEMP/${appName}-notarize.zip" \\
+            --key "$ASC_KEY_PATH" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID" \\
+            --wait --timeout 90m --output-format json | tee "$RUNNER_TEMP/notary.json"
+          STATUS=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["status"])' "$RUNNER_TEMP/notary.json")
+          ID=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["id"])' "$RUNNER_TEMP/notary.json")
+          if [ "$STATUS" != "Accepted" ]; then
+            xcrun notarytool log "$ID" --key "$ASC_KEY_PATH" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID"
+            exit 1
+          fi
+          xcrun stapler staple "$APP"
+          spctl --assess --type execute -vvv "$APP"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$RUNNER_TEMP/${appName}.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${appName}-notarized
+          path: \${{ runner.temp }}/${appName}.zip
+`;
+}
+function buildSteps(o) {
+  const ws = o.workspace ?? `${o.appName}.xcworkspace`;
+  const scheme = o.scheme ?? o.appName;
+  const archiveFlags = `-allowProvisioningUpdates -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"`;
+  const ascEnv = `        env:
+          ASC_KEY_ID: \${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: \${{ secrets.ASC_ISSUER_ID }}
+`;
+  const isMac = o.target.startsWith("mac") || o.target === "testflight-mac";
+  const platform = isMac ? "macOS" : "iOS";
+  const method = o.target === "mac-developer-id" ? "developer-id" : "app-store-connect";
+  const exportPlist = `cat > "$RUNNER_TEMP/ExportOptions.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>${method}</string>
+            <key>destination</key><string>${o.target === "mac-developer-id" ? "export" : "upload"}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>teamID</key><string>\${{ secrets.TEAM_ID }}</string>
+          </dict></plist>
+          PLIST`;
+  const xcodeArchive = (container) => `      - name: Archive and export
+${ascEnv}        run: |
+          xcodebuild archive ${container} -scheme "${scheme}" -configuration Release \\
+            -destination "generic/platform=${platform}" -archivePath "$RUNNER_TEMP/${o.appName}.xcarchive" ${archiveFlags}
+          ${exportPlist}
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/${o.appName}.xcarchive" -exportPath "$RUNNER_TEMP/export" \\
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" ${archiveFlags}
+`;
+  switch (o.framework) {
+    case "xcode":
+      return xcodeArchive(`-workspace "${ws}"`);
+    case "react-native":
+      return `      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: cd ios && pod install
+${xcodeArchive(`-workspace "ios/${o.appName}.xcworkspace"`)}`;
+    case "flutter":
+      return `      - uses: subosito/flutter-action@v2
+        with: { channel: stable }
+      - run: flutter pub get
+      - run: flutter build ${isMac ? "macos" : "ios"} --release --no-codesign
+${xcodeArchive(`-workspace "${isMac ? "macos" : "ios"}/Runner.xcworkspace"`).replace(`-scheme "${scheme}"`, '-scheme "Runner"')}`;
+    case "electron":
+      return `      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Build, sign and notarize with electron-builder
+        env:
+          CSC_LINK: \${{ secrets.SIGNING_CERTIFICATE_P12_BASE64 }}
+          CSC_KEY_PASSWORD: \${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_ID: \${{ secrets.ASC_KEY_ID }}
+          APPLE_API_ISSUER: \${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          export APPLE_API_KEY="$ASC_KEY_PATH"   # electron-builder expects the .p8 PATH here
+          npx electron-builder --mac --publish never
+`;
+    case "tauri":
+      return `      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: "aarch64-apple-darwin,x86_64-apple-darwin" }
+      - run: npm ci
+      - name: Build, sign and notarize with Tauri
+        env:
+          APPLE_CERTIFICATE: \${{ secrets.SIGNING_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: \${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: \${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: \${{ secrets.ASC_ISSUER_ID }}
+          APPLE_API_KEY: \${{ secrets.ASC_KEY_ID }}       # Tauri: the key ID
+        run: |
+          export APPLE_API_KEY_PATH="$ASC_KEY_PATH"
+          npm run tauri build -- --target universal-apple-darwin
+`;
+    case "expo":
+      return `      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: \${{ secrets.EXPO_TOKEN }}
+      - run: eas build --platform ios --profile production --non-interactive --auto-submit
+`;
+    case "swiftpm":
+      return `      - name: Build universal binary and sign
+        run: |
+          swift build -c release --arch arm64 --arch x86_64
+          BIN=".build/apple/Products/Release/${o.appName}"
+          codesign --force --sign "Developer ID Application" --options runtime --timestamp "$BIN"
+          mkdir -p "$RUNNER_TEMP/dist" && cp "$BIN" "$RUNNER_TEMP/dist/"
+`;
+    case "prebuilt":
+      return "";
+  }
+}
+function generateWorkflow(o) {
+  const usesKeychain = o.framework !== "expo" && o.framework !== "electron" && o.framework !== "tauri";
+  const appPathExpr = o.appPath ?? (o.framework === "xcode" || o.framework === "react-native" || o.framework === "flutter" ? `$RUNNER_TEMP/export/${o.framework === "flutter" ? "Runner" : o.appName}.app` : `dist/mac/${o.appName}.app`);
+  const needsNotarizeStep = o.target === "mac-developer-id" && ["xcode", "react-native", "flutter", "prebuilt"].includes(o.framework);
+  const name = {
+    "mac-developer-id": "macOS Developer ID release",
+    "testflight-ios": "iOS TestFlight",
+    "ios-app-store": "iOS App Store build",
+    "mac-app-store": "Mac App Store build",
+    "testflight-mac": "Mac TestFlight"
+  }[o.target];
+  const yaml = `# Generated by notarize-mcp (ci_config). Review before committing.
+name: ${name}
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    runs-on: ${o.runner}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+${usesKeychain ? KEYCHAIN_SETUP : ""}${o.framework === "expo" ? "" : API_KEY_SETUP}${buildSteps(o)}${needsNotarizeStep ? notarizeSteps(appPathExpr, o.appName) : ""}${o.framework === "swiftpm" && o.target === "mac-developer-id" ? `      - name: Notarize
+        env:
+          ASC_KEY_ID: \${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: \${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          ditto -c -k --keepParent "$RUNNER_TEMP/dist" "$RUNNER_TEMP/${o.appName}.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/${o.appName}.zip" --key "$ASC_KEY_PATH" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID" --wait --timeout 90m
+      - uses: actions/upload-artifact@v4
+        with: { name: ${o.appName}, path: "\${{ runner.temp }}/${o.appName}.zip" }
+` : ""}${usesKeychain ? CLEANUP : ""}`;
+  const secrets = [
+    ...o.framework !== "expo" ? [
+      {
+        name: "ASC_KEY_ID",
+        how: "App Store Connect \u2192 Users and Access \u2192 Integrations \u2192 Team Keys (Key ID column)"
+      },
+      { name: "ASC_ISSUER_ID", how: "Same page, 'Issuer ID' above the table" },
+      { name: "ASC_PRIVATE_KEY", how: "Full contents of AuthKey_<KEYID>.p8" }
+    ] : [],
+    ...o.framework !== "expo" ? [
+      {
+        name: "SIGNING_CERTIFICATE_P12_BASE64",
+        how: "keychain action=export_p12 \u2192 contents of <file>.p12.base64 (Developer ID Application for direct distribution, Apple Distribution for the stores)"
+      },
+      {
+        name: "SIGNING_CERTIFICATE_PASSWORD",
+        how: "The .p12 password (from <file>.p12.password or password_env)"
+      }
+    ] : [],
+    ...o.framework === "xcode" || o.framework === "flutter" || o.framework === "react-native" ? [{ name: "TEAM_ID", how: "developer.apple.com \u2192 Membership details" }] : [],
+    ...o.framework === "tauri" ? [
+      {
+        name: "APPLE_SIGNING_IDENTITY",
+        how: "e.g. 'Developer ID Application: Your Name (TEAMID)' (signing_identities)"
+      }
+    ] : [],
+    ...o.framework === "expo" ? [
+      {
+        name: "EXPO_TOKEN",
+        how: "expo.dev \u2192 Account settings \u2192 Access tokens; configure ASC API key in eas.json / eas credentials"
+      }
+    ] : []
+  ];
+  return { yaml, secrets };
+}
+var ciConfigTool = defineTool({
+  name: "ci_config",
+  title: "Generate a CI workflow for signing + notarization / upload",
+  description: "Generates a GitHub Actions workflow for a target (mac-developer-id, testflight-ios, ios-app-store, mac-app-store, testflight-mac) and framework (xcode, electron, tauri, flutter, react-native, expo, swiftpm, prebuilt): temporary keychain + set-key-partition-list (avoids errSecInternalComponent), API key from secrets, archive/export with automatic signing via the API key (or the framework's own signing), notarytool --wait + staple, artifact upload, and keychain cleanup. Returns the YAML and the list of repository secrets to create. Writing to output_path needs confirmation only when overwriting.",
+  mutating: true,
+  input: {
+    target: external_exports.enum(CI_TARGETS),
+    framework: external_exports.enum(FRAMEWORKS),
+    app_name: external_exports.string().describe("Product / scheme name (used for paths)."),
+    scheme: external_exports.string().optional(),
+    workspace: external_exports.string().optional().describe("Relative .xcworkspace path (xcode)."),
+    app_path: external_exports.string().optional().describe("Built .app path expression (prebuilt / custom layouts)."),
+    runner: external_exports.string().optional().describe("GitHub runner label (default macos-15)."),
+    output_path: external_exports.string().optional().describe("e.g. .github/workflows/release.yml")
+  },
+  async handler(args, ctx, extra) {
+    if (args.framework === "expo" && args.target.startsWith("mac"))
+      throw new ToolError("Expo targets iOS; use testflight-ios or ios-app-store.");
+    const { yaml, secrets } = generateWorkflow({
+      target: args.target,
+      framework: args.framework,
+      scheme: args.scheme,
+      workspace: args.workspace,
+      appName: args.app_name,
+      appPath: args.app_path,
+      runner: args.runner ?? "macos-15"
+    });
+    const summary = `Workflow (${args.framework} \u2192 ${args.target}):
+
+${yaml}
+Repository secrets to create:
+${secrets.map((s) => `\u2022 ${s.name}: ${s.how}`).join("\n")}`;
+    const result = { summary, data: { yaml, secrets } };
+    if (!args.output_path) return result;
+    const out = await resolveUserPath(ctx, args.output_path, false);
+    const write = async () => {
+      await mkdir7(dirname5(out), { recursive: true });
+      await writeFile7(out, yaml);
+      return { ...result, summary: `Wrote ${out}.
+
+${summary}`, data: { ...result.data, written: out } };
+    };
+    if (!await pathExists(out)) return write();
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `Overwrite ${out}`,
+        steps: [{ description: `Replace ${out} with the generated workflow` }]
+      }),
+      write
+    );
+  }
+});
+
 // src/parsers/xcodebuild.ts
 function parseXcodeList(text) {
   const start = text.indexOf("{");
@@ -56032,6 +56334,70 @@ function parseXcodeList(text) {
     schemes: p.schemes ?? [],
     targets: p.targets ?? [],
     configurations: p.configurations ?? []
+  };
+}
+var SIGNING_SETTING_KEYS = [
+  "PRODUCT_NAME",
+  "PRODUCT_BUNDLE_IDENTIFIER",
+  "PRODUCT_TYPE",
+  "WRAPPER_EXTENSION",
+  "SDKROOT",
+  "PLATFORM_NAME",
+  "SUPPORTED_PLATFORMS",
+  "MACOSX_DEPLOYMENT_TARGET",
+  "IPHONEOS_DEPLOYMENT_TARGET",
+  "DEVELOPMENT_TEAM",
+  "CODE_SIGN_STYLE",
+  "CODE_SIGN_IDENTITY",
+  "CODE_SIGN_ENTITLEMENTS",
+  "CODE_SIGN_INJECT_BASE_ENTITLEMENTS",
+  "OTHER_CODE_SIGN_FLAGS",
+  "PROVISIONING_PROFILE_SPECIFIER",
+  "PROVISIONING_PROFILE",
+  "ENABLE_HARDENED_RUNTIME",
+  "ENABLE_APP_SANDBOX",
+  "ENABLE_USER_SELECTED_FILES",
+  "MARKETING_VERSION",
+  "CURRENT_PROJECT_VERSION",
+  "INFOPLIST_FILE",
+  "GENERATE_INFOPLIST_FILE",
+  "INFOPLIST_KEY_LSApplicationCategoryType",
+  "INFOPLIST_KEY_NSHumanReadableCopyright",
+  "SKIP_INSTALL",
+  "ARCHS",
+  "SWIFT_VERSION"
+];
+function parseShowBuildSettings(text, keys = SIGNING_SETTING_KEYS) {
+  const start = text.indexOf("[");
+  if (start === -1) return [];
+  let arr;
+  try {
+    arr = JSON.parse(text.slice(start));
+  } catch {
+    return [];
+  }
+  return arr.map((entry) => {
+    const bs = entry.buildSettings ?? {};
+    const settings = {};
+    for (const k of keys) if (bs[k] !== void 0 && bs[k] !== "") settings[k] = String(bs[k]);
+    return { target: entry.target ?? bs.TARGET_NAME ?? "?", settings };
+  });
+}
+function summarizeXcodebuild(text) {
+  const errors = [];
+  const warnings = [];
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    if (/(^|\s)error:/.test(line) || /^\*\* .* FAILED \*\*/.test(line)) {
+      if (!errors.includes(line)) errors.push(line);
+    } else if (/(^|\s)warning:/.test(line) && warnings.length < 30) {
+      if (!warnings.includes(line)) warnings.push(line);
+    }
+  }
+  return {
+    succeeded: /\*\* (ARCHIVE|EXPORT|BUILD) SUCCEEDED \*\*/.test(text) && errors.length === 0,
+    errors: errors.slice(0, 40),
+    warnings
   };
 }
 
@@ -57313,7 +57679,7 @@ ${formatFindings(findings)}`,
 });
 
 // src/tools/entitlements.ts
-import { readFile as readFile9, writeFile as writeFile7 } from "fs/promises";
+import { readFile as readFile9, writeFile as writeFile8 } from "fs/promises";
 import { extname as extname9, join as join16 } from "path";
 async function loadEntitlements(ctx, path) {
   const ext = extname9(path).toLowerCase();
@@ -57529,7 +57895,7 @@ ${formatFindings(findings2)}` : ""}`,
           notes: [xml]
         }),
         async () => {
-          await writeFile7(out, xml);
+          await writeFile8(out, xml);
           return {
             ...result,
             summary: `Wrote ${out}.
@@ -57783,8 +58149,8 @@ async function mainExecutables(bundle) {
 }
 
 // src/tools/signing.ts
-import { copyFile as copyFile2, readdir as readdir9, writeFile as writeFile8 } from "fs/promises";
-import { basename as basename10, dirname as dirname5, extname as extname11, join as join18 } from "path";
+import { copyFile as copyFile2, readdir as readdir9, writeFile as writeFile9 } from "fs/promises";
+import { basename as basename10, dirname as dirname6, extname as extname11, join as join18 } from "path";
 var ENTITLED_KINDS = /* @__PURE__ */ new Set(["app", "xpc", "appex", "executable", "systemextension"]);
 function codesignArgs(item, s, isRoot) {
   const adhoc = s.identity === "-";
@@ -58028,7 +58394,7 @@ var resignTool = defineTool({
     if (ext === ".xcarchive")
       throw new ToolError("For .xcarchive use xcode action=export with the export method you need.");
     if (ext !== ".app" && ext !== ".ipa") throw new ToolError("resign supports .app and .ipa.");
-    const out = args.output_path ? await resolveUserPath(ctx, args.output_path, false) : join18(dirname5(src), `${basename10(src, ext)}-resigned${ext}`);
+    const out = args.output_path ? await resolveUserPath(ctx, args.output_path, false) : join18(dirname6(src), `${basename10(src, ext)}-resigned${ext}`);
     const identity = await resolveIdentity(ctx, args.identity, args.target);
     const profile = args.profile ? await resolveUserPath(ctx, args.profile) : void 0;
     const isDist = !args.target || !["ios-development", "mac-development"].includes(args.target);
@@ -58084,7 +58450,7 @@ var resignTool = defineTool({
               const pl = await decodeProvisioningProfile(ctx.runner, pp, true);
               const existing = await readSignedEntitlements(ctx, appex);
               const f = join18(entDir, `${basename10(rel2)}.plist`);
-              await writeFile8(
+              await writeFile9(
                 f,
                 buildPlist(entitlementsFromProfile(pl, existing, args.target))
               );
@@ -58108,7 +58474,7 @@ var resignTool = defineTool({
               }
               if (derived2) {
                 mainEnt = join18(entDir, "main.plist");
-                await writeFile8(mainEnt, buildPlist(derived2));
+                await writeFile9(mainEnt, buildPlist(derived2));
               }
             } else if (profile) await copyFile2(profile, profilePath);
             await ctx.runner.run("xattr", ["-cr", app], { timeoutMs: 12e4 });
@@ -58155,6 +58521,1004 @@ ${formatFindings(report.findings)}`,
   }
 });
 
+// src/tools/store.ts
+var testflightTool = defineTool({
+  name: "testflight",
+  title: "TestFlight: groups, testers, builds, beta review",
+  description: "action=groups / testers / status (internal + external beta state of a build). action=create_group (confirm): internal (App Store Connect users, no review) or external (anyone by email or public link; first build of each version needs beta app review). action=add_testers / remove_testers (confirm): invite by email to a group. action=add_build_to_group (confirm). action=set_what_to_test (confirm): 'What to Test' notes for a build. action=submit_beta_review (confirm): submit a build for external testing review (requires beta review contact info set once in App Store Connect \u2192 TestFlight \u2192 Test Information). Builds must be VALID and have export compliance answered (asc_builds).",
+  mutating: true,
+  input: {
+    action: external_exports.enum([
+      "groups",
+      "testers",
+      "status",
+      "create_group",
+      "add_testers",
+      "remove_testers",
+      "add_build_to_group",
+      "set_what_to_test",
+      "submit_beta_review"
+    ]),
+    app: external_exports.string().optional().describe("App id or bundle ID."),
+    group_id: external_exports.string().optional(),
+    group_name: external_exports.string().optional().describe("create_group: name."),
+    internal: external_exports.boolean().optional().describe("create_group: internal group (default false = external)."),
+    public_link: external_exports.boolean().optional().describe("create_group: enable a public TestFlight link (external groups)."),
+    testers: external_exports.array(
+      external_exports.object({ email: external_exports.string(), first_name: external_exports.string().optional(), last_name: external_exports.string().optional() })
+    ).optional(),
+    build_id: external_exports.string().optional(),
+    what_to_test: external_exports.string().optional(),
+    locale: external_exports.string().optional().describe("set_what_to_test: default en-US."),
+    profile: profileArg
+  },
+  async handler(args, ctx, extra) {
+    const client = await ctx.asc(args.profile);
+    if (args.action === "status") {
+      if (!args.build_id) throw new ToolError("build_id is required.");
+      const d = (await client.get(`builds/${args.build_id}/buildBetaDetail`)).data;
+      return {
+        summary: `Build ${args.build_id}: internal=${d.attributes?.internalBuildState} external=${d.attributes?.externalBuildState}`,
+        data: { betaDetail: slimResource(d) }
+      };
+    }
+    if (args.action === "add_build_to_group") {
+      if (!args.group_id || !args.build_id) throw new ToolError("group_id and build_id are required.");
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Add build ${args.build_id} to group ${args.group_id}`,
+          steps: [{ description: `POST /v1/betaGroups/${args.group_id}/relationships/builds` }],
+          notes: ["External groups only see it after beta app review approval."]
+        }),
+        async () => {
+          await client.post(
+            `betaGroups/${args.group_id}/relationships/builds`,
+            relMany("builds", [args.build_id])
+          );
+          return {
+            summary: "Build added to group.",
+            data: { ok: true },
+            next_steps: ["testflight action=submit_beta_review (external groups)"]
+          };
+        }
+      );
+    }
+    if (args.action === "set_what_to_test") {
+      if (!args.build_id || !args.what_to_test)
+        throw new ToolError("build_id and what_to_test are required.");
+      const locale = args.locale ?? "en-US";
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Set What to Test (${locale}) for build ${args.build_id}`,
+          steps: [{ description: "PATCH or POST betaBuildLocalizations" }],
+          notes: [args.what_to_test]
+        }),
+        async () => {
+          const locs = await client.list(`builds/${args.build_id}/betaBuildLocalizations`, {}, 50);
+          const existing = locs.data.find((l) => l.attributes?.locale === locale);
+          if (existing)
+            await client.patch(`betaBuildLocalizations/${existing.id}`, {
+              data: {
+                type: "betaBuildLocalizations",
+                id: existing.id,
+                attributes: { whatsNew: args.what_to_test }
+              }
+            });
+          else
+            await client.post("betaBuildLocalizations", {
+              data: {
+                type: "betaBuildLocalizations",
+                attributes: { locale, whatsNew: args.what_to_test },
+                relationships: { build: rel("builds", args.build_id) }
+              }
+            });
+          return { summary: "What to Test updated.", data: { ok: true } };
+        }
+      );
+    }
+    if (args.action === "submit_beta_review") {
+      if (!args.build_id) throw new ToolError("build_id is required.");
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Submit build ${args.build_id} for TestFlight beta review`,
+          steps: [{ description: "POST /v1/betaAppReviewSubmissions" }],
+          destructive: true,
+          notes: [
+            "Review usually takes under 48 hours; later builds of the same version are often auto-approved."
+          ]
+        }),
+        async () => {
+          const r = await client.post("betaAppReviewSubmissions", {
+            data: {
+              type: "betaAppReviewSubmissions",
+              relationships: { build: rel("builds", args.build_id) }
+            }
+          });
+          return {
+            summary: `Submitted for beta review (${r.data.attributes?.betaReviewState ?? "WAITING_FOR_REVIEW"}).`,
+            data: { submission: slimResource(r.data) }
+          };
+        }
+      );
+    }
+    if (args.action === "remove_testers") {
+      if (!args.group_id || !args.testers?.length) throw new ToolError("group_id and testers are required.");
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Remove ${args.testers.length} tester(s) from group ${args.group_id}`,
+          steps: args.testers.map((t) => ({ description: `Remove ${t.email}` }))
+        }),
+        async () => {
+          const ids = [];
+          for (const t of args.testers) {
+            const found = await client.list("betaTesters", { "filter[email]": t.email }, 5);
+            if (found.data[0]) ids.push(found.data[0].id);
+          }
+          if (ids.length)
+            await client.delete(
+              `betaGroups/${args.group_id}/relationships/betaTesters`,
+              relMany("betaTesters", ids)
+            );
+          return { summary: `Removed ${ids.length} tester(s).`, data: { removed: ids.length } };
+        }
+      );
+    }
+    if (args.action === "add_testers") {
+      if (!args.group_id || !args.testers?.length) throw new ToolError("group_id and testers are required.");
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Invite ${args.testers.length} tester(s) to group ${args.group_id}`,
+          steps: args.testers.map((t) => ({ description: `Invite ${t.email}` })),
+          notes: ["Testers receive an email invitation from TestFlight."]
+        }),
+        async () => {
+          const results = [];
+          for (const t of args.testers) {
+            try {
+              await client.post("betaTesters", {
+                data: {
+                  type: "betaTesters",
+                  attributes: { email: t.email, firstName: t.first_name, lastName: t.last_name },
+                  relationships: { betaGroups: relMany("betaGroups", [args.group_id]) }
+                }
+              });
+              results.push({ email: t.email, status: "invited" });
+            } catch (e) {
+              if (e.status === 409) {
+                const found = await client.list("betaTesters", { "filter[email]": t.email }, 5);
+                if (found.data[0]) {
+                  await client.post(
+                    `betaGroups/${args.group_id}/relationships/betaTesters`,
+                    relMany("betaTesters", [found.data[0].id])
+                  );
+                  results.push({ email: t.email, status: "existing tester added to group" });
+                  continue;
+                }
+              }
+              results.push({ email: t.email, status: `failed: ${e.message}` });
+            }
+          }
+          return { summary: results.map((r) => `\u2022 ${r.email}: ${r.status}`).join("\n"), data: { results } };
+        }
+      );
+    }
+    if (!args.app) throw new ToolError("app is required.");
+    const { id: appId } = await resolveAppId(client, args.app);
+    if (args.action === "groups") {
+      const res = await client.list(`apps/${appId}/betaGroups`, {}, 100);
+      const rows = res.data.map(slimResource);
+      return {
+        summary: rows.length ? table2(rows, ["name", "isInternalGroup", "publicLinkEnabled", "publicLink", "id"]) : "No beta groups.",
+        data: { groups: rows }
+      };
+    }
+    if (args.action === "testers") {
+      const res = args.group_id ? await client.list(`betaGroups/${args.group_id}/betaTesters`, {}, 500) : await client.list("betaTesters", { "filter[apps]": appId }, 500);
+      const rows = res.data.map(slimResource);
+      return {
+        summary: rows.length ? table2(rows, ["email", "firstName", "lastName", "inviteType", "id"]) : "No testers.",
+        data: { testers: rows }
+      };
+    }
+    if (!args.group_name) throw new ToolError("group_name is required.");
+    const attrs = { name: args.group_name };
+    if (args.internal) attrs.isInternalGroup = true;
+    if (args.public_link) attrs.publicLinkEnabled = true;
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `Create ${args.internal ? "internal" : "external"} TestFlight group "${args.group_name}"`,
+        steps: [{ description: "POST /v1/betaGroups", command: JSON.stringify(attrs) }]
+      }),
+      async () => {
+        const r = await client.post("betaGroups", {
+          data: { type: "betaGroups", attributes: attrs, relationships: { app: rel("apps", appId) } }
+        });
+        return {
+          summary: `Created group "${args.group_name}" (${r.data.id}).${r.data.attributes?.publicLink ? ` Public link: ${r.data.attributes.publicLink}` : ""}`,
+          data: { group: slimResource(r.data) }
+        };
+      }
+    );
+  }
+});
+var ASC_PLATFORM = { iOS: "IOS", macOS: "MAC_OS", tvOS: "TV_OS", visionOS: "VISION_OS" };
+var appStoreTool = defineTool({
+  name: "app_store",
+  title: "App Store versions, metadata, review submission and release",
+  description: "action=versions: App Store versions and their states. action=create_version (confirm). action=attach_build (confirm): select the processed build for a version. action=localizations / update_localization (confirm): description, keywords, What's New, promotional text, support/marketing URLs per locale. action=submit_for_review (confirm): creates a review submission with the version and submits it. action=review_status. action=release (confirm): release a version approved with manual release. action=phased_release (confirm): start a 7-day phased rollout. Screenshots, pricing, privacy labels and age rating are easiest in the web UI (or asc_api).",
+  mutating: true,
+  input: {
+    action: external_exports.enum([
+      "versions",
+      "create_version",
+      "attach_build",
+      "localizations",
+      "update_localization",
+      "submit_for_review",
+      "review_status",
+      "release",
+      "phased_release"
+    ]),
+    app: external_exports.string().optional().describe("App id or bundle ID."),
+    platform: external_exports.enum(["iOS", "macOS", "tvOS", "visionOS"]).optional().describe("Default iOS."),
+    version_id: external_exports.string().optional(),
+    version_string: external_exports.string().optional().describe("create_version: e.g. 1.2.0 (must match CFBundleShortVersionString)."),
+    release_type: external_exports.enum(["MANUAL", "AFTER_APPROVAL", "SCHEDULED"]).optional(),
+    build_id: external_exports.string().optional(),
+    locale: external_exports.string().optional().describe("update_localization: default en-US."),
+    description: external_exports.string().optional(),
+    keywords: external_exports.string().optional(),
+    whats_new: external_exports.string().optional(),
+    promotional_text: external_exports.string().optional(),
+    support_url: external_exports.string().optional(),
+    marketing_url: external_exports.string().optional(),
+    profile: profileArg
+  },
+  async handler(args, ctx, extra) {
+    const client = await ctx.asc(args.profile);
+    const platform = ASC_PLATFORM[args.platform ?? "iOS"];
+    if (args.action === "attach_build") {
+      if (!args.version_id || !args.build_id) throw new ToolError("version_id and build_id are required.");
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Attach build ${args.build_id} to version ${args.version_id}`,
+          steps: [{ description: `PATCH /v1/appStoreVersions/${args.version_id}/relationships/build` }]
+        }),
+        async () => {
+          await client.patch(
+            `appStoreVersions/${args.version_id}/relationships/build`,
+            rel("builds", args.build_id)
+          );
+          return {
+            summary: "Build attached.",
+            data: { ok: true },
+            next_steps: [
+              "app_store action=update_localization (What's New etc.)",
+              "app_store action=submit_for_review"
+            ]
+          };
+        }
+      );
+    }
+    if (args.action === "localizations") {
+      if (!args.version_id) throw new ToolError("version_id is required.");
+      const res = await client.list(
+        `appStoreVersions/${args.version_id}/appStoreVersionLocalizations`,
+        {},
+        100
+      );
+      const rows = res.data.map(slimResource);
+      return {
+        summary: rows.map(
+          (r) => `\u2022 ${r.locale}: ${String(r.description ?? "").slice(0, 60)}\u2026 keywords=${r.keywords ?? ""}`
+        ).join("\n") || "No localizations.",
+        data: { localizations: rows }
+      };
+    }
+    if (args.action === "update_localization") {
+      if (!args.version_id) throw new ToolError("version_id is required.");
+      const locale = args.locale ?? "en-US";
+      const attrs = Object.fromEntries(
+        Object.entries({
+          description: args.description,
+          keywords: args.keywords,
+          whatsNew: args.whats_new,
+          promotionalText: args.promotional_text,
+          supportUrl: args.support_url,
+          marketingUrl: args.marketing_url
+        }).filter(([, v]) => v !== void 0)
+      );
+      if (!Object.keys(attrs).length) throw new ToolError("Provide at least one field to update.");
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Update ${locale} metadata for version ${args.version_id}`,
+          steps: Object.entries(attrs).map(([k, v]) => ({ description: `${k}: ${String(v).slice(0, 200)}` }))
+        }),
+        async () => {
+          const res = await client.list(
+            `appStoreVersions/${args.version_id}/appStoreVersionLocalizations`,
+            {},
+            100
+          );
+          const existing = res.data.find((l) => l.attributes?.locale === locale);
+          if (existing)
+            await client.patch(`appStoreVersionLocalizations/${existing.id}`, {
+              data: { type: "appStoreVersionLocalizations", id: existing.id, attributes: attrs }
+            });
+          else
+            await client.post("appStoreVersionLocalizations", {
+              data: {
+                type: "appStoreVersionLocalizations",
+                attributes: { locale, ...attrs },
+                relationships: { appStoreVersion: rel("appStoreVersions", args.version_id) }
+              }
+            });
+          return { summary: `Updated ${locale} metadata.`, data: { ok: true } };
+        }
+      );
+    }
+    if (args.action === "release" || args.action === "phased_release") {
+      if (!args.version_id) throw new ToolError("version_id is required.");
+      const phased = args.action === "phased_release";
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: phased ? `Start phased release for version ${args.version_id}` : `Release version ${args.version_id} to the App Store`,
+          steps: [
+            {
+              description: phased ? "POST /v1/appStoreVersionPhasedReleases (ACTIVE)" : "POST /v1/appStoreVersionReleaseRequests"
+            }
+          ],
+          destructive: true,
+          warnings: ["This makes the version available to customers."]
+        }),
+        async () => {
+          if (phased)
+            await client.post("appStoreVersionPhasedReleases", {
+              data: {
+                type: "appStoreVersionPhasedReleases",
+                attributes: { phasedReleaseState: "ACTIVE" },
+                relationships: { appStoreVersion: rel("appStoreVersions", args.version_id) }
+              }
+            });
+          else
+            await client.post("appStoreVersionReleaseRequests", {
+              data: {
+                type: "appStoreVersionReleaseRequests",
+                relationships: { appStoreVersion: rel("appStoreVersions", args.version_id) }
+              }
+            });
+          return { summary: phased ? "Phased release started." : "Release requested.", data: { ok: true } };
+        }
+      );
+    }
+    if (!args.app) throw new ToolError("app is required.");
+    const { id: appId } = await resolveAppId(client, args.app);
+    if (args.action === "versions") {
+      const res = await client.list(
+        `apps/${appId}/appStoreVersions`,
+        { "filter[platform]": platform, include: "build" },
+        20
+      );
+      const builds = new Map(
+        res.included.filter((i) => i.type === "builds").map((b) => [b.id, b.attributes?.version])
+      );
+      const rows = res.data.map((v) => ({
+        ...slimResource(v),
+        build: builds.get(v.relationships?.build?.data?.id ?? "")
+      }));
+      return {
+        summary: rows.length ? table2(rows, ["versionString", "appStoreState", "releaseType", "build", "id"]) : "No versions.",
+        data: { versions: rows }
+      };
+    }
+    if (args.action === "review_status") {
+      const res = await client.list(`apps/${appId}/reviewSubmissions`, { "filter[platform]": platform }, 10);
+      const rows = res.data.map(slimResource);
+      return {
+        summary: rows.length ? table2(rows, ["state", "submittedDate", "id"]) : "No review submissions.",
+        data: { submissions: rows }
+      };
+    }
+    if (args.action === "create_version") {
+      if (!args.version_string) throw new ToolError("version_string is required.");
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Create ${platform} version ${args.version_string}`,
+          steps: [{ description: "POST /v1/appStoreVersions" }]
+        }),
+        async () => {
+          const r = await client.post("appStoreVersions", {
+            data: {
+              type: "appStoreVersions",
+              attributes: {
+                platform,
+                versionString: args.version_string,
+                ...args.release_type ? { releaseType: args.release_type } : {}
+              },
+              relationships: { app: rel("apps", appId) }
+            }
+          });
+          return {
+            summary: `Created version ${args.version_string} (${r.data.id}).`,
+            data: { version: slimResource(r.data) },
+            next_steps: ["app_store action=attach_build"]
+          };
+        }
+      );
+    }
+    if (!args.version_id) throw new ToolError("version_id is required.");
+    const version2 = (await client.get(`appStoreVersions/${args.version_id}`, { include: "build" })).data;
+    if (!version2.relationships?.build?.data)
+      throw new ToolError("No build is attached to this version.", { hint: "app_store action=attach_build" });
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `Submit version ${version2.attributes?.versionString} for App Review`,
+        steps: [
+          { description: "POST /v1/reviewSubmissions (platform, app)" },
+          { description: "POST /v1/reviewSubmissionItems (this version)" },
+          { description: "PATCH /v1/reviewSubmissions/{id} submitted=true" }
+        ],
+        destructive: true,
+        warnings: [
+          "Make sure screenshots, privacy details, age rating, pricing and review contact info are complete in App Store Connect \u2014 missing items cause the submission to fail."
+        ]
+      }),
+      async () => {
+        const sub = (await client.post("reviewSubmissions", {
+          data: {
+            type: "reviewSubmissions",
+            attributes: { platform },
+            relationships: { app: rel("apps", appId) }
+          }
+        })).data;
+        await client.post("reviewSubmissionItems", {
+          data: {
+            type: "reviewSubmissionItems",
+            relationships: {
+              reviewSubmission: rel("reviewSubmissions", sub.id),
+              appStoreVersion: rel("appStoreVersions", args.version_id)
+            }
+          }
+        });
+        const done = (await client.patch("reviewSubmissions/" + sub.id, {
+          data: { type: "reviewSubmissions", id: sub.id, attributes: { submitted: true } }
+        })).data;
+        return {
+          summary: `Submitted for review (submission ${sub.id}, state ${done.attributes?.state ?? "WAITING_FOR_REVIEW"}).`,
+          data: { submission: slimResource(done) },
+          next_steps: ["app_store action=review_status"]
+        };
+      }
+    );
+  }
+});
+
+// src/tools/upload.ts
+import { copyFile as copyFile3, mkdir as mkdir8 } from "fs/promises";
+import { basename as basename11, extname as extname12, join as join19 } from "path";
+async function ipaInfo(ctx, ipa) {
+  const list = await ctx.runner.run("unzip", ["-Z1", ipa], { timeoutMs: 6e4 });
+  const plistEntry = list.stdout.split("\n").find((l) => /^Payload\/[^/]+\.app\/Info\.plist$/.test(l.trim()));
+  if (!plistEntry) return {};
+  const r = await ctx.runner.run("unzip", ["-p", ipa, plistEntry.trim()], { timeoutMs: 6e4, binary: true });
+  try {
+    const info = parsePlistDict(r.stdoutBytes ?? r.stdout);
+    return {
+      bundleId: info.CFBundleIdentifier,
+      version: info.CFBundleShortVersionString,
+      build: info.CFBundleVersion
+    };
+  } catch {
+    return {};
+  }
+}
+var uploadBuildTool = defineTool({
+  name: "upload_build",
+  title: "Upload an .ipa / .pkg to App Store Connect",
+  description: "Uploads a distribution-signed .ipa (iOS/tvOS/visionOS) or Mac App Store .pkg to App Store Connect with `xcrun altool` using your API key (flags detected from the installed Xcode; the .p8 is placed in ~/.appstoreconnect/private_keys if altool needs it there). Reads the bundle ID / version / build from IPAs, looks up the app record, and continues as a background job with a Monitor command for large uploads. Afterwards use asc_builds wait_processing. For Xcode projects, `xcode action=export destination=upload` is an alternative.",
+  mutating: true,
+  input: {
+    path: external_exports.string().describe(".ipa or .pkg"),
+    platform: external_exports.enum(["ios", "macos", "appletvos", "visionos"]).optional().describe("Default: ios for .ipa, macos for .pkg."),
+    app_id: external_exports.string().optional().describe("Numeric App Store Connect app id (looked up from the bundle ID when possible)."),
+    bundle_id: external_exports.string().optional(),
+    version: external_exports.string().optional().describe("CFBundleShortVersionString (for .pkg)."),
+    build_number: external_exports.string().optional().describe("CFBundleVersion (for .pkg)."),
+    profile: profileArg,
+    max_wait_seconds: external_exports.number().int().min(1).max(3600).optional().describe("Foreground wait before handing off to a background job (default 120).")
+  },
+  async handler(args, ctx, extra) {
+    requireMacOS(ctx.platform, "Uploading builds");
+    const file2 = await resolveUserPath(ctx, args.path);
+    const ext = extname12(file2).toLowerCase();
+    if (ext !== ".ipa" && ext !== ".pkg") throw new ToolError("upload_build expects an .ipa or .pkg.");
+    const creds = await ctx.config.resolveAsc(args.profile);
+    if (!creds.issuerId) throw new ToolError("altool uploads need a Team API key (with issuer ID).");
+    const meta3 = ext === ".ipa" ? await ipaInfo(ctx, file2) : {};
+    const bundleId = args.bundle_id ?? meta3.bundleId;
+    const version2 = args.version ?? meta3.version;
+    const build2 = args.build_number ?? meta3.build;
+    let appId = args.app_id;
+    if (!appId && bundleId) {
+      try {
+        const client = await ctx.asc(args.profile);
+        const res = await client.list("apps", { "filter[bundleId]": bundleId }, 5);
+        appId = res.data.find((a) => a.attributes?.bundleId === bundleId)?.id;
+        if (!appId)
+          throw new ToolError(`No App Store Connect app record for ${bundleId}.`, {
+            hint: "asc_apps action=create_instructions"
+          });
+      } catch (e) {
+        if (e instanceof ToolError && /app record/.test(e.message)) throw e;
+      }
+    }
+    const help = await ctx.runner.run("xcrun", ["altool", "--help"], { timeoutMs: 6e4 });
+    const helpText = output2(help);
+    if (help.spawnError || /unable to find utility "altool"/i.test(helpText))
+      throw new ToolError("altool not available \u2014 install Xcode (not just Command Line Tools).");
+    const supportsPackage = helpText.includes("--upload-package");
+    const supportsP8Flag = helpText.includes("--p8-file-path");
+    const keyDir = join19(ctx.platform.homeDir, ".appstoreconnect", "private_keys");
+    const keyDest = join19(keyDir, `AuthKey_${creds.keyId}.p8`);
+    const needsCopy = !supportsP8Flag && !await pathExists(keyDest);
+    const type = args.platform ?? (ext === ".ipa" ? "ios" : "macos");
+    const cmd = supportsPackage ? [
+      "altool",
+      "--upload-package",
+      file2,
+      "--type",
+      type,
+      "--apiKey",
+      creds.keyId,
+      "--apiIssuer",
+      creds.issuerId,
+      ...supportsP8Flag && creds.privateKeyPath ? ["--p8-file-path", creds.privateKeyPath] : [],
+      ...appId ? ["--apple-id", appId] : [],
+      ...bundleId ? ["--bundle-id", bundleId] : [],
+      ...version2 ? ["--bundle-short-version-string", version2] : [],
+      ...build2 ? ["--bundle-version", build2] : [],
+      "--output-format",
+      "json"
+    ] : [
+      "altool",
+      "--upload-app",
+      "-f",
+      file2,
+      "-t",
+      type,
+      "--apiKey",
+      creds.keyId,
+      "--apiIssuer",
+      creds.issuerId,
+      "--output-format",
+      "json"
+    ];
+    const steps = [];
+    if (needsCopy) steps.push({ description: `Copy the API key to ${keyDest} (where altool looks for it)` });
+    steps.push(
+      cmdStep(
+        `Upload ${basename11(file2)}${bundleId ? ` (${bundleId} ${version2 ?? "?"} build ${build2 ?? "?"})` : ""}`,
+        "xcrun",
+        cmd
+      )
+    );
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `Upload ${basename11(file2)} to App Store Connect`,
+        steps,
+        destructive: true,
+        warnings: ["A build number can only be uploaded once per version."]
+      }),
+      async () => {
+        if (needsCopy) {
+          if (!creds.privateKeyPath)
+            throw new ToolError("The API key must be a file on disk for altool (set privateKeyPath).");
+          await mkdir8(keyDir, { recursive: true, mode: 448 });
+          await copyFile3(creds.privateKeyPath, keyDest);
+        }
+        const job = await ctx.jobs.runWithDeadline(
+          "upload",
+          `Upload ${basename11(file2)}`,
+          (args.max_wait_seconds ?? 120) * 1e3,
+          async (j) => {
+            j.progress(`Uploading ${basename11(file2)}`);
+            const r = await ctx.runner.run("xcrun", cmd, {
+              timeoutMs: 72e5,
+              logName: "altool-upload",
+              signal: j.signal,
+              onOutput: (o) => j.log(o)
+            });
+            const text = output2(r);
+            if (!ok(r) || /ERROR ITMS-|"success-message"\s*:\s*null|product-errors/i.test(text)) {
+              const known = matchKnownErrors(text, ["upload", "codesign"]);
+              return {
+                summary: `Upload FAILED:
+${text.slice(-2e3)}${known.length ? `
+
+${formatMatches(known)}` : ""}`,
+                data: { output: text.slice(-4e3), knownErrors: known, logPath: r.logPath },
+                isError: true
+              };
+            }
+            return {
+              summary: `Uploaded ${basename11(file2)}. App Store Connect now processes it (usually 5\u201330 minutes).`,
+              data: { bundleId, version: version2, build: build2, appId, logPath: r.logPath },
+              next_steps: [
+                `asc_builds action=wait_processing app=${bundleId ?? appId ?? "<bundle id>"} build_number=${build2 ?? "<CFBundleVersion>"}`
+              ]
+            };
+          }
+        );
+        if (!job.done)
+          return detachedOutput(ctx, job.jobId, `Upload of ${basename11(file2)} to App Store Connect`);
+        return job.value;
+      }
+    );
+  }
+});
+
+// src/tools/xcode.ts
+import { mkdir as mkdir9, readdir as readdir10, writeFile as writeFile10 } from "fs/promises";
+import { basename as basename12, dirname as dirname7, extname as extname13, join as join20 } from "path";
+async function containerArgs(ctx, path) {
+  const p = await resolveUserPath(ctx, path);
+  if (p.endsWith(".xcworkspace")) return { flag: "-workspace", path: p };
+  if (p.endsWith(".xcodeproj")) return { flag: "-project", path: p };
+  if (await isDirectory(p)) {
+    const entries = await readdir10(p);
+    const ws = entries.find((e) => e.endsWith(".xcworkspace"));
+    if (ws) return { flag: "-workspace", path: join20(p, ws) };
+    const proj = entries.find((e) => e.endsWith(".xcodeproj"));
+    if (proj) return { flag: "-project", path: join20(p, proj) };
+  }
+  throw new ToolError(`No .xcworkspace or .xcodeproj at ${p}.`, {
+    hint: "Flutter: ios/Runner.xcworkspace or macos/Runner.xcworkspace; React Native: ios/<Name>.xcworkspace (run pod install first)."
+  });
+}
+async function authArgs(ctx, profile) {
+  try {
+    const c = await ctx.config.resolveAsc(profile);
+    if (!c.privateKeyPath || !c.issuerId) return ["-allowProvisioningUpdates"];
+    return [
+      "-allowProvisioningUpdates",
+      "-authenticationKeyPath",
+      c.privateKeyPath,
+      "-authenticationKeyID",
+      c.keyId,
+      "-authenticationKeyIssuerID",
+      c.issuerId
+    ];
+  } catch {
+    return ["-allowProvisioningUpdates"];
+  }
+}
+async function exportMethodFor(ctx, target) {
+  const t = TARGETS[target];
+  const xc = ctx.platform.isMac ? await xcodeInfo(ctx.runner) : void 0;
+  if (xc?.xcodeVersion && compareVersions(xc.xcodeVersion, "15.3") < 0 && t.legacyExportMethod)
+    return t.legacyExportMethod;
+  return t.exportMethod;
+}
+function exportOptions(opts) {
+  const o = {
+    method: opts.method,
+    destination: opts.destination,
+    signingStyle: opts.signingStyle
+  };
+  if (opts.teamId) o.teamID = opts.teamId;
+  if (opts.signingStyle === "manual") {
+    if (opts.provisioningProfiles) o.provisioningProfiles = opts.provisioningProfiles;
+    if (opts.signingCertificate) o.signingCertificate = opts.signingCertificate;
+  }
+  if (["app-store-connect", "app-store"].includes(opts.method)) {
+    o.uploadSymbols = true;
+    o.manageAppVersionAndBuildNumber = false;
+  }
+  return o;
+}
+var xcodeTool = defineTool({
+  name: "xcode",
+  title: "Xcode: schemes, signing settings, archive, export / upload",
+  description: "action=schemes: list schemes/targets/configurations. action=signing_settings: signing-related build settings per target (team, style, identity, profile, hardened runtime, entitlements, versions) with problems flagged. action=archive (confirm): `xcodebuild archive` for generic/platform=macOS|iOS with automatic signing + -allowProvisioningUpdates using the App Store Connect API key (Xcode then creates/fetches certificates and profiles itself \u2014 the easiest path), optional team/settings overrides; runs as a background job with a Monitor command if slow. action=export (confirm): writes ExportOptions.plist for the target (developer-id, app-store-connect, release-testing, debugging, enterprise) and runs -exportArchive; destination=upload sends it straight to App Store Connect.",
+  mutating: true,
+  input: {
+    action: external_exports.enum(["schemes", "signing_settings", "archive", "export"]),
+    path: external_exports.string().optional().describe(".xcworkspace / .xcodeproj or the folder containing it (schemes/signing_settings/archive)."),
+    scheme: external_exports.string().optional(),
+    configuration: external_exports.string().optional().describe("Default Release."),
+    target: external_exports.enum(TARGET_IDS).optional().describe("Distribution target (platform + export method)."),
+    team_id: external_exports.string().optional(),
+    archive_path: external_exports.string().optional().describe("archive output / export input (.xcarchive)."),
+    export_path: external_exports.string().optional().describe("export: output folder."),
+    destination: external_exports.enum(["export", "upload"]).optional().describe("export: 'upload' sends the build to App Store Connect."),
+    signing_style: external_exports.enum(["automatic", "manual"]).optional().describe("Default automatic."),
+    provisioning_profiles: external_exports.record(external_exports.string(), external_exports.string()).optional().describe("manual: bundle ID \u2192 profile name or UUID."),
+    signing_certificate: external_exports.string().optional().describe("manual: e.g. 'Apple Distribution' or 'Developer ID Application'."),
+    build_settings: external_exports.record(external_exports.string(), external_exports.string()).optional().describe("Extra KEY=VALUE overrides (e.g. CURRENT_PROJECT_VERSION)."),
+    allow_provisioning_updates: external_exports.boolean().optional().describe("Let Xcode create/download certificates and profiles (default true)."),
+    profile: profileArg,
+    max_wait_seconds: external_exports.number().int().min(5).max(3600).optional().describe("Foreground wait before handing off to a background job (default 120).")
+  },
+  async handler(args, ctx, extra) {
+    requireMacOS(ctx.platform, "xcodebuild");
+    const configuration = args.configuration ?? "Release";
+    if (args.action === "schemes") {
+      if (!args.path) throw new ToolError("path is required.");
+      const c = await containerArgs(ctx, args.path);
+      const r = await ctx.runner.run("xcodebuild", ["-list", "-json", c.flag, c.path], { timeoutMs: 18e4 });
+      const list = parseXcodeList(r.stdout);
+      if (!list) throw new ToolError(`xcodebuild -list failed: ${output2(r).slice(0, 800)}`);
+      return {
+        summary: `${list.kind} ${list.name}
+Schemes: ${list.schemes.join(", ")}
+Targets: ${list.targets.join(", ") || "(see project)"}
+Configurations: ${list.configurations.join(", ") || "Debug, Release"}`,
+        data: { ...list, container: c }
+      };
+    }
+    if (args.action === "signing_settings") {
+      if (!args.path || !args.scheme) throw new ToolError("path and scheme are required.");
+      const c = await containerArgs(ctx, args.path);
+      const r = await ctx.runner.run(
+        "xcodebuild",
+        [
+          "-showBuildSettings",
+          "-json",
+          c.flag,
+          c.path,
+          "-scheme",
+          args.scheme,
+          "-configuration",
+          configuration
+        ],
+        { timeoutMs: 3e5 }
+      );
+      const targets = parseShowBuildSettings(r.stdout);
+      if (!targets.length)
+        throw new ToolError(`xcodebuild -showBuildSettings failed: ${output2(r).slice(0, 800)}`);
+      const findings = [];
+      for (const t of targets) {
+        const s = t.settings;
+        const isApp = s.WRAPPER_EXTENSION === "app" || s.PRODUCT_TYPE === "com.apple.product-type.application";
+        if (!s.DEVELOPMENT_TEAM)
+          findings.push(
+            finding(
+              "error",
+              `${t.target}: DEVELOPMENT_TEAM not set.`,
+              "Pass team_id to archive or set it in Signing & Capabilities."
+            )
+          );
+        if (s.PLATFORM_NAME === "macosx" && isApp && s.ENABLE_HARDENED_RUNTIME !== "YES")
+          findings.push(
+            finding(
+              "warning",
+              `${t.target}: ENABLE_HARDENED_RUNTIME is not YES (required for notarization).`
+            )
+          );
+        if (s.CODE_SIGN_STYLE === "Manual" && !s.PROVISIONING_PROFILE_SPECIFIER && s.PLATFORM_NAME !== "macosx")
+          findings.push(
+            finding("warning", `${t.target}: manual signing without PROVISIONING_PROFILE_SPECIFIER.`)
+          );
+        if (s.CODE_SIGN_STYLE === "Automatic" && s.PROVISIONING_PROFILE_SPECIFIER)
+          findings.push(
+            finding(
+              "error",
+              `${t.target}: automatic signing but PROVISIONING_PROFILE_SPECIFIER is set (conflicting provisioning settings).`,
+              "Clear PROVISIONING_PROFILE_SPECIFIER or switch to manual."
+            )
+          );
+      }
+      return {
+        summary: `${targets.length} target(s) for scheme ${args.scheme} (${configuration}):
+${targets.map(
+          (t) => `\u2022 ${t.target}: ${t.settings.PRODUCT_BUNDLE_IDENTIFIER ?? "?"} team=${t.settings.DEVELOPMENT_TEAM ?? "\u2014"} style=${t.settings.CODE_SIGN_STYLE ?? "?"} identity=${t.settings.CODE_SIGN_IDENTITY ?? "?"} version=${t.settings.MARKETING_VERSION ?? "?"}(${t.settings.CURRENT_PROJECT_VERSION ?? "?"})`
+        ).join("\n")}${findings.length ? `
+
+${formatFindings(findings)}` : ""}`,
+        data: { targets, findings }
+      };
+    }
+    if (args.action === "archive") {
+      if (!args.path || !args.scheme) throw new ToolError("path and scheme are required.");
+      const c = await containerArgs(ctx, args.path);
+      const platform = args.target ? TARGETS[args.target].platform : void 0;
+      if (!platform) throw new ToolError("target is required for archive (it decides the platform).");
+      const archivePath = args.archive_path ? await resolveUserPath(ctx, args.archive_path, false) : join20(dirname7(c.path), "build", `${args.scheme}.xcarchive`);
+      const cmd2 = [
+        "archive",
+        c.flag,
+        c.path,
+        "-scheme",
+        args.scheme,
+        "-configuration",
+        configuration,
+        "-destination",
+        `generic/platform=${platform}`,
+        "-archivePath",
+        archivePath,
+        ...args.allow_provisioning_updates === false ? [] : await authArgs(ctx, args.profile),
+        ...args.team_id ? [`DEVELOPMENT_TEAM=${args.team_id}`] : [],
+        ...args.signing_style ? [`CODE_SIGN_STYLE=${args.signing_style === "manual" ? "Manual" : "Automatic"}`] : [],
+        ...Object.entries(args.build_settings ?? {}).map(([k, v]) => `${k}=${v}`)
+      ];
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Archive ${args.scheme} (${configuration}, ${platform})`,
+          steps: [cmdStep("xcodebuild archive", "xcodebuild", cmd2)],
+          notes: args.allow_provisioning_updates === false ? [] : [
+            "-allowProvisioningUpdates lets Xcode create Apple Development/Distribution certificates and provisioning profiles in your account if they are missing."
+          ]
+        }),
+        async () => {
+          const job = await ctx.jobs.runWithDeadline(
+            "archive",
+            `Archive ${args.scheme}`,
+            (args.max_wait_seconds ?? 120) * 1e3,
+            async (j) => {
+              j.progress("xcodebuild archive running");
+              const r = await ctx.runner.run("xcodebuild", cmd2, {
+                timeoutMs: 72e5,
+                logName: "xcodebuild-archive",
+                signal: j.signal,
+                onOutput: (o) => j.log(o)
+              });
+              const sum = summarizeXcodebuild(output2(r));
+              if (!ok(r) || !sum.succeeded) {
+                const known = matchKnownErrors(sum.errors.join("\n") || output2(r));
+                return {
+                  summary: `Archive FAILED.
+${sum.errors.slice(0, 15).join("\n")}${known.length ? `
+
+${formatMatches(known)}` : ""}
+Full log: ${r.logPath ?? "(not written)"}`,
+                  data: { errors: sum.errors, knownErrors: known, logPath: r.logPath },
+                  isError: true
+                };
+              }
+              return {
+                summary: `Archived to ${archivePath}.${sum.warnings.length ? ` (${sum.warnings.length} warnings)` : ""}`,
+                data: { archivePath, warnings: sum.warnings.slice(0, 10), logPath: r.logPath },
+                next_steps: [
+                  `xcode action=export archive_path=${archivePath} target=${args.target}${TARGETS[args.target].ascAppRecord ? " destination=upload" : ""}`
+                ]
+              };
+            }
+          );
+          if (!job.done)
+            return detachedOutput(ctx, job.jobId, `xcodebuild archive of ${args.scheme}`, [
+              "Archives typically take 1\u201320 minutes depending on project size."
+            ]);
+          return job.value;
+        }
+      );
+    }
+    if (!args.archive_path || !args.target) throw new ToolError("archive_path and target are required.");
+    const archive = await resolveUserPath(ctx, args.archive_path);
+    const method = await exportMethodFor(ctx, args.target);
+    const exportPath = args.export_path ? await resolveUserPath(ctx, args.export_path, false) : join20(dirname7(archive), `${basename12(archive, extname13(archive))}-${method}`);
+    const opts = exportOptions({
+      method,
+      destination: args.destination ?? "export",
+      teamId: args.team_id,
+      signingStyle: args.signing_style ?? "automatic",
+      provisioningProfiles: args.provisioning_profiles,
+      signingCertificate: args.signing_certificate
+    });
+    const optsPath = join20(exportPath, "ExportOptions.plist");
+    const cmd = [
+      "-exportArchive",
+      "-archivePath",
+      archive,
+      "-exportPath",
+      exportPath,
+      "-exportOptionsPlist",
+      optsPath,
+      ...args.allow_provisioning_updates === false ? [] : await authArgs(ctx, args.profile)
+    ];
+    return withConfirmation(
+      ctx,
+      extra,
+      args,
+      () => ({
+        title: `Export ${basename12(archive)} (${method}${args.destination === "upload" ? ", upload to App Store Connect" : ""})`,
+        steps: [
+          { description: `Write ${optsPath}`, command: buildPlist(opts) },
+          cmdStep("xcodebuild -exportArchive", "xcodebuild", cmd)
+        ],
+        destructive: args.destination === "upload",
+        warnings: args.destination === "upload" ? ["Uploads the build to App Store Connect (build numbers cannot be reused)."] : []
+      }),
+      async () => {
+        await mkdir9(exportPath, { recursive: true });
+        await writeFile10(optsPath, buildPlist(opts));
+        const job = await ctx.jobs.runWithDeadline(
+          "export",
+          `Export ${basename12(archive)}`,
+          (args.max_wait_seconds ?? 120) * 1e3,
+          async (j) => {
+            j.progress(`xcodebuild -exportArchive (${method})`);
+            const r = await ctx.runner.run("xcodebuild", cmd, {
+              timeoutMs: 72e5,
+              logName: "xcodebuild-export",
+              signal: j.signal,
+              onOutput: (o) => j.log(o)
+            });
+            const sum = summarizeXcodebuild(output2(r));
+            if (!ok(r) || !sum.succeeded) {
+              const known = matchKnownErrors(output2(r));
+              return {
+                summary: `Export FAILED.
+${sum.errors.slice(0, 15).join("\n")}${known.length ? `
+
+${formatMatches(known)}` : ""}`,
+                data: { errors: sum.errors, knownErrors: known, logPath: r.logPath },
+                isError: true
+              };
+            }
+            const files = await readdir10(exportPath).catch(() => []);
+            const next = args.destination === "upload" ? ["asc_builds action=wait_processing app=<bundle id> build_number=<CFBundleVersion>"] : args.target === "mac-developer-id" ? [
+              `notarize_and_staple path=${join20(exportPath, files.find((f) => f.endsWith(".app")) ?? "<App>.app")}`
+            ] : TARGETS[args.target].ascAppRecord ? [
+              `upload_build path=${join20(exportPath, files.find((f) => /\.(ipa|pkg)$/.test(f)) ?? "<file>")}`
+            ] : [];
+            return {
+              summary: `Exported to ${exportPath}: ${files.join(", ")}${args.destination === "upload" ? "\nUploaded to App Store Connect." : ""}`,
+              data: { exportPath, files, exportOptions: opts },
+              next_steps: next
+            };
+          }
+        );
+        if (!job.done)
+          return detachedOutput(
+            ctx,
+            job.jobId,
+            `Export of ${basename12(archive)}${args.destination === "upload" ? " + upload" : ""}`
+          );
+        return job.value;
+      }
+    );
+  }
+});
+
 // src/tools/index.ts
 var allTools = [
   // discovery & diagnostics
@@ -58189,7 +59553,13 @@ var allTools = [
   ascProfilesTool,
   ascAppsTool,
   ascBuildsTool,
-  ascApiTool
+  ascApiTool,
+  // build, upload, TestFlight, App Store, CI
+  xcodeTool,
+  uploadBuildTool,
+  testflightTool,
+  appStoreTool,
+  ciConfigTool
 ];
 
 // src/server.ts

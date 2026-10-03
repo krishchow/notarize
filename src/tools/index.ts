@@ -7,6 +7,7 @@ import {
   ascProfilesTool,
 } from "./asc-signing";
 import { distributionChecklistTool } from "./checklist";
+import { ciConfigTool } from "./ci";
 import { detectProjectTool } from "./detect-project";
 import { crashReportsTool, devicesTool, jobsTool, privacyTool, systemLogsTool } from "./diagnostics";
 import { doctorTool } from "./doctor";
@@ -18,7 +19,10 @@ import { notarizeAndStapleTool, notaryTool, stapleTool } from "./notary";
 import { packageTool } from "./package";
 import { provisioningProfilesTool } from "./provisioning";
 import { resignTool, signTool } from "./signing";
+import { appStoreTool, testflightTool } from "./store";
 import type { ToolDef } from "./types";
+import { uploadBuildTool } from "./upload";
+import { xcodeTool } from "./xcode";
 
 export const allTools: ToolDef<any>[] = [
   // discovery & diagnostics
@@ -54,4 +58,10 @@ export const allTools: ToolDef<any>[] = [
   ascAppsTool,
   ascBuildsTool,
   ascApiTool,
+  // build, upload, TestFlight, App Store, CI
+  xcodeTool,
+  uploadBuildTool,
+  testflightTool,
+  appStoreTool,
+  ciConfigTool,
 ];

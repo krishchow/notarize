@@ -12,7 +12,8 @@ import type { ToolContext } from "../src/tools/types";
 // Shared test helpers.
 
 export function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}): Response {
-  return new Response(body === undefined ? null : JSON.stringify(body), {
+  const empty = body === undefined || status === 204 || status === 205;
+  return new Response(empty ? null : JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json", ...headers },
   });
@@ -104,7 +105,7 @@ export function fakeAsc(routes: Record<string, FakeRoute | { status?: number; bo
           { status: "404", code: "NOT_FOUND", title: "Not found", detail: `${req.method} ${req.path}` },
         ],
       });
-    return jsonResponse(res.status ?? 200, res.body ?? { data: [] });
+    return jsonResponse(res.status ?? 200, res.status === 204 ? undefined : (res.body ?? { data: [] }));
   }) as typeof fetch;
   return { fetch: fetchFn, requests };
 }
