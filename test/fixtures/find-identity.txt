@@ -1,0 +1,14 @@
+
+Policy: Code Signing
+  Matching identities
+  1) 1111111111111111111111111111111111111111 "Developer ID Application: Example Corp (ABCDE12345)"
+  2) 2222222222222222222222222222222222222222 "Apple Development: jane@example.com (QWERTY1234)"
+  3) 3333333333333333333333333333333333333333 "Developer ID Application: Example Corp (ABCDE12345)" (CSSMERR_TP_CERT_EXPIRED)
+  4) 4444444444444444444444444444444444444444 "Apple Distribution: Example Corp (ABCDE12345)"
+     4 identities found
+
+  Valid identities only
+  1) 1111111111111111111111111111111111111111 "Developer ID Application: Example Corp (ABCDE12345)"
+  2) 2222222222222222222222222222222222222222 "Apple Development: jane@example.com (QWERTY1234)"
+  3) 4444444444444444444444444444444444444444 "Apple Distribution: Example Corp (ABCDE12345)"
+     3 valid identities found

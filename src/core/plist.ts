@@ -10,10 +10,28 @@ export type PlistDict = { [key: string]: PlistValue };
 /** Parse XML, binary (bplist00) or OpenStep plists. */
 export function parsePlist(data: string | Uint8Array): PlistValue {
   try {
+    if (typeof data !== "string" && !isBinaryPlist(data)) {
+      // The plist package treats every Uint8Array as bplist; decode text formats first.
+      return parse(decodeText(data));
+    }
     return parse(data);
   } catch (e) {
     throw new ToolError(`Could not parse property list: ${(e as Error).message}`);
   }
+}
+
+function isBinaryPlist(data: Uint8Array): boolean {
+  return Buffer.from(data.subarray(0, 6)).toString("latin1") === "bplist";
+}
+
+function decodeText(data: Uint8Array): string {
+  if (data[0] === 0xff && data[1] === 0xfe) return Buffer.from(data.subarray(2)).toString("utf16le");
+  if (data[0] === 0xfe && data[1] === 0xff) {
+    const swapped = Buffer.from(data.subarray(2));
+    swapped.swap16();
+    return swapped.toString("utf16le");
+  }
+  return Buffer.from(data).toString("utf8");
 }
 
 export function parsePlistDict(data: string | Uint8Array): PlistDict {

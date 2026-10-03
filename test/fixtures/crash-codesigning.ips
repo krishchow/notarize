@@ -1,0 +1,12 @@
+{"app_name":"Example","timestamp":"2026-01-02 10:00:00.00 -0800","app_version":"1.0","slice_uuid":"0000","build_version":"7","platform":1,"bundleID":"com.example.app","share_with_app_devs":0,"is_first_party":0,"bug_type":"309","os_version":"macOS 15.2 (24C101)","roots_installed":0,"name":"Example","incident_id":"ABC"}
+{
+  "uptime" : 1000,
+  "procName" : "Example",
+  "procPath" : "/Applications/Example.app/Contents/MacOS/Example",
+  "bundleInfo" : {"CFBundleShortVersionString":"1.0","CFBundleVersion":"7","CFBundleIdentifier":"com.example.app"},
+  "exception" : {"codes":"0x0000000000000000, 0x0000000000000000","rawCodes":[0,0],"type":"EXC_CRASH","signal":"SIGKILL (Code Signature Invalid)"},
+  "termination" : {"flags":0,"code":1,"namespace":"CODESIGNING","indicator":"Invalid Page","byProc":"exc handler","byPid":1234},
+  "codeSigningID" : "com.example.app",
+  "codeSigningTeamID" : "ABCDE12345",
+  "codeSigningFlags" : 570503953
+}
