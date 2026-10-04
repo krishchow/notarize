@@ -57,11 +57,26 @@ Details: [references/targets.md](references/targets.md).
 ### Things only the human can do (give them exact click paths)
 - **Enroll** in the Apple Developer Program at developer.apple.com/programs/enroll. Organizations need a D-U-N-S number, and approval can take days.
 - **Accept agreements.** The Account Holder accepts updated agreements at developer.apple.com/account and in App Store Connect → Business. A 403 mentioning "agreement" means this step is pending.
-- **Create an App Store Connect API key.** Go to App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → "+" and pick the **Admin** role (App Manager works for most store and TestFlight tasks). The **.p8 can be downloaded only once**. Then run `asc_auth action=configure`.
+- **Create an App Store Connect API key.** Go to App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → "+" and pick the **Admin** role (App Manager works for most store and TestFlight tasks). The **.p8 can be downloaded only once**. Then store it per [Where the API key lives](#where-the-api-key-lives) and run `asc_auth action=configure` (or set the env vars).
 - **Create the app record.** App Store Connect → Apps → + → New App (`asc_apps action=create_instructions`). The API can't do this.
 - **Create Developer ID certificates.** Normally the **Account Holder** does this in the portal with a CSR from `keychain create_csr`, then imports it with `keychain import_certificate`.
 - **Fill in store details.** Screenshots, privacy "nutrition labels", age rating, pricing and Paid Apps banking/tax are easiest in the web UI.
 - **Enable Developer Mode** on iOS devices used for development: Settings → Privacy & Security.
+
+### Where the API key lives
+
+One convention, so every project, the MCP server, `xcodebuild`, `altool` and EAS find the same key:
+
+- **File:** `~/.appstoreconnect/private_keys/AuthKey_<KEYID>.p8`, `chmod 600`. This is Apple's own default search path, and the MCP server finds a key here with no configuration. Never put the .p8 inside a repo.
+- **Env vars** (shell profile, e.g. `~/.zshrc`; the MCP server inherits them from the client that launched it):
+  ```bash
+  export ASC_KEY_ID=ABC123DEFG
+  export ASC_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  export ASC_PRIVATE_KEY_PATH=$HOME/.appstoreconnect/private_keys/AuthKey_ABC123DEFG.p8
+  ```
+- **Resolution order** in the server: explicit `profile` argument → env vars (`ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY_PATH`, or inline `ASC_PRIVATE_KEY` for CI) → saved profile from `asc_auth configure` (`~/.config/notarize-mcp/config.json`, stores only the path) → an `AuthKey_<KEYID>.p8` found in the default directory.
+- Env vars are read when the MCP server starts, so restart Claude Code after changing them. Run `asc_auth action=status` to see which source is active, then `asc_auth action=test`.
+- Pass the **path**, never the key contents, through tool arguments or chat. Other tools want the same values under different names (`APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, `APPLE_API_KEY_PATH` for Electron/Tauri); derive them from the `ASC_*` vars rather than storing a second copy.
 
 ## 3. Long-running operations: never block, use a Monitor
 
