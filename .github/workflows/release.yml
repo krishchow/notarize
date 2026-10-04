@@ -46,10 +46,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
           registry-url: https://registry.npmjs.org
 
       - name: Guards
@@ -87,17 +88,17 @@ jobs:
       - name: Install
         run: |
           npm install -g npm@^11.5.1  # trusted publishing needs npm >= 11.5.1
-          npm ci
+          pnpm install --frozen-lockfile
 
       - name: Bump version
         if: env.MODE == 'new' && env.CURRENT != inputs.version
         run: |
           node scripts/bump-version.mjs "$VERSION"
-          npm install --package-lock-only --ignore-scripts
+          pnpm install --lockfile-only --ignore-scripts
 
       - name: Build and check
         run: |
-          npm run check  # lint, typecheck, build, tests
+          pnpm run check  # lint, typecheck, build, tests
           {
             echo "### $PACKAGE@$VERSION"
             echo '```'
@@ -111,7 +112,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json .claude-plugin/plugin.json
+          git add package.json pnpm-lock.yaml .claude-plugin/plugin.json
           if ! git diff --cached --quiet; then git commit -m "Release v$VERSION"; fi
           git tag "v$VERSION"
           git push origin "v$VERSION"  # the tag alone doesn't change what plugin users get

@@ -4,7 +4,7 @@ Four layers, from cheapest to most real. GitHub Actions is **manual only** (`wor
 
 ## 1. Unit + integration tests: any OS, no credentials
 ```bash
-npm run check          # biome + tsc + vitest
+pnpm run check          # biome + tsc + vitest
 ```
 - macOS commands are scripted with `FakeRunner` (`src/core/fake-runner.ts`):
   ```ts
@@ -24,7 +24,7 @@ npm run check          # biome + tsc + vitest
 ```bash
 bash scripts/record-fixtures.sh            # writes test/fixtures/recorded/*.txt (+ .exit)
 bash scripts/record-fixtures.sh --with-notary   # also `notarytool history` (needs credentials)
-npm run test:recorded
+pnpm run test:recorded
 ```
 - Records what this Mac's tools actually print: `codesign`, `spctl`, `security`, `otool`, `lipo`, `xcodebuild`, `syspolicy_check`, and the `altool` / `notarytool` help text.
 - Paths, user names, team names and Team IDs are redacted. Review the files before committing them.
@@ -32,7 +32,7 @@ npm run test:recorded
 
 ## 3. Smoke test (macOS, no credentials)
 ```bash
-npm run build && bash scripts/smoke-macos.sh
+pnpm run build && bash scripts/smoke-macos.sh
 ```
 1. Builds a universal Hello.app with a nested dylib (`scripts/lib/build-test-app.sh`).
 2. Drives the **bundled** server over stdio (`scripts/smoke-client.mjs`) with `NOTARIZE_MCP_AUTO_CONFIRM=1` (safe policy):
@@ -45,7 +45,7 @@ npm run build && bash scripts/smoke-macos.sh
 ## 4. Live Apple account (opt-in, never destructive)
 ```bash
 export NOTARIZE_LIVE=1 ASC_KEY_ID=… ASC_ISSUER_ID=… ASC_PRIVATE_KEY_PATH=~/…/AuthKey_….p8
-npm run test:live
+pnpm run test:live
 ```
 **Read-only checks:**
 - `asc_auth test`;

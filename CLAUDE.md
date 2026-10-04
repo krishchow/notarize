@@ -4,11 +4,11 @@ A stdio MCP server (TypeScript) plus a Claude Code skill for Apple code signing,
 
 ## Commands
 ```bash
-npm run check                 # biome lint + tsc + build + vitest — must pass before committing
-npm run build                 # tsup → dist/notarize-mcp.js (build output; gitignored, published to npm)
+pnpm run check                 # biome lint + tsc + build + vitest — must pass before committing
+pnpm run build                 # tsup → dist/notarize-mcp.js (build output; gitignored, published to npm)
 UPDATE_DOCS=1 npx vitest run test/docs.test.ts   # regenerate docs/tools.md, docs/claude-settings.example.json, error-catalog.md
-npm run test:recorded         # parsers vs real macOS output in test/fixtures/recorded (skips missing files)
-npm run test:live             # real Apple account, opt-in — see docs/testing.md
+pnpm run test:recorded         # parsers vs real macOS output in test/fixtures/recorded (skips missing files)
+pnpm run test:live             # real Apple account, opt-in — see docs/testing.md
 bash scripts/smoke-macos.sh   # real end-to-end on a Mac (no Apple credentials)
 bash scripts/release.sh X.Y.Z # local release: bump, build, check, commit + tag; then `npm publish`
 # GitHub: Actions → Release (manual; NPM_TOKEN secret) does bump → check → tag → npm publish (docs/releasing.md)

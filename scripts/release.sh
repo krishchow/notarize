@@ -13,14 +13,14 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 
 node scripts/bump-version.mjs "$VERSION"
-npm install --package-lock-only --silent
+pnpm install --lockfile-only --silent
 
-npm run check   # lint, typecheck, build, test
+pnpm run check   # lint, typecheck, build, test
 echo
 echo "Package contents:"
 npm pack --dry-run --ignore-scripts 2>&1 | grep -E "notarize-mcp@|package size|unpacked size|total files"
 
-git add package.json package-lock.json .claude-plugin/plugin.json
+git add package.json pnpm-lock.yaml .claude-plugin/plugin.json
 git commit -m "Release v$VERSION"
 git tag "v$VERSION"
 

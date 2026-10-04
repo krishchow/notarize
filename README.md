@@ -105,12 +105,12 @@ notarize-mcp watch-notarization <submission-id> # polls Apple directly; survives
 
 ## Development
 ```bash
-npm install
-npm run check        # biome lint + tsc + build + vitest (runs on Linux; macOS CLIs are faked with recorded outputs)
-npm run build        # tsup → dist/notarize-mcp.js (build output, not committed)
+pnpm install
+pnpm run check        # biome lint + tsc + build + vitest (runs on Linux; macOS CLIs are faked with recorded outputs)
+pnpm run build        # tsup → dist/notarize-mcp.js (build output, not committed)
 claude mcp add notarize -- node "$PWD/dist/notarize-mcp.js"   # run your local build in Claude Code
-bash scripts/record-fixtures.sh && npm run test:recorded   # parsers vs real output from your Mac
-npm run test:live    # opt-in, real Apple account (docs/testing.md)
+bash scripts/record-fixtures.sh && pnpm run test:recorded   # parsers vs real output from your Mac
+pnpm run test:live    # opt-in, real Apple account (docs/testing.md)
 bash scripts/smoke-macos.sh   # real end-to-end on a Mac: builds a tiny app, signs, inspects, assesses, packages
 npx @modelcontextprotocol/inspector node dist/notarize-mcp.js
 ```
