@@ -5,6 +5,7 @@
       "src/**",
       "test/**",
       "scripts/**",
+      "skills/**/*.mjs",
       "*.ts",
       "*.json",
       ".claude-plugin/**",

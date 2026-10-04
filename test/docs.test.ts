@@ -40,6 +40,21 @@ describe("skill + docs", () => {
     for (const r of referenced) expect(names.has(r), `SKILL.md references unknown tool ${r}`).toBe(true);
   });
 
+  it("ships the setup skill and points apple-distribution at it", () => {
+    const setup = readFileSync(join(skillDir, "..", "setup", "SKILL.md"), "utf8");
+    expect(setup).toMatch(/^---\nname: setup\ndescription: .{100,}\n---/);
+    expect(existsSync(join(skillDir, "..", "setup", "scripts", "setup.mjs"))).toBe(true);
+    const names = new Set(allTools.map((t) => t.name));
+    const checkIds = ["asc_key_id", "asc_issuer_id", "asc_online"];
+    for (const [, tool] of setup.matchAll(/`((?:asc|detect|distribution)_[a-z_]+)/g)) {
+      if (checkIds.includes(tool)) continue;
+      expect(names.has(tool), `setup SKILL.md references unknown tool ${tool}`).toBe(true);
+    }
+    const skill = readFileSync(join(skillDir, "SKILL.md"), "utf8");
+    expect(skill).toContain("/notarize:setup");
+    expect(skill).toContain("setup.mjs check");
+  });
+
   it("documents the Monitor workflow for long notarizations", () => {
     const skill = readFileSync(join(skillDir, "SKILL.md"), "utf8");
     expect(skill).toMatch(/Long-running operations/);

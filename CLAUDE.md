@@ -27,6 +27,7 @@ GitHub Actions are **manual only** (`workflow_dispatch`) — the account has no 
 | `src/tools/` | one module per tool group; `index.ts` is the registry; `types.ts` has `defineTool` + `withConfirmation` |
 | `src/cli/watch.ts` | Monitor-friendly watchers |
 | `src/docs/tool-docs.ts` | generators for docs/tools.md and the settings example |
+| `skills/setup/` | `/notarize:setup` skill; `scripts/setup.mjs` is a zero-dep Node script (JSON out) that checks/installs ASC credentials. Its resolution must match `ConfigStore.resolveAsc` (parity test in `test/setup-script.test.ts`) |
 | `skills/apple-distribution/` | the skill (SKILL.md + references/) — also served as `notarize://guides/*` |
 | `test/` | vitest; `helpers.ts` has `makeCtx`, `connect`, `call`, `callConfirmed`, `fakeAsc`, `ascEnv` |
 
