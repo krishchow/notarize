@@ -81,6 +81,10 @@ describe("package", () => {
     const bump = sync.indexOf("scripts/bump-version.mjs");
     const push = sync.indexOf("git push origin HEAD:main");
     expect(onNpm).toBeGreaterThan(0);
+    // npm lags behind a fresh publish: wait for it, and fail rather than skip when this run published.
+    expect(sync).toContain("PUBLISH_RESULT: ${{ needs.publish.result }}");
+    expect(sync).toMatch(/sleep \d+/);
+    expect(sync).toContain("exit 1");
     expect(onNpm).toBeLessThan(bump);
     expect(bump).toBeLessThan(push);
     expect(wf.slice(0, wf.indexOf("  sync-plugin:"))).not.toContain("bump-version");

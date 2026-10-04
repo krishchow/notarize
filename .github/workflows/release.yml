@@ -134,7 +134,7 @@ jobs:
     needs: [select-mode, publish]
     if: always() && needs.select-mode.result == 'success' && (needs.publish.result == 'success' || needs.publish.result == 'skipped')
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     permissions:
       contents: write # push the plugin pin to main
     steps:
@@ -145,15 +145,31 @@ jobs:
         with:
           node-version: 24
       - name: Pin the plugin to the published version
+        env:
+          PUBLISH_RESULT: ${{ needs.publish.result }}
         run: |
           set -euo pipefail
           version=$(node -p 'require("./package.json").version')
           plugin=$(node -p 'require("./.claude-plugin/plugin.json").version')
           if [[ "$version" == "$plugin" ]]; then echo "Plugin already pins $PACKAGE@$version."; exit 0; fi
           if [[ "$version" == *-* ]]; then echo "$version is a prerelease; plugin stays on $plugin."; exit 0; fi
-          if [[ "$(npm view "$PACKAGE@$version" version 2>/dev/null)" != "$version" ]]; then
-            echo "$PACKAGE@$version is not on npm yet; plugin stays on $plugin."; exit 0
-          fi
+          # npm can take a minute or two to list a version it just accepted. When this run published,
+          # wait for it, and fail if it never shows up; otherwise the plugin silently stays behind.
+          # When publish didn't run, an unpublished version just means there's nothing to pin yet.
+          attempts=1
+          if [[ "$PUBLISH_RESULT" == "success" ]]; then attempts=20; fi  # 20 × 15s = 5 minutes
+          for ((i = 1; ; i++)); do
+            if [[ "$(npm view "$PACKAGE@$version" version --prefer-online 2>/dev/null)" == "$version" ]]; then break; fi
+            if (( i >= attempts )); then
+              if [[ "$PUBLISH_RESULT" == "success" ]]; then
+                echo "::error::$PACKAGE@$version still isn't on npm 5 minutes after publishing, so the plugin stays on $plugin. Check npm, then re-run this workflow to pin it."
+                exit 1
+              fi
+              echo "$PACKAGE@$version is not on npm; plugin stays on $plugin."; exit 0
+            fi
+            echo "Waiting for npm to list $PACKAGE@$version ($i/$attempts)…"
+            sleep 15
+          done
           node scripts/bump-version.mjs "$version"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
