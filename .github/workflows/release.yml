@@ -1,12 +1,15 @@
 name: Release
 
 # Manual only (Actions → Release → Run workflow, or `gh workflow run release.yml -f version=0.2.1`).
-# Bumps package.json + plugin.json, rebuilds dist/, runs the checks, pushes "Release vX" + tag vX
-# to main, publishes notarize-mcp to npm and creates a GitHub Release. One short Linux job.
+# Releases both artifacts of this repo in one run:
+#   1. the npm package `notarize-mcp` (the MCP server, run with `npx -y notarize-mcp`);
+#   2. the Claude Code plugin (marketplace = this repo's main branch; skill + `npx -y notarize-mcp@X`).
+# Order: bump + check → commit + tag vX → push the tag → npm publish → push main → GitHub Release.
+# main (what plugin users get) moves last, so the plugin never pins a version npm doesn't have.
 #
 # Auth: the NPM_TOKEN secret (npm granular access token with publish rights; "bypass 2FA" on).
 # Leave NPM_TOKEN unset to use npm trusted publishing (OIDC) instead — see docs/releasing.md.
-# Re-running with the same version after a failed publish is safe: the bump/tag steps are skipped.
+# Re-running with the same version resumes from the pushed tag (publish and/or push main).
 on:
   workflow_dispatch:
     inputs:
@@ -58,16 +61,28 @@ jobs:
           if [[ "$DRY_RUN" != "true" && "$GITHUB_REF" != "refs/heads/main" ]]; then
             echo "::error::Real releases run from main (this run is on $GITHUB_REF). Use dry_run on other branches."; exit 1
           fi
-          if npm view "$PACKAGE@$VERSION" version >/dev/null 2>&1; then
-            echo "::error::$PACKAGE@$VERSION is already on npm. Pick a new version."; exit 1
-          fi
+          on_npm=false
+          on_main=false
+          if npm view "$PACKAGE@$VERSION" version >/dev/null 2>&1; then on_npm=true; fi
+          mode=new
           if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
-            if [[ "$(git rev-list -n1 "v$VERSION")" != "$(git rev-parse HEAD)" ]]; then
-              echo "::error::Tag v$VERSION exists on another commit. Pick a new version or delete the tag."; exit 1
+            # A previous run pushed the tag: resume from it instead of bumping again.
+            if git merge-base --is-ancestor "v$VERSION" HEAD; then on_main=true; fi
+            if $on_npm && $on_main; then
+              echo "::error::v$VERSION is already released (on npm and on main). Pick a new version."; exit 1
             fi
-            echo "Tag v$VERSION already points at HEAD — re-running the publish."
+            echo "Resuming release v$VERSION from its tag (on npm: $on_npm, on main: $on_main)."
+            git checkout -q "v$VERSION"
+            mode=resume
+          elif $on_npm; then
+            echo "::error::$PACKAGE@$VERSION is already on npm but tag v$VERSION doesn't exist. Pick a new version."; exit 1
           fi
-          echo "CURRENT=$(node -p 'require("./package.json").version')" >> "$GITHUB_ENV"
+          {
+            echo "MODE=$mode"
+            echo "ON_NPM=$on_npm"
+            echo "ON_MAIN=$on_main"
+            echo "CURRENT=$(node -p 'require("./package.json").version')"
+          } >> "$GITHUB_ENV"
 
       - name: Install
         run: |
@@ -75,15 +90,14 @@ jobs:
           npm ci
 
       - name: Bump version
-        if: env.CURRENT != inputs.version
+        if: env.MODE == 'new' && env.CURRENT != inputs.version
         run: |
           node scripts/bump-version.mjs "$VERSION"
           npm install --package-lock-only --ignore-scripts
 
       - name: Build and check
         run: |
-          npm run build
-          npm run check
+          npm run check  # lint, typecheck, build, tests
           {
             echo "### $PACKAGE@$VERSION"
             echo '```'
@@ -91,18 +105,19 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Commit and tag
-        if: inputs.dry_run == false
+      - name: Commit, tag and push the tag
+        if: inputs.dry_run == false && env.MODE == 'new'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json .claude-plugin/plugin.json dist
+          git add package.json package-lock.json .claude-plugin/plugin.json
           if ! git diff --cached --quiet; then git commit -m "Release v$VERSION"; fi
-          git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null || git tag "v$VERSION"
-          git push --atomic origin HEAD:main "v$VERSION"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"  # the tag alone doesn't change what plugin users get
 
       - name: Publish to npm
+        if: env.ON_NPM != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           PROVENANCE: ${{ github.event.repository.private && 'false' || 'true' }}
@@ -117,6 +132,15 @@ jobs:
           fi
           npm publish "${args[@]}"
 
+      - name: Push main (updates the Claude Code plugin)
+        if: inputs.dry_run == false && env.ON_MAIN != 'true'
+        run: |
+          set -euo pipefail
+          git push origin HEAD:main || {
+            echo "::error::Published to npm, but main could not be fast-forwarded to v$VERSION (did main move, or is it protected?). Merge tag v$VERSION into main, or re-run this workflow with the same version."
+            exit 1
+          }
+
       - name: GitHub Release
         if: inputs.dry_run == false
         env:
@@ -129,5 +153,6 @@ jobs:
             echo
             echo "Published: https://www.npmjs.com/package/$PACKAGE/v/$VERSION"
             echo
-            echo 'Install: `npx -y notarize-mcp install`'
+            echo 'MCP server (any client): `npx -y notarize-mcp`'
+            echo 'Claude Code plugin: `/plugin marketplace add krishchow/notarize` then `/plugin install notarize@notarize`'
           } >> "$GITHUB_STEP_SUMMARY"

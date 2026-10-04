@@ -11,8 +11,8 @@
   "keywords": ["apple", "macos", "ios", "codesign", "notarization", "app-store-connect", "testflight", "mcp"],
   "mcpServers": {
     "notarize": {
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/notarize-mcp.js"]
+      "command": "npx",
+      "args": ["-y", "notarize-mcp@0.2.0"]
     }
   }
 }

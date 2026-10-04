@@ -9,42 +9,38 @@ A local **stdio MCP server** plus a **core skill** that take any macOS or iOS ap
 - **Skill** (`skills/apple-distribution`) teaches the agent the mental model, the zero-context workflow, golden rules and a debugging playbook, with references per topic and per framework.
 
 ## Install
+This repo ships two artifacts from each release. Both need Node ≥ 20 on your Mac.
 
-### One command (Node ≥ 20, on your Mac)
-```bash
-npx -y notarize-mcp install
-```
-This registers the MCP server with **Claude Code, Claude Desktop and/or Cursor** (whichever it finds) and installs the skill into `~/.claude/skills/apple-distribution`. It then prints the remaining steps.
+| Artifact | What it is | For |
+|---|---|---|
+| npm package [`notarize-mcp`](https://www.npmjs.com/package/notarize-mcp) | The MCP server, run with `npx -y notarize-mcp` | Any MCP client |
+| Claude Code plugin (this repo's marketplace) | The `apple-distribution` skill, plus the same server pinned to the matching version | Claude Code |
 
-| Option | Effect |
-|---|---|
-| `--client claude-code\|claude-desktop\|cursor\|all` | choose clients instead of auto-detecting |
-| `--scope project` | install into the current repo instead of your user profile |
-| `--pin` | pin this exact version instead of `@latest` |
-| `--dry-run` | show what would change, change nothing |
-| `--no-skill`, `--force` | skip the skill / replace existing entries |
-
-Undo everything with `npx -y notarize-mcp uninstall`. Maintainers: see [docs/releasing.md](docs/releasing.md).
-
-### Claude Code plugin (alternative: skill + MCP server)
+### Claude Code: the plugin (skill + MCP server)
 ```
 /plugin marketplace add krishchow/notarize
 /plugin install notarize@notarize
 ```
-The plugin runs the committed single-file bundle `dist/notarize-mcp.js` with Node ≥ 20 — no `npm install` needed. For local development: `claude --plugin-dir /path/to/notarize` (the repo intentionally has no root `.mcp.json`; the server is defined in `.claude-plugin/plugin.json`).
+The plugin starts the server with `npx -y notarize-mcp@<plugin version>`, so the skill and the server always match.
 
-### Any other MCP client (manual config)
+### Any MCP client: just the server
+Claude Code without the plugin:
+```bash
+claude mcp add notarize -- npx -y notarize-mcp
+```
+Claude Desktop (`~/Library/Application Support/Claude/claude_desktop_config.json`), Cursor (`~/.cursor/mcp.json`) or any other client:
 ```json
 {
   "mcpServers": {
     "notarize": {
       "command": "npx",
-      "args": ["-y", "notarize-mcp@latest"],
-      "env": { "ASC_PROFILE": "default" }
+      "args": ["-y", "notarize-mcp"]
     }
   }
 }
 ```
+Add `"env": { "ASC_PROFILE": "…" }` to pick a credential profile. To use the skill without the plugin, copy [`skills/apple-distribution`](skills/apple-distribution) into `~/.claude/skills/`.
+
 Run it **on the Mac that holds your signing identities**. On Linux/Windows only the App Store Connect API and file-inspection tools work. The skill's guides are also exposed as MCP resources (`notarize://guides/*`, `notarize://catalog/*`) and there are MCP prompts (`setup-distribution`, `debug-gatekeeper`, `debug-notarization`, `debug-sandbox`).
 
 ## Quick start (what the agent will do)
@@ -104,8 +100,9 @@ notarize-mcp watch-notarization <submission-id> # polls Apple directly; survives
 ## Development
 ```bash
 npm install
-npm run check        # biome lint + tsc + vitest (runs on Linux; macOS CLIs are faked with recorded outputs)
-npm run build        # tsup → dist/notarize-mcp.js (committed; the CI check fails if stale)
+npm run check        # biome lint + tsc + build + vitest (runs on Linux; macOS CLIs are faked with recorded outputs)
+npm run build        # tsup → dist/notarize-mcp.js (build output, not committed)
+claude mcp add notarize -- node "$PWD/dist/notarize-mcp.js"   # run your local build in Claude Code
 bash scripts/record-fixtures.sh && npm run test:recorded   # parsers vs real output from your Mac
 npm run test:live    # opt-in, real Apple account (docs/testing.md)
 bash scripts/smoke-macos.sh   # real end-to-end on a Mac: builds a tiny app, signs, inspects, assesses, packages

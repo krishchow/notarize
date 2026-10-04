@@ -7,3 +7,4 @@ coverage/
 *.mobileprovision
 *.provisionprofile
 !test/fixtures/**
+dist/

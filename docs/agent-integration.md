@@ -6,10 +6,9 @@ How to drive the `notarize` MCP server from an agent (Claude Code or any MCP cli
 
 | Mode | How | Notes |
 |---|---|---|
-| One command (recommended) | `npx -y notarize-mcp install` | Registers the server (`npx -y notarize-mcp@latest`) with Claude Code / Claude Desktop / Cursor and copies the skill to `~/.claude/skills/`. See [releasing.md](releasing.md) for options. |
-| Claude Code plugin | `/plugin marketplace add krishchow/notarize` → `/plugin install notarize@notarize` | Installs the skill and the MCP server (defined in `.claude-plugin/plugin.json` with `${CLAUDE_PLUGIN_ROOT}`). |
-| Developing this repo | `claude --plugin-dir .`, or `claude mcp add notarize -- node "$PWD/dist/notarize-mcp.js"` | The repo deliberately has **no root `.mcp.json`**. A project-scoped file can't resolve `${CLAUDE_PLUGIN_ROOT}`, so the server would fail to start. |
-| Other MCP clients | `{"command": "npx", "args": ["-y", "notarize-mcp@latest"]}` | Skill content is also available as `notarize://guides/*` resources and four MCP prompts. |
+| Claude Code plugin (recommended) | `/plugin marketplace add krishchow/notarize` → `/plugin install notarize@notarize` | Installs the skill and the MCP server. `.claude-plugin/plugin.json` runs `npx -y notarize-mcp@<plugin version>`. |
+| Any MCP client | `{"command": "npx", "args": ["-y", "notarize-mcp"]}`, or `claude mcp add notarize -- npx -y notarize-mcp` | The npm package is the server alone. Skill content is also available as `notarize://guides/*` resources and four MCP prompts. |
+| Developing this repo | `npm run build`, then `claude mcp add notarize -- node "$PWD/dist/notarize-mcp.js"` | `dist/` is build output and isn't committed. The repo deliberately has **no root `.mcp.json`**. |
 
 Run the server **on the Mac that has the signing identities**. On Linux and cloud agents only App Store Connect and file-inspection tools work. For signing there, generate a CI workflow with `ci_config` and run it on a macOS runner.
 
