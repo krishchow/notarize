@@ -473,7 +473,7 @@ Matches: `Your team has no devices from which to generate a provisioning profile
 Development/Ad Hoc profiles need at least one registered device. An iOS archive with automatic signing builds with an Apple Development profile first (distribution signing happens at export), so even App Store/TestFlight archives hit this on a team with no devices. -allowProvisioningUpdates does not help.
 
 - Register any one device you own: devices (UDIDs of connected iPhones/iPads) → asc_devices register, then archive again
-- Or skip development signing: asc_profiles create profile_type=IOS_APP_STORE → download_install, then xcode archive signing_style=manual signing_certificate='Apple Distribution' provisioning_profiles={<bundle id>: <profile name>}
+- Or skip development signing: asc_profiles create profile_type=IOS_APP_STORE → download_install, set the app target's manual signing in the project (CODE_SIGN_STYLE/CODE_SIGN_IDENTITY/PROVISIONING_PROFILE_SPECIFIER), then xcode archive signing_style=manual signing_certificate='Apple Distribution' provisioning_profiles={<bundle id>: <profile name>}
 - Tool: `asc_devices`
 
 ### xcodebuild has no account to manage signing
