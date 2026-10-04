@@ -49,7 +49,7 @@ export function errorCatalogMarkdown(): string {
   const lines = [
     "# Error catalog",
     "",
-    "<!-- Generated from src/knowledge/error-catalog.ts by `UPDATE_DOCS=1 npx vitest run test/docs.test.ts`. Do not edit by hand. -->",
+    "<!-- Generated from src/knowledge/error-catalog.ts by `UPDATE_DOCS=1 pnpm exec vitest run test/docs.test.ts`. Do not edit by hand. -->",
     "",
     "Tool results run every failure through this catalog automatically; this page is for reading ahead.",
   ];

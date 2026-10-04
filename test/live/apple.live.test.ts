@@ -11,7 +11,7 @@ import { connect } from "../helpers";
 /**
  * LIVE tests against a real Apple developer account. Never destructive.
  *
- *   NOTARIZE_LIVE=1 ASC_KEY_ID=… ASC_ISSUER_ID=… ASC_PRIVATE_KEY_PATH=… npm run test:live
+ *   NOTARIZE_LIVE=1 ASC_KEY_ID=… ASC_ISSUER_ID=… ASC_PRIVATE_KEY_PATH=… pnpm run test:live
  *
  * Add NOTARIZE_LIVE_NOTARIZE=1 (macOS, Developer ID Application identity in the keychain)
  * to sign + notarize + staple a tiny test app end to end. See docs/testing.md.

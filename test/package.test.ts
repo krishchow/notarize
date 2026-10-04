@@ -8,10 +8,16 @@ import { describe, expect, it } from "vitest";
 const ROOT = join(__dirname, "..");
 
 describe("package", () => {
-  it("keeps plugin.json and package.json versions in sync", async () => {
+  it("pins the plugin to its own version, never ahead of package.json", async () => {
     const pkg = JSON.parse(await readFile(join(ROOT, "package.json"), "utf8"));
     const plugin = JSON.parse(await readFile(join(ROOT, ".claude-plugin", "plugin.json"), "utf8"));
-    expect(plugin.version).toBe(pkg.version);
+    expect(plugin.mcpServers.notarize.args).toEqual(["-y", `notarize-mcp@${plugin.version}`]);
+    // Between merging the Version Packages PR and the release workflow's sync-plugin job,
+    // package.json is ahead of the plugin; the plugin is never ahead.
+    const core = (v: string) => v.split("-")[0].split(".").map(Number);
+    const [a, b] = [core(plugin.version), core(pkg.version)];
+    const cmp = a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+    expect(cmp).toBeLessThanOrEqual(0);
   });
 
   it("publishes a self-contained tarball (bundle + skill, no runtime dependencies)", () => {
@@ -53,16 +59,42 @@ describe("package", () => {
     expect(() => execFileSync("node", [script, "1.4", dir], { stdio: "pipe" })).toThrow();
   });
 
-  it("release workflow is manual-only, publishes after the checks and pushes main only after publishing", () => {
+  it("release workflow uses changesets, publishes after the checks and pins the plugin only after publishing", () => {
     const wf = readFileSync(join(ROOT, ".github", "workflows", "release.yml"), "utf8");
-    expect(wf).toMatch(/^on:\n {2}workflow_dispatch:/m);
-    expect(wf).not.toMatch(/^\s+(push|pull_request|schedule):/m);
-    expect(wf).toContain("secrets.NPM_TOKEN");
-    expect(wf).toContain("scripts/bump-version.mjs");
-    expect(wf.indexOf("npm run check")).toBeGreaterThan(0);
-    expect(wf.indexOf("npm run check")).toBeLessThan(wf.indexOf('npm publish "'));
-    // The marketplace reads main: the plugin must never pin a version npm doesn't have yet.
-    expect(wf.indexOf('git push origin "v$VERSION"')).toBeLessThan(wf.indexOf('npm publish "'));
-    expect(wf.indexOf('npm publish "')).toBeLessThan(wf.indexOf("git push origin HEAD:main"));
+    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+    // Actions minutes are scarce: main pushes that touch release inputs, or manual runs. Never PRs.
+    expect(wf).toMatch(/^on:\n {2}push:\n {4}branches: \[main\]\n {4}paths:/m);
+    expect(wf).toMatch(/^ {2}workflow_dispatch:/m);
+    expect(wf).not.toMatch(/^\s+(pull_request|pull_request_target|schedule):/m);
+    for (const step of ["select-mode", "version", "publish"]) {
+      expect(wf).toContain(`uses: changesets/action/${step}@v2`);
+    }
+    // pnpm publish runs prepublishOnly, so the full check gates every publish.
+    expect(pkg.scripts.prepublishOnly).toBe("pnpm run check");
+    // The Version Packages PR must not move the plugin pin: main would then pin an unpublished version.
+    expect(pkg.scripts["version-packages"]).not.toContain("bump-version");
+    expect(wf).toContain("script: pnpm run version-packages");
+    // The marketplace reads main: the plugin is pinned only after npm has the version.
+    const sync = wf.slice(wf.indexOf("  sync-plugin:"));
+    expect(sync).toContain("needs: [select-mode, publish]");
+    const onNpm = sync.indexOf('npm view "$PACKAGE@$version" version');
+    const bump = sync.indexOf("scripts/bump-version.mjs");
+    const push = sync.indexOf("git push origin HEAD:main");
+    expect(onNpm).toBeGreaterThan(0);
+    expect(onNpm).toBeLessThan(bump);
+    expect(bump).toBeLessThan(push);
+    expect(wf.slice(0, wf.indexOf("  sync-plugin:"))).not.toContain("bump-version");
+  });
+
+  it("changesets config publishes notarize-mcp publicly from main", () => {
+    const config = JSON.parse(readFileSync(join(ROOT, ".changeset", "config.json"), "utf8"));
+    expect(config).toMatchObject({ baseBranch: "main", access: "public" });
+    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+    expect(pkg.devDependencies["@changesets/cli"]).toBeDefined();
+    // The changelog generator named in the config must be installed, or `changeset version` fails.
+    const changelog = [config.changelog].flat()[0];
+    if (changelog.startsWith("@changesets/") && changelog !== "@changesets/cli/changelog") {
+      expect(pkg.devDependencies[changelog]).toBeDefined();
+    }
   });
 });

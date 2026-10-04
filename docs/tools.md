@@ -1,6 +1,6 @@
 # Tool reference
 
-<!-- Generated from src/tools/*.ts by `UPDATE_DOCS=1 npx vitest run test/docs.test.ts`. Do not edit by hand. -->
+<!-- Generated from src/tools/*.ts by `UPDATE_DOCS=1 pnpm exec vitest run test/docs.test.ts`. Do not edit by hand. -->
 
 35 tools. **Mutating** tools also accept `confirm_token`: the first call returns a preview and changes nothing; repeat the identical call with the token to execute (see [agent-integration.md](agent-integration.md)).
 

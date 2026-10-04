@@ -4,78 +4,96 @@ Each release ships two artifacts with the same version:
 1. **The npm package [`notarize-mcp`](https://www.npmjs.com/package/notarize-mcp).** It is the MCP server, and users run it with `npx -y notarize-mcp`.
 2. **The Claude Code plugin.** The marketplace is this repo's `main` branch. The plugin holds the skill plus `.claude-plugin/plugin.json`, which starts the server with `npx -y notarize-mcp@<version>`.
 
-`scripts/bump-version.mjs` sets the version in `package.json`, in `plugin.json`, and in the plugin's `notarize-mcp@<version>` pin. Because of the pin, **`main` must only reach a new version after npm has it**. Both release paths below follow that order.
+Versions are managed with [Changesets](https://github.com/changesets/changesets) and [changesets/action](https://github.com/changesets/action). Each PR describes its own release impact in a changeset. `package.json` holds the real version, and no one edits it by hand.
 
-There are two ways to release:
-- the manual **Release** GitHub workflow (recommended);
-- the local script.
+`scripts/bump-version.mjs` sets the version in `package.json`, in `plugin.json`, and in the plugin's `notarize-mcp@<version>` pin. Because of the pin, **`main` must only pin a version npm already has**. The flow below keeps that order: the plugin pin moves in its own commit, after the publish.
+
+## Day to day: add a changeset
+Add a changeset to every PR that changes what users get (server, tools, skills, plugin):
+```bash
+pnpm changeset               # choose patch / minor / major, write a one-line summary; it commits the file
+```
+- Pick the bump by semver: `patch` for fixes, `minor` for new tools, actions or skills, `major` for breaking tool contracts.
+- Several changesets can pile up on `main`. They are all released together, at the highest bump level among them.
+- PRs that release nothing (tests, docs, CI) need no changeset. You can add an empty one with `pnpm changeset --empty` to make that explicit.
+- Optional: install the [Changesets bot](https://github.com/apps/changeset-bot) to comment on PRs that have no changeset. It is a GitHub App, so it uses no Actions minutes.
+
+`@changesets/cli` is a devDependency and needs Node 22.11+ or 24. The changelog uses `@changesets/changelog-github`, which links each entry to its PR and author; `changeset version` needs a `GITHUB_TOKEN` for that (the workflow provides one).
 
 ## Release from GitHub (recommended)
-`.github/workflows/release.yml` only runs when you start it. It is one Linux job of about 2–3 minutes. Nothing runs on push or PR.
+`.github/workflows/release.yml` runs on pushes to `main` that touch `.changeset/` or `package.json`, and on demand (**Actions → Release → Run workflow**). It never runs on PRs. Each run is a few short Linux jobs.
+
+1. **select-mode** decides what to do.
+   - `version` when there are changesets.
+   - `publish` when `package.json` holds a version that npm doesn't have.
+   - `none` otherwise.
+2. **version** opens or updates the **Version Packages** PR. That PR runs `pnpm run version-packages` (`changeset version`), which:
+   - consumes `.changeset/*.md`;
+   - bumps `package.json`;
+   - writes `CHANGELOG.md`.
+
+   It does **not** touch the plugin. Review the PR, and keep merging feature PRs; the bot updates it with each new changeset.
+3. **Merge the Version Packages PR** to release. Then **publish** runs `changeset publish`, which:
+   - runs `pnpm publish`, whose `prepublishOnly` runs `pnpm run check` first (lint, typecheck, build, tests);
+   - pushes the `vX` tag;
+   - creates the GitHub Release with the changelog entry.
+4. **sync-plugin** checks that npm now has `notarize-mcp@X`, then runs `scripts/bump-version.mjs X` and pushes `Pin the Claude Code plugin to notarize-mcp@X` to `main`. Plugin users get the new version from that commit.
+
+Between steps 3 and 4, `main` briefly has `package.json` at X and the plugin still at X−1. That is expected, and safe for plugin users. `test/package.test.ts` allows the plugin to lag, but never to lead.
+
+**If a run fails partway,** fix the cause and start **Actions → Release → Run workflow** on `main`.
+- If npm doesn't have the version yet, the run publishes it.
+- If npm has it but the plugin isn't pinned, sync-plugin pins it on every run.
 
 ### One-time setup
-1. **Create an npm token.** On npmjs.com, go to your avatar → **Access Tokens** → **Generate New Token** → **Granular Access Token**.
-   - Permissions: Packages and scopes → **Read and write**, **All packages**. The package doesn't exist until the first publish, so you can't select it yet.
-   - Tick **Bypass two-factor authentication**. CI can't type an OTP.
-   - Choose an expiry; 90 days is the maximum.
-2. **Store it in GitHub.** Go to the repo → **Settings → Secrets and variables → Actions → New repository secret `NPM_TOKEN`**.
-   - Optional approval gate: create an environment (for example `npm`) with yourself under **Required reviewers**, move the secret into it, and add `environment: npm` to the `release` job. Every run then waits for your click before it can touch npm.
-3. **If `main` is branch-protected,** let `github-actions[bot]` bypass it. The workflow pushes the `Release vX` commit to `main`.
+1. **Let Actions open PRs.** Go to repo **Settings → Actions → General → Workflow permissions** and tick **Allow GitHub Actions to create and approve pull requests**.
+2. **npm auth.** Choose one.
+   - **Trusted publishing (recommended).** On npmjs.com go to package **notarize-mcp → Settings → Trusted Publisher → GitHub Actions** and enter:
+     - owner `krishchow`;
+     - repository `notarize`;
+     - workflow `release.yml`;
+     - environment: leave empty.
 
-The workflow appears under the **Actions** tab once `release.yml` is on `main`, the default branch.
+     No secret is needed.
+   - **Token.** Create a granular access token with publish rights and **Bypass two-factor authentication**, then store it as the repository secret `NPM_TOKEN`. When the secret is set, the workflow uses it. npm is phasing out 2FA-bypass tokens, so prefer trusted publishing.
+3. **If `main` is branch-protected,** let `github-actions[bot]` bypass it. sync-plugin pushes the pin commit straight to `main`.
 
-### Each release
-- **From the web:** Actions → **Release** → **Run workflow** (branch `main`).
-  - `version`: for example `0.2.1`. Use the current `package.json` version, such as `0.2.0` for the very first publish, to publish without a bump.
-  - `npm_tag`: `latest`, or `next` for a pre-release.
-  - `dry_run`: builds, checks and runs `npm publish --dry-run`, and pushes nothing. This works from any branch.
-- **From a terminal:** `gh workflow run release.yml -f version=0.2.1`, optionally with `-f dry_run=true`.
+PRs opened by the workflow's `GITHUB_TOKEN` don't trigger other workflows. That is fine here, since CI is manual-only; run `pnpm run check` locally on the Version Packages branch if you want.
 
-What it does, in order:
-1. **Guards.** It checks that the version is semver and that the run is on `main` (unless `dry_run`). It refuses a version that is already released.
-2. **Install.** `pnpm install --frozen-lockfile`.
-3. **Bump and check.** If the version changed, it bumps it, then runs `pnpm run check` (lint, typecheck, build, tests).
-4. **Commit and tag.** It commits `Release vX` (the version files only; `dist/` isn't committed) and tags `vX`. It pushes **only the tag**. Plugin users follow `main`, so a tag alone changes nothing for them.
-5. **Publish.** `npm publish --access public --provenance`. Provenance applies only when the repo is public.
-6. **Push `main`.** It fast-forwards `main` to the release commit. The plugin now pins `notarize-mcp@X`, which npm already has.
-7. **GitHub Release.** It creates one with generated notes.
-
-**If a run fails partway** (for example, the token was wrong, or `main` moved), fix the cause and run it again with the **same** version. The run resumes from the pushed tag: it publishes if npm doesn't have the version yet, then pushes `main`.
-
-### Optional: drop the token (trusted publishing)
-After the first publish, on npmjs.com go to package **notarize-mcp → Settings → Trusted Publisher → GitHub Actions** and enter:
-- owner `krishchow`;
-- repository `notarize`;
-- workflow `release.yml`;
-- environment: leave empty, unless you added one to the job.
-
-Then delete the `NPM_TOKEN` secret. When the secret is empty, the workflow authenticates with GitHub's OIDC token instead.
+### Prereleases
+```bash
+pnpm changeset pre enter next          # commit .changeset/pre.json; versions become X.Y.Z-next.N, npm tag `next`
+pnpm changeset pre exit                # back to normal releases
+```
+Prereleases are published to npm under the `next` tag. sync-plugin leaves the plugin on the latest stable version.
 
 ## Release locally (alternative)
 ### One-time setup
 1. You need an npm account with 2FA enabled: <https://www.npmjs.com/signup>.
-2. Run `npm login` on the machine you release from.
+2. Run `pnpm login` on the machine you release from.
 
 ### Each release
 ```bash
-bash scripts/release.sh 0.2.1             # bump versions + plugin pin, check, commit, tag
-npm publish                               # prepublishOnly re-runs the checks; enter your 2FA code
+bash scripts/release.sh                   # consume changesets, bump versions + plugin pin, check, commit, tag
+pnpm publish                              # prepublishOnly re-runs the checks; enter your 2FA code
 git push --follow-tags origin HEAD:main   # only after npm has the version
 ```
+The local path moves the plugin pin in the release commit itself, because `main` is pushed only after `pnpm publish`.
 
 ### Using a scoped package name
 If the name `notarize-mcp` were ever taken, switch to a scoped name such as `@krishchow/notarize-mcp`. Change it in these places:
 - `name` in `package.json`;
 - the `notarize-mcp@` pin in `.claude-plugin/plugin.json` and the regex in `scripts/bump-version.mjs`;
 - the `selfCommand()` fallback in `src/core/monitor.ts`;
-- `PACKAGE` in `.github/workflows/release.yml`.
+- `PACKAGE` in `.github/workflows/release.yml`;
+- a `.changeset/*.md` file's frontmatter, if any are pending.
 
 ## What gets published
 - **npm:** `dist/notarize-mcp.js` (one self-contained bundle with every runtime library inside, so the package has **no dependencies** and `npx` starts fast), `skills/apple-distribution/` (served as `notarize://guides/*` resources), `README.md` and `LICENSE`. `dist/` is built at publish time and isn't in git.
 - **Plugin:** whatever is on `main`, which is `.claude-plugin/` and `skills/`. It contains no server code. The server comes from npm.
 
-`test/package.test.ts` covers four checks:
+`test/package.test.ts` covers these checks:
 - the tarball contents, via `npm pack --dry-run`;
-- version sync between `package.json`, `plugin.json` and the plugin's npx pin;
+- the plugin's npx pin matches `plugin.json`, and the plugin is never ahead of `package.json`;
 - `bump-version`;
-- the release order (checks → tag → publish → `main`).
+- the release order: the Version Packages PR never moves the plugin pin, and sync-plugin pins it only after npm has the version.
