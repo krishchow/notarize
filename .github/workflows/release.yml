@@ -1,159 +1,167 @@
 name: Release
 
-# Manual only (Actions → Release → Run workflow, or `gh workflow run release.yml -f version=0.2.1`).
-# Releases both artifacts of this repo in one run:
-#   1. the npm package `notarize-mcp` (the MCP server, run with `npx -y notarize-mcp`);
-#   2. the Claude Code plugin (marketplace = this repo's main branch; skill + `npx -y notarize-mcp@X`).
-# Order: bump + check → commit + tag vX → push the tag → npm publish → push main → GitHub Release.
-# main (what plugin users get) moves last, so the plugin never pins a version npm doesn't have.
+# Releases are driven by Changesets (https://github.com/changesets/action). See docs/releasing.md.
+#   1. PRs add `.changeset/*.md` files (`pnpm changeset`).
+#   2. When they land on main, this workflow opens or updates the "Version Packages" PR. That PR bumps
+#      package.json and CHANGELOG.md. It leaves the plugin pin alone.
+#   3. Merging that PR publishes notarize-mcp to npm, then tags vX and creates the GitHub Release.
+#   4. sync-plugin then pins .claude-plugin/plugin.json to notarize-mcp@X and pushes that to main.
+#      The marketplace reads main, so the plugin never pins a version npm doesn't have yet.
 #
-# Auth: the NPM_TOKEN secret (npm granular access token with publish rights; "bypass 2FA" on).
-# Leave NPM_TOKEN unset to use npm trusted publishing (OIDC) instead — see docs/releasing.md.
-# Re-running with the same version resumes from the pushed tag (publish and/or push main).
+# Runs only when a push to main touches .changeset/ or package.json (Actions minutes are scarce),
+# or when started by hand from Actions → Release. A manual re-run also finishes a sync-plugin that failed.
+#
+# Auth: npm trusted publishing (OIDC) by default. Set the NPM_TOKEN secret to publish with a token instead.
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".changeset/**"
+      - "package.json"
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Version to release, e.g. 0.2.1 (use the current package.json version to publish it without a bump)"
-        required: true
-        type: string
-      npm_tag:
-        description: "npm dist-tag"
-        type: choice
-        options: [latest, next]
-        default: latest
-      dry_run:
-        description: "Dry run: build + check + npm publish --dry-run; push and publish nothing"
-        type: boolean
-        default: false
 
-concurrency: release
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  PACKAGE: notarize-mcp
 
 jobs:
-  release:
+  select-mode:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
-      contents: write # push the release commit + tag, create the GitHub Release
-      id-token: write # npm provenance / trusted publishing
-    env:
-      VERSION: ${{ inputs.version }}
-      NPM_DIST_TAG: ${{ inputs.npm_tag }}
-      DRY_RUN: ${{ inputs.dry_run }}
-      PACKAGE: notarize-mcp
+      contents: read
+    outputs:
+      mode: ${{ steps.select-mode.outputs.mode }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-
+          persist-credentials: false
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: pnpm
-          registry-url: https://registry.npmjs.org
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: Select Changesets mode (version / publish / none)
+        id: select-mode
+        uses: changesets/action/select-mode@v2.1.2
 
-      - name: Guards
+  version:
+    needs: select-mode
+    if: needs.select-mode.outputs.mode == 'version'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # commit the version bump to the changeset-release/main branch
+      pull-requests: write # open / update the Version Packages PR
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: Git identity (`changeset version` commits, see "commit" in .changeset/config.json)
         run: |
-          set -euo pipefail
-          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::version must be semver like 0.2.1 (got '$VERSION')"; exit 1
-          fi
-          if [[ "$DRY_RUN" != "true" && "$GITHUB_REF" != "refs/heads/main" ]]; then
-            echo "::error::Real releases run from main (this run is on $GITHUB_REF). Use dry_run on other branches."; exit 1
-          fi
-          on_npm=false
-          on_main=false
-          if npm view "$PACKAGE@$VERSION" version >/dev/null 2>&1; then on_npm=true; fi
-          mode=new
-          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
-            # A previous run pushed the tag: resume from it instead of bumping again.
-            if git merge-base --is-ancestor "v$VERSION" HEAD; then on_main=true; fi
-            if $on_npm && $on_main; then
-              echo "::error::v$VERSION is already released (on npm and on main). Pick a new version."; exit 1
-            fi
-            echo "Resuming release v$VERSION from its tag (on npm: $on_npm, on main: $on_main)."
-            git checkout -q "v$VERSION"
-            mode=resume
-          elif $on_npm; then
-            echo "::error::$PACKAGE@$VERSION is already on npm but tag v$VERSION doesn't exist. Pick a new version."; exit 1
-          fi
-          {
-            echo "MODE=$mode"
-            echo "ON_NPM=$on_npm"
-            echo "ON_MAIN=$on_main"
-            echo "CURRENT=$(node -p 'require("./package.json").version')"
-          } >> "$GITHUB_ENV"
-
-      - name: Install
-        run: |
-          npm install -g npm@^11.5.1  # trusted publishing needs npm >= 11.5.1
-          pnpm install --frozen-lockfile
-
-      - name: Bump version
-        if: env.MODE == 'new' && env.CURRENT != inputs.version
-        run: |
-          node scripts/bump-version.mjs "$VERSION"
-          pnpm install --lockfile-only --ignore-scripts
-
-      - name: Build and check
-        run: |
-          pnpm run check  # lint, typecheck, build, tests
-          {
-            echo "### $PACKAGE@$VERSION"
-            echo '```'
-            npm pack --dry-run --ignore-scripts 2>&1 | grep -E "name:|version:|package size|unpacked size|total files"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Commit, tag and push the tag
-        if: inputs.dry_run == false && env.MODE == 'new'
-        run: |
-          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json pnpm-lock.yaml .claude-plugin/plugin.json
-          if ! git diff --cached --quiet; then git commit -m "Release v$VERSION"; fi
-          git tag "v$VERSION"
-          git push origin "v$VERSION"  # the tag alone doesn't change what plugin users get
+      - name: Open or update the Version Packages PR
+        uses: changesets/action/version@v2.1.2
+        with:
+          # `changeset version` only. The plugin pin is left alone: it moves only after npm has
+          # the version (sync-plugin below).
+          script: pnpm run version-packages
 
-      - name: Publish to npm
-        if: env.ON_NPM != 'true'
+  publish:
+    needs: select-mode
+    if: needs.select-mode.outputs.mode == 'publish'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # push the vX tag and create the GitHub Release
+      id-token: write # npm trusted publishing / provenance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: npm auth
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          PROVENANCE: ${{ github.event.repository.private && 'false' || 'true' }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          set -euo pipefail
-          args=(--access public --tag "$NPM_DIST_TAG" --ignore-scripts)  # checks already ran above
-          if [[ "$PROVENANCE" == "true" ]]; then args+=(--provenance); fi
-          if [[ "$DRY_RUN" == "true" ]]; then args+=(--dry-run); fi
-          if [[ -z "$NODE_AUTH_TOKEN" ]]; then
+          if [ -n "$NPM_TOKEN" ]; then
+            echo '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}' > ~/.npmrc
+            echo "Publishing with the NPM_TOKEN secret."
+          else
             echo "NPM_TOKEN not set — using npm trusted publishing (OIDC)."
-            unset NODE_AUTH_TOKEN
           fi
-          npm publish "${args[@]}"
-
-      - name: Push main (updates the Claude Code plugin)
-        if: inputs.dry_run == false && env.ON_MAIN != 'true'
-        run: |
-          set -euo pipefail
-          git push origin HEAD:main || {
-            echo "::error::Published to npm, but main could not be fast-forwarded to v$VERSION (did main move, or is it protected?). Merge tag v$VERSION into main, or re-run this workflow with the same version."
-            exit 1
-          }
-
-      - name: GitHub Release
-        if: inputs.dry_run == false
+      - name: Publish to npm, tag and create the GitHub Release
+        id: publish
+        uses: changesets/action/publish@v2.1.2
         env:
-          GH_TOKEN: ${{ github.token }}
+          # `changeset publish` runs `pnpm publish`, whose prepublishOnly runs `pnpm run check`
+          # (lint, typecheck, build, tests) before anything is uploaded.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: ${{ github.event.repository.private && 'false' || 'true' }}
+          pnpm_config_provenance: ${{ github.event.repository.private && 'false' || 'true' }}
+      - name: Summary
+        if: steps.publish.outputs.published == 'true'
+        env:
+          PUBLISHED: ${{ steps.publish.outputs.published-packages }}
         run: |
-          gh release view "v$VERSION" >/dev/null 2>&1 \
-            || gh release create "v$VERSION" --verify-tag --generate-notes --title "v$VERSION" \
-                 $([[ "$NPM_DIST_TAG" == "next" ]] && echo --prerelease)
           {
-            echo
-            echo "Published: https://www.npmjs.com/package/$PACKAGE/v/$VERSION"
+            echo "Published: $PUBLISHED"
             echo
             echo 'MCP server (any client): `npx -y notarize-mcp`'
             echo 'Claude Code plugin: `/plugin marketplace add krishchow/notarize` then `/plugin install notarize@notarize`'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # Pins the Claude Code plugin to the package.json version once npm has it. Runs on every Release run,
+  # so it also finishes an earlier run whose push to main failed. Prereleases are left out: plugin users
+  # follow main and stay on the latest stable version.
+  sync-plugin:
+    needs: [select-mode, publish]
+    if: always() && needs.select-mode.result == 'success' && (needs.publish.result == 'success' || needs.publish.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # push the plugin pin to main
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Pin the plugin to the published version
+        run: |
+          set -euo pipefail
+          version=$(node -p 'require("./package.json").version')
+          plugin=$(node -p 'require("./.claude-plugin/plugin.json").version')
+          if [[ "$version" == "$plugin" ]]; then echo "Plugin already pins $PACKAGE@$version."; exit 0; fi
+          if [[ "$version" == *-* ]]; then echo "$version is a prerelease; plugin stays on $plugin."; exit 0; fi
+          if [[ "$(npm view "$PACKAGE@$version" version 2>/dev/null)" != "$version" ]]; then
+            echo "$PACKAGE@$version is not on npm yet; plugin stays on $plugin."; exit 0
+          fi
+          node scripts/bump-version.mjs "$version"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json .claude-plugin/plugin.json
+          git commit -m "Pin the Claude Code plugin to $PACKAGE@$version"
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then echo "Plugin now pins $PACKAGE@$version."; exit 0; fi
+            git pull --rebase origin main
+          done
+          echo "::error::$PACKAGE@$version is on npm, but main could not be updated (is it protected?). Re-run this workflow, or run 'node scripts/bump-version.mjs $version' and push to main."
+          exit 1

@@ -1,27 +1,33 @@
 #!/usr/bin/env bash
-# Prepare a release locally (no CI minutes needed): bump versions, build, check, commit, tag.
-# Alternative to the GitHub "Release" workflow (.github/workflows/release.yml); here publishing
-# stays a manual step because it needs your npm login / 2FA code.
-# Usage: bash scripts/release.sh 0.2.1
+# Release locally from the pending changesets (no CI minutes needed): version, build, check, commit, tag.
+# Alternative to the GitHub "Release" workflow (.github/workflows/release.yml). Publishing stays a
+# manual step here because it needs your npm login / 2FA code.
+# Usage: bash scripts/release.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
-VERSION="${1:?usage: scripts/release.sh <version>}"
 
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "Working tree is not clean; commit or stash first." >&2
   exit 1
 fi
+if ! ls .changeset/*.md 2>/dev/null | grep -qv README.md; then
+  echo "No changesets to release. Add one with: pnpm changeset" >&2
+  exit 1
+fi
 
-node scripts/bump-version.mjs "$VERSION"
-pnpm install --lockfile-only --silent
+pnpm run version-packages   # consume .changeset/*.md → package.json, CHANGELOG.md (commits: config has "commit": true)
+VERSION="$(node -p 'require("./package.json").version')"
+# The plugin pin can move in the same commit here, because main is pushed only after `npm publish`.
+# Prereleases leave the plugin on the latest stable version, as in the GitHub workflow.
+if [[ "$VERSION" != *-* ]]; then node scripts/bump-version.mjs "$VERSION"; fi
 
 pnpm run check   # lint, typecheck, build, test
 echo
 echo "Package contents:"
 npm pack --dry-run --ignore-scripts 2>&1 | grep -E "notarize-mcp@|package size|unpacked size|total files"
 
-git add package.json pnpm-lock.yaml .claude-plugin/plugin.json
-git commit -m "Release v$VERSION"
+git add -A .changeset CHANGELOG.md package.json .claude-plugin/plugin.json
+git diff --cached --quiet || git commit -m "Release v$VERSION"
 git tag "v$VERSION"
 
 cat <<MSG

@@ -28,6 +28,8 @@
     "check": "pnpm run lint && pnpm run typecheck && pnpm run build && pnpm test",
     "test:recorded": "vitest run test/recorded.test.ts",
     "test:live": "vitest run --config vitest.live.config.ts",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
     "prepublishOnly": "pnpm run check"
   },
   "keywords": [
