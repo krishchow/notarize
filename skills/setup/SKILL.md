@@ -1,6 +1,6 @@
 ---
 name: setup
-description: One-time setup for Apple signing/notarization work. It checks the App Store Connect API key (ASC_KEY_ID, ASC_ISSUER_ID, the AuthKey .p8 file) and Team ID, and creates them if missing. Then it confirms a project's bundle ID, team and version, and that the bundle ID and app record exist on Apple's side. Use it on first use of notarize, when someone asks to "set up", "configure" or "init" Apple credentials or an API key, when a notarize tool says no API key is configured, or before shipping a project whose bundle ID hasn't been confirmed.
+description: One-time setup for Apple signing/notarization work. It checks the App Store Connect API key (ASC_KEY_ID, ASC_ISSUER_ID, the AuthKey .p8 file) and Team ID, and creates them if missing. Optionally it registers a physical iPhone/iPad, reading the UDID itself. Then it confirms a project's bundle ID, team and version, and that the bundle ID and app record exist on Apple's side. Use it on first use of notarize, when someone asks to "set up", "configure" or "init" Apple credentials or an API key, when a notarize tool says no API key is configured, or before shipping a project whose bundle ID hasn't been confirmed.
 ---
 
 # notarize setup
@@ -8,7 +8,8 @@ description: One-time setup for Apple signing/notarization work. It checks the A
 This skill puts a machine, and optionally a project, into the state that the `apple-distribution` skill and the `notarize` MCP tools assume:
 
 1. **Machine (credentials).** A valid App Store Connect API key is installed and visible to the MCP server, new shells, `xcodebuild` and `altool`.
-2. **Project (metadata), optional.** The bundle ID, Team ID and version are confirmed with the user. The bundle ID is registered with Apple, and an app record exists if the target needs one.
+2. **Device, optional.** A physical iPhone/iPad is registered with the team, when the user needs one (Part 1b says who does).
+3. **Project (metadata), optional.** The bundle ID, Team ID and version are confirmed with the user. The bundle ID is registered with Apple, and an app record exists if the target needs one.
 
 **Never ask for or handle key contents.** Only ever ask for the Key ID, the Issuer ID, the Team ID and the *path* to the downloaded `.p8`.
 
@@ -64,6 +65,20 @@ Exit codes: `0` means ready, or the plan was computed; `1` means not ready; `2` 
   2. the env vars `ASC_KEY_ID` / `ASC_ISSUER_ID` / `ASC_PRIVATE_KEY_PATH`, or `ASC_PRIVATE_KEY` inline for CI;
   3. the profile named by `ASC_PROFILE`, or else the default profile;
   4. `AuthKey_<KEYID>.p8` in `~/.appstoreconnect/private_keys`, `~/private_keys`, `~/.private_keys` or `~/.config/notarize-mcp/keys`.
+
+## Part 1b: register a device (optional, ask once)
+
+After the credentials are ready, ask once: **"Will you install development builds on a physical iPhone or iPad?"** Before they answer, explain who needs this:
+- **Yes, they will:** development (and Ad Hoc) profiles only run on registered devices.
+- **TestFlight / App Store only, with automatic signing (the `xcode` tool's default):** they still need **one** registered device. An iOS archive with automatic signing is built with a development profile first, and Apple won't make one for a team with no devices ("Your team has no devices…").
+- **TestFlight / App Store only, signing manually** (an `IOS_APP_STORE` profile + `xcode archive signing_style=manual`) or **building with EAS:** they can skip this.
+
+If they want it, don't make them hunt for a UDID:
+1. Ask them to plug the device into this Mac with a cable, unlock it, and tap **Trust** on the device. Recent iOS versions may also need Developer Mode turned on (Settings → Privacy & Security), which only matters for running builds, not for registering.
+2. Run `devices` and read the device's UDID and name from the result. If it isn't listed, the device is usually locked or not yet trusted.
+3. `asc_devices action=register name=<device name> udid=<UDID> platform=IOS`, through the confirm flow. Say up front that a team can register at most 100 devices of each type per membership year, and removing one doesn't free its slot until the membership renews.
+
+Registering is once per device per team, not per project. If a later archive or profile step reports no devices, come back here.
 
 ## Part 2: project metadata (MCP tools + your editor)
 
