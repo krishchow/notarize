@@ -112,10 +112,14 @@ Monitor({ command: <monitor.command>, description: <monitor.description>, timeou
 - **New session or restarted server?** Run `jobs action=list` first. Jobs from earlier sessions are listed; a **LOST** notarization still has its Apple `submission_id`. Follow its next steps (`notary action=status`, `watch-notarization`, then `staple`) instead of re-submitting. `notary submit` and `notarize_and_staple` refuse duplicates while a live job is notarizing the same artifact.
 - In **CI**, `xcrun notarytool submit … --wait` is fine because blocking a CI job is harmless (see `ci_config`).
 
-## 4. Plan + confirm protocol
+## 4. Who runs what
+- **Through the tools, never as raw commands:** anything that touches the Apple account, signing, the keychain, notarization or uploads (`altool`, `notarytool`, `codesign`, `security`, `xcodebuild archive/-exportArchive`, App Store Connect API calls). The tools add the confirm step, keep secrets out of the transcript, explain known errors and hand long jobs to Monitor. Use the raw commands in [No-MCP fallback](#no-mcp-fallback) only when the server is unavailable, and say that you're doing so.
+- **Directly, by you:** project-side steps that aren't Apple-specific, such as the package manager, `npx expo prebuild`, `pod install`, and editing the project's own files. The tools name these in `next_steps` / `buildCommands` when they're needed; follow those rather than guessing.
+
+## 5. Plan + confirm protocol
 
 Every tool that changes something returns a **PREVIEW** first and changes nothing. This covers signing, keychain imports, notarization uploads, App Store Connect writes and file overwrites. The preview shows exact commands and API calls, any warnings, and a `confirm_token`.
-1. Show the user the preview in plain words: what will happen and anything irreversible.
+1. Show the user the preview in plain words: what will happen and anything irreversible. **Name the tool** ("`upload_build` will upload Radarr.ipa to App Store Connect"). The commands in a preview are what the tool runs for you, so present them as "under the hood". Never present them as a command for the user (or you) to type, or the user can't tell a vetted tool call from an improvised shell command.
 2. Only after they agree, call the **same tool with identical arguments** plus `confirm_token`. If arguments change you get a new preview, which is intended.
 3. `destructive: true` previews need explicit approval: revoking certificates, deleting profiles or bundle IDs, uploads, submitting for review, releasing. **Revoking a Developer ID certificate breaks already-shipped apps for new users**, so only do it if the key leaked.
 4. Never fabricate a token. Tokens expire after 10 minutes.
@@ -126,7 +130,7 @@ Every tool that changes something returns a **PREVIEW** first and changes nothin
    - Destructive actions still return a preview unless explicitly listed. Never try to work around a preview.
 6. If `sign` fails with a **keychain access prompt** message, someone must click "Always Allow" on the Mac or unlock the keychain. Tell the user rather than retrying in a loop. `doctor` also flags locked keychains, SSH sessions and unaccepted Xcode licenses.
 
-## 5. Golden rules
+## 6. Golden rules
 
 - **Sign inside-out, never `codesign --deep` for signing.** Nested frameworks, dylibs, helpers, XPC services, extensions and `.node` modules get signed first, the outer bundle last. The `sign` tool does this.
 - Developer ID needs `--options runtime` (hardened runtime) and `--timestamp` on every Mach-O, and **no `get-task-allow`**. That means a Release build, not Debug.
@@ -139,7 +143,7 @@ Every tool that changes something returns a **PREVIEW** first and changes nothin
 - **Build numbers are single-use** in App Store Connect. Bump `CFBundleVersion` for every upload.
 - Prefer letting Xcode manage signing (automatic + API key) for Xcode-based projects. Use manual signing (`sign`, `asc_profiles`) for non-Xcode builds or when automatic signing can't express what you need.
 
-## 6. Debugging playbook
+## 7. Debugging playbook
 
 | Symptom | Do this |
 |---|---|
@@ -156,7 +160,7 @@ Every tool that changes something returns a **PREVIEW** first and changes nothin
 
 More detail: [references/gatekeeper-debugging.md](references/gatekeeper-debugging.md), [references/sandbox-and-privacy.md](references/sandbox-and-privacy.md), [references/notarization.md](references/notarization.md), [references/entitlements.md](references/entitlements.md).
 
-## 7. Per-framework notes
+## 8. Per-framework notes
 - **Xcode / SwiftUI / AppKit / UIKit**: `xcode` tool; set `ENABLE_HARDENED_RUNTIME=YES` for Mac targets.
 - **Electron**: electron-builder `mac.hardenedRuntime`, entitlements with `allow-jit`, `mac.notarize` + `APPLE_API_KEY*` env vars, MAS needs separate entitlements → [references/frameworks/electron.md](references/frameworks/electron.md)
 - **Tauri**: `bundle.macOS.signingIdentity`, `APPLE_API_*` env vars (note `APPLE_API_KEY` = key **ID** in Tauri) → [references/frameworks/tauri.md](references/frameworks/tauri.md)
@@ -165,7 +169,7 @@ More detail: [references/gatekeeper-debugging.md](references/gatekeeper-debuggin
 - **Prebuilt artifacts / CLI tools**: [references/prebuilt-artifacts.md](references/prebuilt-artifacts.md)
 - **CI**: [references/ci.md](references/ci.md)
 
-## 8. Communicating with the user
+## 9. Communicating with the user
 - Lead with what you'll do and why in plain language, then show the preview. Avoid jargon dumps; define a term the first time ("a provisioning profile — Apple's permission slip that says this app may use iCloud on these devices").
 - After each milestone, summarize the state: what's signed, what's notarized, what's uploaded, and what's next.
 - When something is manual, give the exact URL and click path and say what value to bring back (Key ID, Issuer ID, path to the .p8, etc.).

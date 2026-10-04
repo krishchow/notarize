@@ -19,4 +19,7 @@ A managed app (no `ios/` folder) can be built **locally** (prebuild + the `xcode
 ### Local builds (prebuild)
 - `npx expo prebuild -p ios` generates `ios/` (and runs `pod install`); then follow the bare React Native flow above. Many Expo projects gitignore `ios/` and regenerate it, so put everything in app config, not in the Xcode project.
 - Set `expo.ios.bundleIdentifier`, `expo.ios.appleTeamId` and `expo.ios.buildNumber` in `app.json`; prebuild copies them into the Xcode project.
-- `xcode action=archive` with automatic signing and the API key lets Xcode create the Apple Distribution certificate and App Store profile itself. Re-running prebuild overwrites native changes.
+- `xcode action=archive` with automatic signing and the API key lets Xcode create the Apple Distribution certificate and App Store profile itself, but only once the team has a registered device. Otherwise use manual signing (see testflight-and-app-store.md). Re-running prebuild overwrites native changes.
+- **pnpm / monorepos:**
+  - `expo prebuild` may add `expo`, `react` and `react-native` to `dependencies`, even when they're already declared elsewhere. Review the `package.json` diff and revert what you don't want; `--no-install` avoids an install in the meantime.
+  - The Release build bundles JavaScript with Babel. Under pnpm's strict layout, `babel.config.js` can't load `babel-preset-expo` unless the app declares it, so add it as a devDependency at the version already in the lockfile. Without it, the archive gets through signing and then fails while bundling the JavaScript, saying babel-preset-expo can't be found.
