@@ -30,7 +30,7 @@ jobs:
       - run: pnpm run lint
       - run: pnpm run typecheck
       - run: pnpm run build
-      - run: npm test
+      - run: pnpm test
 
   macos:
     name: Real macOS — record fixtures, recorded tests, smoke (no Apple credentials)

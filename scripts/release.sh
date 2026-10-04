@@ -34,7 +34,7 @@ cat <<MSG
 
 Release v$VERSION is committed and tagged locally. Publish npm first, then push main
 (the Claude Code plugin on main pins notarize-mcp@$VERSION, which must exist on npm):
-  npm whoami || npm login        # once per machine
+  pnpm login                     # once per machine
   pnpm publish                   # enter your 2FA code when asked
   git push --follow-tags origin HEAD:main
 Then:  MCP server  →  npx -y notarize-mcp

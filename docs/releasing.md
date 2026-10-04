@@ -70,7 +70,7 @@ Prereleases are published to npm under the `next` tag. sync-plugin leaves the pl
 ## Release locally (alternative)
 ### One-time setup
 1. You need an npm account with 2FA enabled: <https://www.npmjs.com/signup>.
-2. Run `npm login` on the machine you release from.
+2. Run `pnpm login` on the machine you release from.
 
 ### Each release
 ```bash

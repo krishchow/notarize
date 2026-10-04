@@ -112,9 +112,9 @@ claude mcp add notarize -- node "$PWD/dist/notarize-mcp.js"   # run your local b
 bash scripts/record-fixtures.sh && pnpm run test:recorded   # parsers vs real output from your Mac
 pnpm run test:live    # opt-in, real Apple account (docs/testing.md)
 bash scripts/smoke-macos.sh   # real end-to-end on a Mac: builds a tiny app, signs, inspects, assesses, packages
-npx @modelcontextprotocol/inspector node dist/notarize-mcp.js
+pnpm dlx @modelcontextprotocol/inspector node dist/notarize-mcp.js
 ```
-`UPDATE_DOCS=1 npx vitest run test/docs.test.ts` regenerates `skills/apple-distribution/references/error-catalog.md` from the catalog.
+`UPDATE_DOCS=1 pnpm exec vitest run test/docs.test.ts` regenerates `skills/apple-distribution/references/error-catalog.md` from the catalog.
 
 Layout: `src/core` (argv-only command runner, confirm tokens, jobs, config, redaction, plist), `src/knowledge` (targets, certificate types, entitlements, privacy keys, error catalog, SDK minimums), `src/parsers`, `src/asc` (JWT + JSON:API client), `src/tools`, `src/cli` (watchers), `skills/apple-distribution`, `skills/setup` (setup skill + `scripts/setup.mjs`).
 
