@@ -30,6 +30,7 @@ GitHub Actions are **manual only** (`workflow_dispatch`) — the account has no 
 | `src/docs/tool-docs.ts` | generators for docs/tools.md and the settings example |
 | `skills/setup/` | `/notarize:setup` skill; `scripts/setup.mjs` is a zero-dep Node script (JSON out) that checks/installs ASC credentials. Its resolution must match `ConfigStore.resolveAsc` (parity test in `test/setup-script.test.ts`) |
 | `skills/apple-distribution/` | the skill (SKILL.md + references/) — also served as `notarize://guides/*` |
+| `.claude/skills/changesets/` | repo-only skill (not shipped): changesets, versions and releases |
 | `test/` | vitest; `helpers.ts` has `makeCtx`, `connect`, `call`, `callConfirmed`, `fakeAsc`, `ascEnv` |
 
 ## Invariants (don't break these)
@@ -46,6 +47,20 @@ GitHub Actions are **manual only** (`workflow_dispatch`) — the account has no 
 8. **Keep the knowledge base dated.** When Apple changes requirements, update `src/knowledge/*`, including `SDK_REQUIREMENTS_LAST_REVIEWED`.
 9. **Two artifacts, one version.** The npm package is the server. The plugin (`.claude-plugin/plugin.json` + `skills/`) runs `npx -y notarize-mcp@<version>`. Versions come from changesets (`pnpm changeset`); never hand-edit them. Never let the plugin on `main` pin a version that isn't on npm yet: the Version Packages PR bumps only `package.json`, and `release.yml`'s sync-plugin job runs `scripts/bump-version.mjs` after the publish.
 
+## Versions & changesets
+- **One package, two artifacts:**
+  - `package.json` `version` is the MCP server version, published to npm as `notarize-mcp`.
+  - The plugin (`.claude-plugin/plugin.json`) has no version of its own. It mirrors the server version it pins with `npx -y notarize-mcp@X`, and it lags `package.json` briefly after each release.
+- **Changesets are the only way versions move:**
+  - A PR records its release impact in `.changeset/*.md`.
+  - `changeset version` (the Version Packages PR) bumps `package.json`.
+  - After the npm publish, the release workflow's `sync-plugin` job moves the plugin pin.
+- **Add a changeset in the same PR** whenever a change reaches users: `src/`, `skills/`, plugin behaviour. Skip it for tests, docs, CI or tooling.
+- **Use the `changesets` skill** (`.claude/skills/changesets/`) before any of these:
+  - writing a changeset or choosing patch/minor/major;
+  - touching any `version` field, `CHANGELOG.md`, `.changeset/`, `bump-version.mjs`, `release.sh` or `release.yml`;
+  - preparing, debugging or explaining a release or prerelease.
+
 ## Adding a tool
 1. In `src/tools/<group>.ts`: `export const fooTool = defineTool({ name, title, description, input: { action: z.enum([...]), ... }, mutating?, handler })`.
 2. Descriptions say what every action does. Arguments get `.describe()` text, because agents read these.
@@ -54,7 +69,7 @@ GitHub Actions are **manual only** (`workflow_dispatch`) — the account has no 
 5. Test it with `makeCtx({ runner })` + `connect(ctx)` + `call` / `callConfirmed`. Script the commands with `FakeRunner.on(cmd, argvPrefix, response)`, and fake the App Store Connect API with `fakeAsc({ "GET /v1/x": {...} })`.
 6. Mention it in SKILL.md if agents should know when to use it. `test/docs.test.ts` checks that every tool SKILL.md mentions exists.
 7. Regenerate the docs and rebuild `dist/`.
-8. Add a changeset (`pnpm changeset`, usually `minor` for a new tool).
+8. Add a changeset (usually `minor` for a new tool; see the `changesets` skill).
 
 ## Docs
 - `README.md`: users.
