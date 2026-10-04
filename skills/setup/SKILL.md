@@ -12,6 +12,8 @@ This skill puts a machine, and optionally a project, into the state that the `ap
 
 **Never ask for or handle key contents.** Only ever ask for the Key ID, the Issuer ID, the Team ID and the *path* to the downloaded `.p8`.
 
+**When you ask for values, say where to find them.** Ask for everything the user still owes you in a single message, and tell them where each value comes from (which site, roughly where on the page). Include the `.p8` if they still need to create one. The user shouldn't have to come back and ask "how do I get these?". You don't need to repeat exact click paths you aren't sure of: point them in the right direction, and mention that every value except the `.p8` file is safe to paste into the chat.
+
 ## Part 1: credentials (deterministic script)
 
 `scripts/setup.mjs` lives in this skill's base directory. It needs Node 20+ and has no dependencies. It prints one JSON object on stdout, and nothing it prints contains key material.
@@ -34,7 +36,7 @@ Exit codes: `0` means ready, or the plan was computed; `1` means not ready; `2` 
 
 ### Flow
 1. Run `check`. If `ready` is true and there are no warnings you care about, say so in one line and move on.
-2. If `resolved.discoveredKeys` is present, a key is **already installed**: the Key ID is in its filename. Confirm with the user that it is the key to use (if there are several, ask which), ask only for the **Issuer ID** and **Team ID**, and go to step 3 with `--key-id <ID>` and no `--p8`. Don't search other folders (like `~/Downloads`) yourself: the script already looks in every folder the tools read keys from (listed under "Resolution order" below), and asking the user for the path is more reliable than guessing.
+2. If `resolved.discoveredKeys` is present, a key is **already installed**: the Key ID is in its filename. Confirm with the user that it is the key to use (if there are several, ask which), ask only for the **Issuer ID** and **Team ID** (with where to find them), and go to step 4 with `--key-id <ID>` and no `--p8`. Don't search other folders (like `~/Downloads`) yourself: the script already looks in every folder the tools read keys from (listed under "Resolution order" below), and asking the user for the path is more reliable than guessing.
 3. Otherwise, if `asc_key_id` or `p8_path` fails, the user must create a key. That step is manual:
    1. Open App Store Connect → Users and Access → Integrations → App Store Connect API → **Team Keys** → **+**.
    2. Give the key the **Admin** role. App Manager covers most store and TestFlight tasks.
