@@ -17,7 +17,7 @@ fi
 
 pnpm run version-packages   # consume .changeset/*.md → package.json, CHANGELOG.md (commits: config has "commit": true)
 VERSION="$(node -p 'require("./package.json").version')"
-# The plugin pin can move in the same commit here, because main is pushed only after `npm publish`.
+# The plugin pin can move in the same commit here, because main is pushed only after `pnpm publish`.
 # Prereleases leave the plugin on the latest stable version, as in the GitHub workflow.
 if [[ "$VERSION" != *-* ]]; then node scripts/bump-version.mjs "$VERSION"; fi
 
@@ -35,7 +35,7 @@ cat <<MSG
 Release v$VERSION is committed and tagged locally. Publish npm first, then push main
 (the Claude Code plugin on main pins notarize-mcp@$VERSION, which must exist on npm):
   npm whoami || npm login        # once per machine
-  npm publish                    # enter your 2FA code when asked
+  pnpm publish                   # enter your 2FA code when asked
   git push --follow-tags origin HEAD:main
 Then:  MCP server  →  npx -y notarize-mcp
        Plugin      →  /plugin marketplace add krishchow/notarize ; /plugin install notarize@notarize
