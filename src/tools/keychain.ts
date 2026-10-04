@@ -8,7 +8,7 @@ import { requireMacOS } from "../core/platform";
 import { ToolError } from "../core/result";
 import { APPLE_INTERMEDIATES } from "../knowledge/certificate-types";
 import { derToPem, describeCertificate } from "../parsers/x509";
-import { pathExists, resolveUserPath, scratchDir } from "./shared";
+import { backupKeyAdvice, pathExists, resolveUserPath, scratchDir } from "./shared";
 import { defineTool, type ToolContext, withConfirmation } from "./types";
 
 export function loginKeychain(home: string): string {
@@ -220,11 +220,11 @@ export const keychainTool = defineTool({
         async () => {
           const res = await importKeyAndCert(ctx, keyPath, pem, keychain);
           return {
-            summary: `Imported identity "${res.identity ?? cert.commonName}" into ${keychain}.`,
+            summary: `Imported identity "${res.identity ?? cert.commonName}" into ${keychain}.\n\n${backupKeyAdvice(args.key_name!, certPath).summary}`,
             data: { identity: res.identity, sha1: cert.sha1, keychain },
             next_steps: [
+              backupKeyAdvice(args.key_name!, certPath).nextStep,
               "signing_identities to confirm it is valid",
-              "keychain action=export_p12 to back it up / use in CI",
             ],
           };
         },

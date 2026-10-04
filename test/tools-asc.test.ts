@@ -131,6 +131,11 @@ describe("bundle IDs, certificates, profiles", () => {
     expect(result.text).toMatch(/Created certificate Example Corp \(C1\)/);
     expect(asc.requests[0].body.data.attributes.csrContent).toMatch(/BEGIN CERTIFICATE REQUEST/);
     expect((await stat(join(ctx.config.keysDir, "dist.cer"))).size).toBe(der.length);
+    // The key can't be reissued by Apple: the result says so and makes the backup the first next step.
+    expect(result.text).toMatch(/Back up this signing key now/);
+    expect(result.data.next_steps[0]).toBe(
+      `keychain action=export_p12 key_name=dist certificate_path=${join(ctx.config.keysDir, "dist.cer")} output_path=<where to write the .p12>`,
+    );
   });
 
   it("returns manual portal steps when Developer ID creation is refused", async () => {

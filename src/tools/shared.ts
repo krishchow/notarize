@@ -567,3 +567,17 @@ export async function extractIpa(ctx: ToolContext, ipa: string): Promise<string>
   if (!apps.length) throw new ToolError("No .app found in Payload/ of the IPA.");
   return join(payload, apps[0]);
 }
+
+/**
+ * Why and how to back up a private key that keychain create_csr generated. Apple only ever holds the
+ * certificate; the key lives in ~/.config/notarize-mcp/keys and the login keychain, and can't be reissued.
+ */
+export function backupKeyAdvice(
+  keyName: string,
+  certificatePath: string,
+): { summary: string; nextStep: string } {
+  return {
+    summary: `Back up this signing key now. Apple keeps only the certificate. The private key exists only in ~/.config/notarize-mcp/keys/${keyName}.key and this Mac's login keychain, and Apple can't reissue it. If this Mac is lost or wiped you can't sign with this certificate again and must create a new one (certificate counts are limited, and Developer ID ones need the Account Holder). Export a .p12 (a random password is generated and saved beside it), move the .p12, .p12.base64 and .p12.password into a password manager, then delete all three from disk.`,
+    nextStep: `keychain action=export_p12 key_name=${keyName} certificate_path=${certificatePath} output_path=<where to write the .p12>`,
+  };
+}

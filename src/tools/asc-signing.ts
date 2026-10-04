@@ -12,7 +12,7 @@ import { derToPem } from "../parsers/x509";
 import { clientFromKey, PLATFORMS, resolveBundleIdResource, slimResource, table } from "./asc-common";
 import { importKeyAndCert, loginKeychain } from "./keychain";
 import { installProfileBytes } from "./provisioning";
-import { pathExists, resolveUserPath } from "./shared";
+import { backupKeyAdvice, pathExists, resolveUserPath } from "./shared";
 import { defineTool, profileArg, withConfirmation } from "./types";
 
 // ------------------------------------------------------------------ asc_auth
@@ -430,13 +430,17 @@ export const ascCertificatesTool = defineTool({
               data.installed = res.identity;
             }
           }
+          const backup =
+            args.key_name && data.cerPath
+              ? backupKeyAdvice(args.key_name, data.cerPath as string)
+              : undefined;
+          if (backup) lines.push("", backup.summary);
           return {
             summary: lines.join("\n"),
             data,
-            next_steps: [
-              "signing_identities to confirm",
-              "keychain action=export_p12 to back up the identity",
-            ],
+            next_steps: backup
+              ? [backup.nextStep, "signing_identities to confirm"]
+              : ["signing_identities to confirm"],
           };
         },
       );

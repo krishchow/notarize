@@ -93,8 +93,13 @@ Do this when the user names a project, or before the first build, upload or nota
    - Look up the ID with `asc_bundle_ids action=list bundle_id=<id>`. If it is missing, run `asc_bundle_ids action=create bundle_id=<id> name=<App Name> platform=IOS|MAC_OS|UNIVERSAL`.
    - Enable the capabilities the entitlements need with `asc_bundle_ids action=enable_capability`.
    - For App Store or TestFlight targets, run `asc_apps action=find_by_bundle_id bundle_id=<id>`. If no record exists, `asc_apps action=create_instructions` gives the manual click path. The API can't create app records, so the user will also choose a **SKU** and **primary language** there.
-5. If the Team ID was missing from the credentials profile, save it with `setup.mjs apply --team-id <ID>`.
-6. Hand off to `apple-distribution`. Its next step is `distribution_checklist path=<repo> target=<target>`.
+5. **TestFlight group** (TestFlight/App Store targets, once the app record exists). Like the app record, this is a one-time step per app, not per build:
+   - Ask "Who should get builds?" Start with the user themselves.
+   - `testflight action=create_group app=<bundle id> group_name="<App> Internal" internal=true`, then `testflight action=add_testers group_id=<id> testers=[{email: <their Apple ID email>}]`. Internal testers must already be users on the App Store Connect team, so an Account Holder or Admin can add themselves; internal groups need no review.
+   - Say what happens per upload: each processed build is attached with `testflight action=add_build_to_group`, and testers get it in the TestFlight app.
+   - External testers (anyone by email or public link) go in a separate external group, and the first build of each version needs beta app review (`submit_beta_review`). Only set that up if they ask.
+6. If the Team ID was missing from the credentials profile, save it with `setup.mjs apply --team-id <ID>`.
+7. Hand off to `apple-distribution`. Its next step is `distribution_checklist path=<repo> target=<target>`.
 
 ### Where the metadata lives, by project type
 
