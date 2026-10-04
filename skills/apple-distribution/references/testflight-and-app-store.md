@@ -5,6 +5,13 @@
 - Build signed for distribution (Apple Distribution + store profile), unique build number, recent Xcode.
 - Export compliance: add `ITSAppUsesNonExemptEncryption = NO` to Info.plist if you only use HTTPS/OS crypto (otherwise answer per build with `asc_builds set_encryption_compliance`).
 
+## iOS, TestFlight only: which signing route
+1. **No registered devices on the team → sign manually for distribution (the default here).** No device needed:
+   `keychain action=create_csr key_name=<name>` → `asc_certificates action=create certificate_type=DISTRIBUTION key_name=<name>` (installs the cert + key) → `asc_profiles action=create profile_type=IOS_APP_STORE bundle_id=<id>` (installs it for Xcode) → `xcode action=archive target=testflight-ios signing_style=manual signing_certificate='Apple Distribution' provisioning_profiles={<bundle id>: <profile name from the create result>}` → `xcode action=export destination=upload`.
+2. **Automatic signing** (the `xcode` tool's default) needs **one** registered device, because an iOS archive is first signed with a development profile. Without one: "Your team has no devices…". Register one with the setup skill's device step, or use route 1.
+3. **Managed Expo apps:** EAS (`eas build` + `eas submit`) does all of this in Expo's cloud with its own credentials. Building locally means `npx expo prebuild -p ios`, then route 1 or 2 against `ios/*.xcworkspace`. Ask which the user wants; don't assume EAS.
+4. **Only register a device if they'll install development builds straight onto it.** TestFlight installs and the simulator don't need one, as long as they use route 1, EAS, or a team that already has a device.
+
 ## Upload → processing
 1. `xcode action=export target=testflight-ios destination=upload` (Xcode projects) or `upload_build path=App.ipa|App.pkg`.
 2. `asc_builds action=wait_processing app=<bundle id> build_number=<N>` — 5–30 min; returns a Monitor command when it runs long. States: PROCESSING → VALID (or FAILED/INVALID; App Store Connect emails the ITMS reasons).
