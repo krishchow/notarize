@@ -1,6 +1,6 @@
 {
   "name": "notarize",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Apple code signing, notarization, certificates, provisioning profiles, entitlements, Gatekeeper/sandbox/TCC debugging, TestFlight and App Store Connect — an MCP server plus a core skill that takes any macOS or iOS app from zero to shipped.",
   "author": {
     "name": "krishchow"
@@ -12,7 +12,7 @@
   "mcpServers": {
     "notarize": {
       "command": "npx",
-      "args": ["-y", "notarize-mcp@0.2.0"]
+      "args": ["-y", "notarize-mcp@0.2.1"]
     }
   }
 }
