@@ -82,4 +82,4 @@ if [[ "${1:-}" == "--with-notary" ]]; then
   fi
 fi
 
-echo "Done. Run: npm run test:recorded"
+echo "Done. Run: pnpm run test:recorded"

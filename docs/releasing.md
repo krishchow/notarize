@@ -33,8 +33,8 @@ The workflow appears under the **Actions** tab once `release.yml` is on `main`, 
 
 What it does, in order:
 1. **Guards.** It checks that the version is semver and that the run is on `main` (unless `dry_run`). It refuses a version that is already released.
-2. **Install.** `npm ci`.
-3. **Bump and check.** If the version changed, it bumps it, then runs `npm run check` (lint, typecheck, build, tests).
+2. **Install.** `pnpm install --frozen-lockfile`.
+3. **Bump and check.** If the version changed, it bumps it, then runs `pnpm run check` (lint, typecheck, build, tests).
 4. **Commit and tag.** It commits `Release vX` (the version files only; `dist/` isn't committed) and tags `vX`. It pushes **only the tag**. Plugin users follow `main`, so a tag alone changes nothing for them.
 5. **Publish.** `npm publish --access public --provenance`. Provenance applies only when the repo is public.
 6. **Push `main`.** It fast-forwards `main` to the release commit. The plugin now pins `notarize-mcp@X`, which npm already has.
