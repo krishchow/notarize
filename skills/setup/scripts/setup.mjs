@@ -6,6 +6,8 @@
 //   node setup.mjs plan  [--key-id ID] [--issuer-id UUID] [--team-id ID] [--p8 PATH] [--shell-rc PATH] [--profile NAME]
 //   node setup.mjs apply <same arguments as plan>
 //
+// plan/apply may omit --key-id when exactly one AuthKey_<ID>.p8 is already installed in a search directory.
+//
 // Prints one JSON object on stdout (schema 1). Exit codes: 0 ready / applied, 1 not ready, 2 usage error.
 // Never prints key material. Credential resolution mirrors ConfigStore.resolveAsc in src/core/config.ts.
 
@@ -114,6 +116,29 @@ function discoverP8(ctx, keyId) {
     if (match) return join(dir, match);
   }
   return undefined;
+}
+
+/** Same as ConfigStore.listDiscoveredP8(): every AuthKey_<id>.p8 in the search dirs, one per Key ID. */
+function listDiscoveredP8(ctx) {
+  const out = [];
+  for (const dir of p8SearchDirs(ctx)) {
+    let files;
+    try {
+      files = readdirSync(dir);
+    } catch {
+      continue;
+    }
+    for (const f of files.sort()) {
+      const m = /^AuthKey_(.+)\.p8$/.exec(f);
+      if (m && KEY_ID_RE.test(m[1]) && !out.some((k) => k.keyId === m[1]))
+        out.push({ keyId: m[1], path: join(dir, f) });
+    }
+  }
+  return out;
+}
+
+function describeFound(found) {
+  return found.map((k) => `${basename(k.path)} in ${dirname(k.path)}`).join(", ");
 }
 
 /** Mirrors ConfigStore.resolveAsc(profileName) without throwing. */
@@ -275,6 +300,8 @@ async function runChecks(ctx, flags) {
   const checks = [];
   const r = resolveCredentials(ctx, flags.profile);
   const individual = Boolean(flags["individual-key"]);
+  // With no Key ID configured, report keys already on disk instead of telling the user to create one.
+  const found = !r.error && !r.keyId && !r.inlineKey ? listDiscoveredP8(ctx) : [];
 
   checks.push(
     process.platform === "darwin"
@@ -312,6 +339,24 @@ async function runChecks(ctx, flags) {
 
   if (r.error) {
     checks.push(check("asc_key_id", "fail", r.error, "Pick an existing profile or omit --profile."));
+  } else if (!r.keyId && found.length === 1) {
+    checks.push(
+      check(
+        "asc_key_id",
+        "fail",
+        `No App Store Connect API Key ID configured, but ${describeFound(found)} is already installed (Key ID ${found[0].keyId}).`,
+        `Confirm ${found[0].keyId} is the key to use, then run \`setup.mjs plan --key-id ${found[0].keyId} --issuer-id … --team-id …\`; no --p8 is needed.`,
+      ),
+    );
+  } else if (!r.keyId && found.length > 1) {
+    checks.push(
+      check(
+        "asc_key_id",
+        "fail",
+        `No App Store Connect API Key ID configured; several keys are installed: ${describeFound(found)}.`,
+        `Ask which key to use, then run \`setup.mjs plan --key-id <one of ${found.map((k) => k.keyId).join(", ")}> --issuer-id … --team-id …\`; no --p8 is needed.`,
+      ),
+    );
   } else if (!r.keyId) {
     checks.push(check("asc_key_id", "fail", "No App Store Connect API Key ID configured.", CREATE_KEY_FIX));
   } else if (!KEY_ID_RE.test(r.keyId)) {
@@ -360,8 +405,19 @@ async function runChecks(ctx, flags) {
       key = loaded.key;
       checks.push(check("p8_readable", "ok", "ASC_PRIVATE_KEY is an EC P-256 private key."));
     }
+  } else if (!r.keyId && found.length) {
+    checks.push(
+      check("p8_path", "warn", `Found ${describeFound(found)}; not used until its Key ID is configured.`),
+    );
   } else if (!r.keyId) {
-    checks.push(check("p8_path", "fail", "No Key ID, so no .p8 can be located.", CREATE_KEY_FIX));
+    checks.push(
+      check(
+        "p8_path",
+        "fail",
+        `No Key ID, and no AuthKey_*.p8 in ${p8SearchDirs(ctx).join(", ")}.`,
+        CREATE_KEY_FIX,
+      ),
+    );
   } else if (!r.privateKeyPath) {
     checks.push(
       check(
@@ -478,7 +534,7 @@ async function runChecks(ctx, flags) {
     }
   }
 
-  return { checks, resolved: r };
+  return { checks, resolved: { ...r, ...(found.length ? { discoveredKeys: found } : {}) } };
 }
 
 // ------------------------------------------------------------------ online
@@ -544,8 +600,20 @@ async function onlineCheck(keyId, issuerId, key) {
 
 function planActions(ctx, flags) {
   const r = resolveCredentials(ctx, flags.profile);
-  const keyId = flags["key-id"] ?? r.keyId;
+  let keyId = flags["key-id"] ?? r.keyId;
   const issuerId = flags["issuer-id"] ?? r.issuerId;
+  let inferred;
+  if (!keyId && !flags.p8) {
+    const found = listDiscoveredP8(ctx);
+    if (found.length === 1) {
+      inferred = found[0];
+      keyId = inferred.keyId;
+    } else if (found.length > 1) {
+      throw new UsageError(
+        `No Key ID: several keys are installed (${describeFound(found)}); pass --key-id to pick one.`,
+      );
+    }
+  }
   if (!keyId)
     throw new UsageError("No Key ID: pass --key-id (the 10-character Key ID from App Store Connect).");
   if (!KEY_ID_RE.test(keyId))
@@ -565,6 +633,7 @@ function planActions(ctx, flags) {
   const sourceRaw =
     flags.p8 ??
     (r.keyId === keyId ? r.privateKeyPath : undefined) ??
+    inferred?.path ??
     (existsSync(target) ? target : undefined);
   if (!sourceRaw) {
     throw new UsageError(`No .p8 for ${keyId}: pass --p8 <path to the downloaded AuthKey_${keyId}.p8>.`);
@@ -624,7 +693,7 @@ function planActions(ctx, flags) {
       content: `${JSON.stringify(nextCfg, null, 2)}\n`,
     });
   }
-  return { actions, keyId, profileName: name };
+  return { actions, keyId, inferred, profileName: name };
 }
 
 function execute(action) {
@@ -697,9 +766,12 @@ async function main() {
   const ctx = makeEnv();
   try {
     let actions;
+    let inferredNote;
     if (opts.command !== "check") {
       const planned = planActions(ctx, opts.flags);
       actions = planned.actions;
+      if (planned.inferred)
+        inferredNote = `Key ID ${planned.keyId} was taken from ${planned.inferred.path} (the only AuthKey_*.p8 found); confirm it is the right key.`;
       if (opts.command === "apply") {
         for (const a of actions) {
           execute(a);
@@ -725,10 +797,11 @@ async function main() {
         source: resolved.source,
         profile: resolved.profileName,
         configPath: ctx.configPath,
+        ...(resolved.discoveredKeys ? { discoveredKeys: resolved.discoveredKeys } : {}),
       },
       checks,
       ...(actions ? { actions: actions.map(publicAction) } : {}),
-      next_steps: nextSteps(opts.command, ready, checks),
+      next_steps: [...(inferredNote ? [inferredNote] : []), ...nextSteps(opts.command, ready, checks)],
     };
     process.stdout.write(`${render(result, pretty)}\n`);
     return opts.command === "plan" || ready ? 0 : 1;

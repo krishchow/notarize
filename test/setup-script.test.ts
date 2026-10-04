@@ -22,7 +22,13 @@ interface Result {
   schema: number;
   ready: boolean;
   error?: string;
-  resolved?: { keyId?: string; issuerId?: string; privateKeyPath?: string; source: string };
+  resolved?: {
+    keyId?: string;
+    issuerId?: string;
+    privateKeyPath?: string;
+    source: string;
+    discoveredKeys?: { keyId: string; path: string }[];
+  };
   checks?: Check[];
   actions?: { kind: string; path: string; done?: boolean }[];
   next_steps?: string[];
@@ -78,6 +84,57 @@ describe("setup.mjs", () => {
     expect(byId(json, "asc_issuer_id")?.status).toBe("fail");
     expect(byId(json, "persisted_shell")?.status).toBe("warn");
     expect(json.next_steps?.length).toBeGreaterThan(0);
+  });
+
+  it("reports an installed key when no Key ID is configured, without using it", async () => {
+    const { home, env } = await sandbox();
+    const keyPath = writeKey(join(home, ".appstoreconnect", "private_keys", `AuthKey_${KEY_ID}.p8`));
+    const { code, json } = await run([], env);
+    expect(code).toBe(1);
+    expect(json.resolved?.keyId).toBeUndefined();
+    expect(json.resolved?.discoveredKeys).toEqual([{ keyId: KEY_ID, path: keyPath }]);
+    expect(byId(json, "asc_key_id")).toMatchObject({ status: "fail" });
+    expect(byId(json, "asc_key_id")?.message).toContain(KEY_ID);
+    expect(byId(json, "asc_key_id")?.fix).toContain(`--key-id ${KEY_ID}`);
+    expect(byId(json, "p8_path")?.status).toBe("warn");
+    expect(json.next_steps?.join("\n")).not.toMatch(/Create a Team key/);
+  });
+
+  it("lists every installed key when there are several, and only says to create one when there are none", async () => {
+    const { home, env } = await sandbox();
+    writeKey(join(home, ".appstoreconnect", "private_keys", `AuthKey_${KEY_ID}.p8`));
+    writeKey(join(home, "private_keys", "AuthKey_ZZZZZ99999.p8"));
+    writeKey(join(home, "private_keys", "AuthKey_not-a-key-id.p8"));
+    const several = await run([], env);
+    expect(several.json.resolved?.discoveredKeys?.map((k) => k.keyId)).toEqual([KEY_ID, "ZZZZZ99999"]);
+    expect(byId(several.json, "asc_key_id")?.fix).toMatch(/Ask which key/);
+
+    const empty = await sandbox();
+    const none = await run([], empty.env);
+    expect(none.json.resolved?.discoveredKeys).toBeUndefined();
+    expect(byId(none.json, "p8_path")?.status).toBe("fail");
+    expect(byId(none.json, "p8_path")?.fix).toMatch(/Create a Team key/);
+  });
+
+  it("plan infers --key-id from the only installed key; refuses to guess between several", async () => {
+    const { home, env } = await sandbox();
+    const installed = writeKey(join(home, ".appstoreconnect", "private_keys", `AuthKey_${KEY_ID}.p8`));
+    const plan = await run(["plan", "--issuer-id", ISSUER], env);
+    expect(plan.code).toBe(0);
+    // Already in place with mode 600: nothing to copy or chmod.
+    expect(plan.json.actions?.map((a) => a.kind)).toEqual(["write_shell_rc", "write_profile"]);
+    expect(plan.json.next_steps?.[0]).toContain(`Key ID ${KEY_ID} was taken from ${installed}`);
+
+    const apply = await run(["apply", "--issuer-id", ISSUER], env);
+    expect(apply.json.ready).toBe(true);
+    expect(apply.json.resolved).toMatchObject({ keyId: KEY_ID, privateKeyPath: installed });
+
+    const other = await sandbox();
+    writeKey(join(other.home, ".appstoreconnect", "private_keys", `AuthKey_${KEY_ID}.p8`));
+    writeKey(join(other.home, "private_keys", "AuthKey_ZZZZZ99999.p8"));
+    const ambiguous = await run(["plan", "--issuer-id", ISSUER], other.env);
+    expect(ambiguous.code).toBe(2);
+    expect(ambiguous.json.error).toMatch(/several keys are installed/);
   });
 
   it("is ready with env vars and a key in the default directory; warns on a world-readable key", async () => {

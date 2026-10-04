@@ -25,7 +25,7 @@ node <skill-dir>/scripts/setup.mjs apply <same arguments as plan>
 
 Output fields:
 - `ready`: true when no check failed.
-- `resolved`: `keyId`, `issuerId`, `privateKeyPath`, `source`, `profile`, `configPath`.
+- `resolved`: `keyId`, `issuerId`, `privateKeyPath`, `source`, `profile`, `configPath`, plus `discoveredKeys[]` (`{keyId, path}`) when no Key ID is configured but `AuthKey_<ID>.p8` files are already installed.
 - `checks[]`: each has `{id, status: ok|warn|fail, message, fix?}`. The ids are stable: `platform`, `node_version`, `config_file`, `asc_key_id`, `asc_issuer_id`, `p8_path`, `p8_readable`, `p8_mode`, `p8_filename`, `team_id`, `persisted_shell`, `persisted_profile`, `xcode_tools`, `asc_online`.
 - `actions[]`: what `plan` would do, or what `apply` did (marked `done: true`).
 - `next_steps[]`: what to do next.
@@ -34,19 +34,20 @@ Exit codes: `0` means ready, or the plan was computed; `1` means not ready; `2` 
 
 ### Flow
 1. Run `check`. If `ready` is true and there are no warnings you care about, say so in one line and move on.
-2. If `asc_key_id` or `p8_path` fails, the user must create a key. That step is manual:
+2. If `resolved.discoveredKeys` is present, a key is **already installed**: the Key ID is in its filename. Confirm with the user that it is the key to use (if there are several, ask which), ask only for the **Issuer ID** and **Team ID**, and go to step 3 with `--key-id <ID>` and no `--p8`. Don't search other folders (like `~/Downloads`) yourself: the script already looks in every folder the tools read keys from (listed under "Resolution order" below), and asking the user for the path is more reliable than guessing.
+3. Otherwise, if `asc_key_id` or `p8_path` fails, the user must create a key. That step is manual:
    1. Open App Store Connect → Users and Access → Integrations → App Store Connect API → **Team Keys** → **+**.
    2. Give the key the **Admin** role. App Manager covers most store and TestFlight tasks.
    3. Download the `.p8`. **It can be downloaded only once.**
    4. Bring back the **Key ID** (from the key's row), the **Issuer ID** (shown above the table) and the path of the downloaded file.
 
    The **Team ID** is at developer.apple.com → Account → Membership details.
-3. Run `plan` with those values and show the user the `actions` in plain words. They are:
-   - copy the `.p8` to `~/.appstoreconnect/private_keys/` and set it to mode 600;
+4. Run `plan` with those values and show the user the `actions` in plain words. They are:
+   - copy the `.p8` to `~/.appstoreconnect/private_keys/` and set it to mode 600 (skipped when it is already there);
    - add a marked block to `~/.zshrc`;
    - save a notarize-mcp profile.
-4. After the user agrees, run `apply` with **identical arguments**, then run `check --online`.
-5. Explain the result. The MCP server already sees the new profile, with no restart needed. **New terminals**, `xcodebuild` and `altool` see the env vars from `~/.zshrc`. Claude Code's own Bash tool sees them only after Claude Code is restarted.
+5. After the user agrees, run `apply` with **identical arguments**, then run `check --online`.
+6. Explain the result. The MCP server already sees the new profile, with no restart needed. **New terminals**, `xcodebuild` and `altool` see the env vars from `~/.zshrc`. Claude Code's own Bash tool sees them only after Claude Code is restarted.
 
 `apply` is idempotent. Re-running it with a new `--issuer-id` or `--team-id` updates the block and the profile in place. If a *different* file already exists at the target path, `apply` refuses to overwrite it.
 
