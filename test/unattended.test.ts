@@ -165,13 +165,14 @@ describe("fail fast on keychain prompts", () => {
 });
 
 describe("plugin packaging", () => {
-  it("plugin.json runs the npm package pinned to this version; no root .mcp.json", async () => {
+  it("plugin.json runs the npm package pinned to the plugin's version; no root .mcp.json", async () => {
+    // Pinned to the plugin's own version, not package.json's: package.json moves first and the
+    // release workflow's sync-plugin job catches the plugin up (see test/package.test.ts).
     const root = join(__dirname, "..");
     const plugin = JSON.parse(await readFile(join(root, ".claude-plugin", "plugin.json"), "utf8"));
-    const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
     expect(plugin.mcpServers.notarize).toEqual({
       command: "npx",
-      args: ["-y", `notarize-mcp@${pkg.version}`],
+      args: ["-y", `notarize-mcp@${plugin.version}`],
     });
     expect(existsSync(join(root, ".mcp.json"))).toBe(false);
   });
