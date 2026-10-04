@@ -103,6 +103,9 @@ export async function listIdentities(ctx: ToolContext, keychain?: string): Promi
     const certs = await findCertificates(ctx, name, keychain);
     for (const id of ids.filter((i) => i.name === name)) {
       id.certificate = certs.find((c) => c.sha1 === id.sha1);
+      // The "(XXXXXXXXXX)" in a certificate name isn't always the team: Apple Development certs carry a
+      // member ID, and API-created ones the API key ID. The subject OU is the team.
+      if (id.certificate?.teamId) id.teamId = id.certificate.teamId;
     }
   }
   return ids;

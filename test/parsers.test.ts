@@ -389,6 +389,9 @@ describe("project detection", () => {
     const exr = await detectProject(ex);
     expect(exr.components[0]).toMatchObject({ kind: "expo", bundleIds: ["com.example.ex"] });
     expect(exr.components[0].signing.workflow).toMatch(/managed/);
+    // Managed Expo offers the local route as well as EAS, and doesn't pick one for the user.
+    expect(exr.components[0].buildCommands.join("\n")).toMatch(/expo prebuild -p ios[\s\S]*eas build/);
+    expect(exr.components[0].findings.join("\n")).toMatch(/Ask the user which/);
   });
 
   it("detects prebuilt .app bundles", async () => {

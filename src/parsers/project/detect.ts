@@ -563,7 +563,7 @@ async function detectReactNativeOrExpo(dir: string, pkg: any): Promise<DetectedC
     c.findings.push(
       hasIos
         ? "ios/ exists: you can build locally with the xcode tool (workspace ios/*.xcworkspace after `npx pod-install`) or keep using EAS."
-        : "Managed workflow: EAS Build manages certificates/profiles remotely (`eas credentials`). This server can still create the API key setup, bundle ID, app record checks and TestFlight steps. Or run `npx expo prebuild -p ios` to build locally.",
+        : "Managed workflow (no ios/): two ways to build. Local: `npx expo prebuild -p ios`, then the xcode tool (archive with automatic signing + the API key, export) and upload_build; signing stays on this Mac. EAS: Expo's cloud builds certificates/profiles (`eas credentials`) and submits. Ask the user which they want; don't assume EAS.",
     );
     c.configSnippets = [
       {
@@ -587,7 +587,16 @@ async function detectReactNativeOrExpo(dir: string, pkg: any): Promise<DetectedC
         ),
       },
     ];
-    c.buildCommands = ["eas build -p ios --profile production", "eas submit -p ios --latest"];
+    c.buildCommands = hasIos
+      ? [
+          "xcode action=archive path=ios target=testflight-ios (workspace ios/*.xcworkspace)",
+          "xcode action=export destination=upload",
+          "eas build -p ios --profile production   # or EAS",
+        ]
+      : [
+          "npx expo prebuild -p ios   # local: generates ios/, then the xcode tool + upload_build",
+          "eas build -p ios --profile production && eas submit -p ios --latest   # or EAS",
+        ];
     return c;
   }
   const c = component("react-native", join(dir, "package.json"), {

@@ -303,6 +303,36 @@ describe("setup.mjs", () => {
     expect(rc2).toContain(other);
   });
 
+  it("leaves hand-written matching exports alone and flags ones that differ", async () => {
+    const { home, configDir, env } = await sandbox();
+    writeKey(join(home, ".appstoreconnect", "private_keys", `AuthKey_${KEY_ID}.p8`));
+    const rcPath = join(home, ".zshrc");
+    const handWritten = [
+      "export PATH=/opt/bin:$PATH",
+      `export ASC_KEY_ID="${KEY_ID}"`,
+      `export ASC_ISSUER_ID=${ISSUER}`,
+      `export ASC_PRIVATE_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"`,
+      "",
+    ].join("\n");
+    writeFileSync(rcPath, handWritten);
+    const args = ["--key-id", KEY_ID, "--issuer-id", ISSUER];
+
+    const apply = await run(["apply", ...args], env);
+    expect(apply.json.actions?.map((a) => a.kind)).toEqual(["write_profile"]);
+    expect(apply.json.next_steps?.[0]).toMatch(/already exports matching ASC_\* variables/);
+    expect(readFileSync(rcPath, "utf8")).toBe(handWritten);
+    expect(JSON.parse(readFileSync(join(configDir, "config.json"), "utf8")).profiles.default.keyId).toBe(
+      KEY_ID,
+    );
+
+    const other = "11111111-2222-4333-8444-555555555555";
+    const plan = await run(["plan", "--key-id", KEY_ID, "--issuer-id", other], env);
+    expect(plan.json.actions?.map((a) => a.kind)).toContain("write_shell_rc");
+    expect(plan.json.next_steps?.[0]).toMatch(
+      /also sets ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY_PATH outside/,
+    );
+  });
+
   it("refuses bad input with exit 2 and never overwrites a different installed key", async () => {
     const { home, env } = await sandbox();
     expect((await run(["plan", "--key-id", "short", "--issuer-id", ISSUER], env)).code).toBe(2);

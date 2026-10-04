@@ -240,6 +240,21 @@ function findPersistedShell(ctx) {
   return undefined;
 }
 
+/** ASC_* exports written outside the managed block (by hand), with $HOME / ~ expanded. */
+function unmanagedExports(content, ctx) {
+  const start = content.indexOf(BLOCK_START);
+  const end = content.indexOf(BLOCK_END);
+  const outside =
+    start !== -1 && end > start ? content.slice(0, start) + content.slice(end + BLOCK_END.length) : content;
+  const re = /^\s*(?:export\s+(ASC_[A-Z_]+)=|set\s+-gx\s+(ASC_[A-Z_]+)\s+)(.*?)\s*$/gm;
+  const found = {};
+  for (const m of outside.matchAll(re)) {
+    const v = m[3].replace(/^(["'])(.*)\1$/, "$2");
+    found[m[1] ?? m[2]] = v.replace(/^(?:\$HOME|\$\{HOME\}|~)(?=\/)/, ctx.home);
+  }
+  return found;
+}
+
 function shellQuote(value, ctx) {
   // Values are validated IDs or paths; render paths under $HOME portably.
   const v = value.startsWith(`${ctx.home}/`) ? `$HOME/${value.slice(ctx.home.length + 1)}` : value;
@@ -643,6 +658,7 @@ function planActions(ctx, flags) {
   if (loaded.error) throw new UsageError(`--p8: ${loaded.error}`);
 
   const actions = [];
+  const notes = [];
   if (source !== target) {
     if (existsSync(target)) {
       if (!readFileSync(target).equals(readFileSync(source))) {
@@ -665,7 +681,22 @@ function planActions(ctx, flags) {
   });
   const current = existsSync(rcFile) ? readFileSync(rcFile, "utf8") : "";
   const next = withBlock(current, block);
-  if (next !== current) {
+  // Exports the user wrote by hand: leave the file alone when they already match, and say so when they don't.
+  const wanted = { ASC_KEY_ID: keyId, ASC_ISSUER_ID: issuerId, ASC_PRIVATE_KEY_PATH: target };
+  const manual = unmanagedExports(current, ctx);
+  const manualKeys = Object.keys(manual).filter((k) => k in wanted);
+  const manualMatches =
+    !current.includes(BLOCK_START) &&
+    Object.entries(wanted).every(([k, v]) => (v === undefined ? !(k in manual) : manual[k] === v));
+  if (manualMatches) {
+    notes.push(
+      `${rcFile} already exports matching ASC_* variables (outside a notarize block); leaving it unchanged.`,
+    );
+  } else if (next !== current) {
+    if (manualKeys.length)
+      notes.push(
+        `${rcFile} also sets ${manualKeys.join(", ")} outside the notarize block with different values; the block is appended after them and wins. Remove the old lines to avoid confusion.`,
+      );
     actions.push({
       kind: "write_shell_rc",
       path: rcFile,
@@ -693,7 +724,7 @@ function planActions(ctx, flags) {
       content: `${JSON.stringify(nextCfg, null, 2)}\n`,
     });
   }
-  return { actions, keyId, inferred, profileName: name };
+  return { actions, notes, keyId, inferred, profileName: name };
 }
 
 function execute(action) {
@@ -766,12 +797,15 @@ async function main() {
   const ctx = makeEnv();
   try {
     let actions;
-    let inferredNote;
+    const notes = [];
     if (opts.command !== "check") {
       const planned = planActions(ctx, opts.flags);
       actions = planned.actions;
       if (planned.inferred)
-        inferredNote = `Key ID ${planned.keyId} was taken from ${planned.inferred.path} (the only AuthKey_*.p8 found); confirm it is the right key.`;
+        notes.push(
+          `Key ID ${planned.keyId} was taken from ${planned.inferred.path} (the only AuthKey_*.p8 found); confirm it is the right key.`,
+        );
+      notes.push(...planned.notes);
       if (opts.command === "apply") {
         for (const a of actions) {
           execute(a);
@@ -801,7 +835,7 @@ async function main() {
       },
       checks,
       ...(actions ? { actions: actions.map(publicAction) } : {}),
-      next_steps: [...(inferredNote ? [inferredNote] : []), ...nextSteps(opts.command, ready, checks)],
+      next_steps: [...notes, ...nextSteps(opts.command, ready, checks)],
     };
     process.stdout.write(`${render(result, pretty)}\n`);
     return opts.command === "plan" || ready ? 0 : 1;

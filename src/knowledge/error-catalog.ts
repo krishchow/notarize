@@ -23,6 +23,8 @@ export interface KnownError {
   fix: string[];
   /** Tool/action that helps resolve it. */
   tool?: string;
+  /** More generic entries this one explains; they are dropped from the matches when this one matches. */
+  supersedes?: string[];
 }
 
 export const ERROR_CATALOG: KnownError[] = [
@@ -552,9 +554,14 @@ export const ERROR_CATALOG: KnownError[] = [
     source: "xcodebuild",
     pattern: /Your team has no devices from which to generate a provisioning profile/,
     title: "No registered devices",
-    explanation: "Development/Ad Hoc profiles need at least one registered device.",
-    fix: ["devices (get UDIDs) → asc_devices register"],
+    explanation:
+      "Development/Ad Hoc profiles need at least one registered device. An iOS archive with automatic signing builds with an Apple Development profile first (distribution signing happens at export), so even App Store/TestFlight archives hit this on a team with no devices. -allowProvisioningUpdates does not help.",
+    fix: [
+      "Register any one device you own: devices (UDIDs of connected iPhones/iPads) → asc_devices register, then archive again",
+      "Or skip development signing: asc_profiles create profile_type=IOS_APP_STORE → download_install, then xcode archive signing_style=manual signing_certificate='Apple Distribution' provisioning_profiles={<bundle id>: <profile name>}",
+    ],
     tool: "asc_devices",
+    supersedes: ["xc-no-profile"],
   },
   {
     id: "xc-auth-key",
@@ -725,11 +732,13 @@ export interface ErrorMatch {
 export function matchKnownErrors(text: string, sources?: ErrorSource[]): ErrorMatch[] {
   const out: ErrorMatch[] = [];
   const seen = new Set<string>();
+  const superseded = new Set<string>();
   for (const e of ERROR_CATALOG) {
     if (sources && !sources.includes(e.source)) continue;
     const m = e.pattern.exec(text);
     if (m && !seen.has(e.id)) {
       seen.add(e.id);
+      for (const id of e.supersedes ?? []) superseded.add(id);
       const lineStart = text.lastIndexOf("\n", m.index) + 1;
       const lineEnd = text.indexOf("\n", m.index);
       const matched = text
@@ -747,7 +756,7 @@ export function matchKnownErrors(text: string, sources?: ErrorSource[]): ErrorMa
       });
     }
   }
-  return out;
+  return out.filter((m) => !superseded.has(m.id));
 }
 
 export function formatMatches(matches: ErrorMatch[]): string {

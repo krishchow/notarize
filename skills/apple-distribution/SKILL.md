@@ -161,7 +161,7 @@ More detail: [references/gatekeeper-debugging.md](references/gatekeeper-debuggin
 - **Electron**: electron-builder `mac.hardenedRuntime`, entitlements with `allow-jit`, `mac.notarize` + `APPLE_API_KEY*` env vars, MAS needs separate entitlements → [references/frameworks/electron.md](references/frameworks/electron.md)
 - **Tauri**: `bundle.macOS.signingIdentity`, `APPLE_API_*` env vars (note `APPLE_API_KEY` = key **ID** in Tauri) → [references/frameworks/tauri.md](references/frameworks/tauri.md)
 - **Flutter**: `ios/Runner.xcworkspace` / `macos/Runner.xcworkspace` with the `xcode` tool, or `flutter build ipa --export-options-plist` → [references/frameworks/flutter.md](references/frameworks/flutter.md)
-- **React Native / Expo**: `pod install` + `xcode` tool; Expo managed apps use EAS (`eas credentials`, `eas submit` with the same API key) → [references/frameworks/react-native-expo.md](references/frameworks/react-native-expo.md)
+- **React Native / Expo**: `pod install` + `xcode` tool. Expo managed apps build either locally (`npx expo prebuild -p ios`, then the `xcode` tool) or with EAS (`eas credentials`, `eas submit` with the same API key); ask the user which → [references/frameworks/react-native-expo.md](references/frameworks/react-native-expo.md)
 - **Prebuilt artifacts / CLI tools**: [references/prebuilt-artifacts.md](references/prebuilt-artifacts.md)
 - **CI**: [references/ci.md](references/ci.md)
 

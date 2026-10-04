@@ -88,6 +88,46 @@ describe("signing_identities", () => {
   });
 });
 
+describe("signing_identities team IDs", () => {
+  it("takes the team from the certificate's subject OU, not the ID in the name", async () => {
+    const { execFileSync } = await import("node:child_process");
+    const { X509Certificate } = await import("node:crypto");
+    const dir = await mkdtemp(join(tmpdir(), "cert-"));
+    const name = "Apple Development: Created via API (FGSLU6GTY3)";
+    execFileSync(
+      "openssl",
+      [
+        "req",
+        "-x509",
+        "-newkey",
+        "ec",
+        "-pkeyopt",
+        "ec_paramgen_curve:P-256",
+        "-nodes",
+        "-days",
+        "30",
+        "-keyout",
+        join(dir, "k.pem"),
+        "-out",
+        join(dir, "c.pem"),
+        "-subj",
+        `/UID=ABC/CN=${name}/OU=LGSCCHP359/O=Example/C=US`,
+      ],
+      { stdio: "ignore" },
+    );
+    const pem = await readFile(join(dir, "c.pem"), "utf8");
+    const sha1 = new X509Certificate(pem).fingerprint.replace(/:/g, "");
+    const { ctx, runner } = await makeCtx();
+    runner
+      .on("security", ["find-identity"], {
+        stdout: `Policy: Code Signing\n  Matching identities\n  1) ${sha1} "${name}"\n     1 identities found\n`,
+      })
+      .on("security", ["find-certificate"], { stdout: pem });
+    const r = await call(await connect(ctx), "signing_identities", { include_reference: false });
+    expect(r.data.identities[0]).toMatchObject({ name, teamId: "LGSCCHP359" });
+  });
+});
+
 describe("inspect_code_signature", () => {
   it("flags get-task-allow, unsigned nested code and missing ticket for Developer ID", async () => {
     const app = await makeApp({ framework: true });

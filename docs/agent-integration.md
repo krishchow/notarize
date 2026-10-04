@@ -12,6 +12,9 @@ How to drive the `notarize` MCP server from an agent (Claude Code or any MCP cli
 
 Run the server **on the Mac that has the signing identities**. On Linux and cloud agents only App Store Connect and file-inspection tools work. For signing there, generate a CI workflow with `ci_config` and run it on a macOS runner.
 
+## Where requests go
+The server runs locally (stdio, started by the plugin with `npx`). App Store Connect calls go directly from it to `api.appstoreconnect.apple.com`, authenticated with a short-lived ES256 token signed locally with the `.p8`; no other server sits in between. Notarization uses `xcrun notarytool`, which talks to Apple itself.
+
 ## The confirm contract
 
 Every tool that changes something — files, keychain, Apple account, uploads — works in two calls:

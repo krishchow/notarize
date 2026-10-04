@@ -420,6 +420,7 @@ export async function buildChecklist(
   }
 
   // ---- App Store Connect app record + build numbers
+  let appRecordFound = false;
   if (isStore && bundleId) {
     if (!client)
       add({
@@ -441,6 +442,7 @@ export async function buildChecklist(
             fix: `asc_apps action=create_instructions bundle_id=${bundleId} (manual, ~2 minutes in the web UI)`,
           });
         else {
+          appRecordFound = true;
           add({
             id: "app-record",
             title: "App Store Connect app record",
@@ -455,9 +457,11 @@ export async function buildChecklist(
             )
             .catch(() => undefined);
           const latest = builds?.data[0]?.attributes?.version as string | undefined;
-          const projectBuild = (
-            (component?.signing as Record<string, unknown> | undefined)?.buildNumber as string[] | undefined
-          )?.find((b) => !b.includes("$("));
+          // Xcode projects report every CURRENT_PROJECT_VERSION (string[]); Expo reports ios.buildNumber (string).
+          const rawBuild = (component?.signing as Record<string, unknown> | undefined)?.buildNumber;
+          const projectBuild = (Array.isArray(rawBuild) ? rawBuild : rawBuild != null ? [rawBuild] : [])
+            .map(String)
+            .find((b) => !b.includes("$("));
           if (latest)
             add({
               id: "build-number",
@@ -504,7 +508,10 @@ export async function buildChecklist(
       });
   }
 
-  for (const h of t.humanSteps) add({ id: "human", title: "Manual step", status: "manual", detail: h });
+  for (const h of t.humanSteps) {
+    if (appRecordFound && /create the app record/i.test(h)) continue;
+    add({ id: "human", title: "Manual step", status: "manual", detail: h });
+  }
   return { items, bundleId, component };
 }
 
