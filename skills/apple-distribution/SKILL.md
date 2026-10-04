@@ -9,6 +9,11 @@ Take someone with **zero Apple-platform context** from "I have an app" to a sign
 
 You have the **`notarize` MCP server** (tools named `doctor`, `detect_project`, `distribution_checklist`, `sign`, `notarize_and_staple`, `asc_*`, …). Prefer its tools to hand-written shell commands: they encode Apple's rules, explain failures and ask for confirmation before changing anything. If the server isn't available, use the raw commands in [No-MCP fallback](#no-mcp-fallback).
 
+**Prerequisite: the `setup` skill.** This skill assumes the App Store Connect API key is installed and the project's bundle ID and team are confirmed.
+- If a tool reports "No App Store Connect API key configured", or a project's bundle ID hasn't been confirmed with the user, run the **`setup`** skill first (`/notarize:setup`).
+- To check the key quickly, run `node <setup skill dir>/scripts/setup.mjs check`. It prints JSON, and `"ready": true` means the credentials are fine.
+- The key's conventional home is `~/.appstoreconnect/private_keys/AuthKey_<KEYID>.p8` (mode 600). `ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_PRIVATE_KEY_PATH` are exported from `~/.zshrc`, and the same values are saved as a notarize-mcp profile.
+
 ## 1. Mental model (explain this to the user in plain words)
 
 | Concept | What it is | When you need it |

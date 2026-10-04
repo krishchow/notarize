@@ -25,6 +25,8 @@ describe("package", () => {
       expect.arrayContaining([
         "dist/notarize-mcp.js",
         "skills/apple-distribution/SKILL.md",
+        "skills/setup/SKILL.md",
+        "skills/setup/scripts/setup.mjs",
         "README.md",
         "LICENSE",
       ]),

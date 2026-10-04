@@ -6,6 +6,7 @@ A local **stdio MCP server** plus a **core skill** that take any macOS or iOS ap
 - **Plan + confirm**: every tool that changes anything returns a preview with exact commands/API calls and a `confirm_token` first; it only executes when called again with that token and identical arguments.
 - **Long operations never block**: notarization, archives, uploads and build processing hand off to background jobs and return a ready-made [Monitor](#long-running-work-notarization-builds) command.
 - **Explains failures**: every codesign / notarytool / stapler / spctl / xcodebuild / altool error is matched against a catalog of known problems with plain-language fixes.
+- **Setup skill** (`skills/setup`, `/notarize:setup`) checks or installs the App Store Connect API key with a zero-dependency script (`node skills/setup/scripts/setup.mjs check` prints JSON), then confirms a project's bundle ID, team and version and registers them with Apple.
 - **Skill** (`skills/apple-distribution`) teaches the agent the mental model, the zero-context workflow, golden rules and a debugging playbook, with references per topic and per framework.
 
 ## Install
@@ -14,7 +15,7 @@ This repo ships two artifacts from each release. Both need Node ≥ 20 on your M
 | Artifact | What it is | For |
 |---|---|---|
 | npm package [`notarize-mcp`](https://www.npmjs.com/package/notarize-mcp) | The MCP server, run with `npx -y notarize-mcp` | Any MCP client |
-| Claude Code plugin (this repo's marketplace) | The `apple-distribution` skill, plus the same server pinned to the matching version | Claude Code |
+| Claude Code plugin (this repo's marketplace) | The `setup` and `apple-distribution` skills, plus the same server pinned to the matching version | Claude Code |
 
 ### Claude Code: the plugin (skill + MCP server)
 ```
@@ -39,7 +40,7 @@ Claude Desktop (`~/Library/Application Support/Claude/claude_desktop_config.json
   }
 }
 ```
-Add `"env": { "ASC_PROFILE": "…" }` to pick a credential profile. To use the skill without the plugin, copy [`skills/apple-distribution`](skills/apple-distribution) into `~/.claude/skills/`.
+Add `"env": { "ASC_PROFILE": "…" }` to pick a credential profile. To use the skills without the plugin, copy [`skills/setup`](skills/setup) and [`skills/apple-distribution`](skills/apple-distribution) into `~/.claude/skills/`.
 
 Run it **on the Mac that holds your signing identities**. On Linux/Windows only the App Store Connect API and file-inspection tools work. The skill's guides are also exposed as MCP resources (`notarize://guides/*`, `notarize://catalog/*`) and there are MCP prompts (`setup-distribution`, `debug-gatekeeper`, `debug-notarization`, `debug-sandbox`).
 
@@ -54,7 +55,12 @@ Run it **on the Mac that holds your signing identities**. On Linux/Windows only 
 One **App Store Connect Team API key** powers portal automation, notarization, Xcode automatic signing and uploads:
 App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → **+** (role **Admin**, or App Manager) → download `AuthKey_XXXXXXXXXX.p8` (only once!).
 
-Then let the agent run `asc_auth action=configure` (validates and saves a profile), or set env vars:
+The easiest path is `/notarize:setup`. It asks for the Key ID, the Issuer ID and the path of the `.p8`, never the contents. It previews its changes with `setup.mjs plan`, then `setup.mjs apply` makes them:
+- installs the key as `~/.appstoreconnect/private_keys/AuthKey_<KEYID>.p8` (mode 600);
+- adds an `ASC_*` export block to `~/.zshrc`;
+- saves a notarize-mcp profile.
+
+Alternatively, let the agent run `asc_auth action=configure` (validates and saves a profile), or set env vars:
 
 | Variable | Meaning |
 |---|---|
@@ -110,7 +116,7 @@ npx @modelcontextprotocol/inspector node dist/notarize-mcp.js
 ```
 `UPDATE_DOCS=1 npx vitest run test/docs.test.ts` regenerates `skills/apple-distribution/references/error-catalog.md` from the catalog.
 
-Layout: `src/core` (argv-only command runner, confirm tokens, jobs, config, redaction, plist), `src/knowledge` (targets, certificate types, entitlements, privacy keys, error catalog, SDK minimums), `src/parsers`, `src/asc` (JWT + JSON:API client), `src/tools`, `src/cli` (watchers), `skills/apple-distribution`.
+Layout: `src/core` (argv-only command runner, confirm tokens, jobs, config, redaction, plist), `src/knowledge` (targets, certificate types, entitlements, privacy keys, error catalog, SDK minimums), `src/parsers`, `src/asc` (JWT + JSON:API client), `src/tools`, `src/cli` (watchers), `skills/apple-distribution`, `skills/setup` (setup skill + `scripts/setup.mjs`).
 
 ## Safety notes
 - Commands are spawned with argument arrays (no shell), so paths can't inject commands.
