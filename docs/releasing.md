@@ -37,7 +37,7 @@ pnpm changeset               # choose patch / minor / major, write a one-line su
    - runs `pnpm publish`, whose `prepublishOnly` runs `pnpm run check` first (lint, typecheck, build, tests);
    - pushes the `vX` tag;
    - creates the GitHub Release with the changelog entry.
-4. **sync-plugin** checks that npm now has `notarize-mcp@X`, then runs `scripts/bump-version.mjs X` and pushes `Pin the Claude Code plugin to notarize-mcp@X` to `main`. Plugin users get the new version from that commit.
+4. **sync-plugin** waits for npm to list `notarize-mcp@X` (up to 5 minutes; it fails the run if npm never does), then runs `scripts/bump-version.mjs X` and pushes `Pin the Claude Code plugin to notarize-mcp@X` to `main`. Plugin users get the new version from that commit.
 
 Between steps 3 and 4, `main` briefly has `package.json` at X and the plugin still at X−1. That is expected, and safe for plugin users. `test/package.test.ts` allows the plugin to lag, but never to lead.
 
