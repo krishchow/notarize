@@ -165,12 +165,14 @@ describe("fail fast on keychain prompts", () => {
 });
 
 describe("plugin packaging", () => {
-  it("defines the MCP server in plugin.json and has no root .mcp.json that breaks project sessions", async () => {
+  it("plugin.json runs the npm package pinned to this version; no root .mcp.json", async () => {
     const root = join(__dirname, "..");
     const plugin = JSON.parse(await readFile(join(root, ".claude-plugin", "plugin.json"), "utf8"));
-    expect(plugin.mcpServers.notarize.args[0]).toBe(
-      ["$", "{CLAUDE_PLUGIN_ROOT}/dist/notarize-mcp.js"].join(""),
-    );
+    const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+    expect(plugin.mcpServers.notarize).toEqual({
+      command: "npx",
+      args: ["-y", `notarize-mcp@${pkg.version}`],
+    });
     expect(existsSync(join(root, ".mcp.json"))).toBe(false);
   });
 });

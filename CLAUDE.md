@@ -4,8 +4,8 @@ A stdio MCP server (TypeScript) plus a Claude Code skill for Apple code signing,
 
 ## Commands
 ```bash
-npm run check                 # biome lint + tsc + vitest — must pass before committing
-npm run build                 # tsup → dist/notarize-mcp.js (COMMITTED; rebuild after any src change)
+npm run check                 # biome lint + tsc + build + vitest — must pass before committing
+npm run build                 # tsup → dist/notarize-mcp.js (build output; gitignored, published to npm)
 UPDATE_DOCS=1 npx vitest run test/docs.test.ts   # regenerate docs/tools.md, docs/claude-settings.example.json, error-catalog.md
 npm run test:recorded         # parsers vs real macOS output in test/fixtures/recorded (skips missing files)
 npm run test:live             # real Apple account, opt-in — see docs/testing.md
@@ -18,8 +18,7 @@ GitHub Actions are **manual only** (`workflow_dispatch`) — the account has no 
 ## Layout
 | Path | What |
 |---|---|
-| `src/index.ts` | CLI entry: MCP over stdio, `install`/`uninstall`, `watch-job`, `watch-notarization`, `--list-tools` |
-| `src/cli/install.ts` | one-command installer for Claude Code / Claude Desktop / Cursor + skill copy |
+| `src/index.ts` | CLI entry: MCP over stdio, `watch-job`, `watch-notarization`, `--list-tools` |
 | `src/server.ts` | registers tools / resources / prompts; converts `ToolOutput` → MCP result |
 | `src/core/` | `exec.ts` (CommandRunner), `confirm.ts` (tokens + auto-confirm policy), `jobs.ts` (background jobs + state files), `monitor.ts`, `config.ts` (credentials), `redact.ts`, `plist.ts`, `result.ts`, `fake-runner.ts` |
 | `src/knowledge/` | data: targets, certificate types, entitlements, privacy keys, error catalog, SDK minimums |
@@ -41,8 +40,9 @@ GitHub Actions are **manual only** (`workflow_dispatch`) — the account has no 
 4. **New failure strings get an `ERROR_CATALOG` entry** (`src/knowledge/error-catalog.ts`). Add a matching real-world message to `test/knowledge.test.ts`, then regenerate docs.
 5. **Long operations go through `ctx.jobs.runWithDeadline`.** When they detach, return `detachedOutput()` (`src/tools/detached.ts`), which carries the Monitor command. Record durable identifiers with `job.setMeta(...)`, e.g. `submissionId`.
 6. **Results are `ToolOutput`**: a short `summary` first, structured `data`, and `next_steps` naming exact tool calls.
-7. **Commit what's generated.** After changing src, run `npm run build` and commit `dist/`. After changing tools or the catalog, run `UPDATE_DOCS=1 …` and commit the docs.
+7. **Commit generated docs, not the bundle.** After changing tools or the catalog, run `UPDATE_DOCS=1 …` and commit the docs. `dist/` is build output; it is gitignored and only published to npm.
 8. **Keep the knowledge base dated.** When Apple changes requirements, update `src/knowledge/*`, including `SDK_REQUIREMENTS_LAST_REVIEWED`.
+9. **Two artifacts, one version.** The npm package is the server. The plugin (`.claude-plugin/plugin.json` + `skills/`) runs `npx -y notarize-mcp@<version>`. Bump with `scripts/bump-version.mjs` only, and never let `main` carry a version that isn't on npm yet; `release.yml` publishes before it pushes `main`.
 
 ## Adding a tool
 1. In `src/tools/<group>.ts`: `export const fooTool = defineTool({ name, title, description, input: { action: z.enum([...]), ... }, mutating?, handler })`.

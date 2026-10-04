@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   check:
-    name: Lint, typecheck, test, bundle (Linux)
+    name: Lint, typecheck, bundle, test (Linux)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,11 +28,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm run build
       - run: npm test
-      - name: Bundle is up to date
-        run: |
-          npm run build
-          git diff --exit-code -- dist/ || (echo "dist/ is stale: run 'npm run build' and commit." && exit 1)
 
   macos:
     name: Real macOS — record fixtures, recorded tests, smoke (no Apple credentials)

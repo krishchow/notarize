@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prepare a release locally (no CI minutes needed): bump versions, check, build, commit, tag.
+# Prepare a release locally (no CI minutes needed): bump versions, build, check, commit, tag.
 # Alternative to the GitHub "Release" workflow (.github/workflows/release.yml); here publishing
 # stays a manual step because it needs your npm login / 2FA code.
 # Usage: bash scripts/release.sh 0.2.1
@@ -15,21 +15,22 @@ fi
 node scripts/bump-version.mjs "$VERSION"
 npm install --package-lock-only --silent
 
-npm run build
-npm run check
+npm run check   # lint, typecheck, build, test
 echo
 echo "Package contents:"
 npm pack --dry-run --ignore-scripts 2>&1 | grep -E "notarize-mcp@|package size|unpacked size|total files"
 
-git add package.json package-lock.json .claude-plugin/plugin.json dist
+git add package.json package-lock.json .claude-plugin/plugin.json
 git commit -m "Release v$VERSION"
 git tag "v$VERSION"
 
 cat <<MSG
 
-Release v$VERSION is committed and tagged locally. To publish:
+Release v$VERSION is committed and tagged locally. Publish npm first, then push main
+(the Claude Code plugin on main pins notarize-mcp@$VERSION, which must exist on npm):
   npm whoami || npm login        # once per machine
   npm publish                    # enter your 2FA code when asked
-  git push && git push --tags
-Then anyone can install with:  npx -y notarize-mcp install
+  git push --follow-tags origin HEAD:main
+Then:  MCP server  →  npx -y notarize-mcp
+       Plugin      →  /plugin marketplace add krishchow/notarize ; /plugin install notarize@notarize
 MSG

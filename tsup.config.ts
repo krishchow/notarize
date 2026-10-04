@@ -11,7 +11,7 @@ export default defineConfig({
   splitting: false,
   sourcemap: false,
   minify: false,
-  // Bundle every dependency so the git-installed Claude Code plugin only needs Node.
+  // Bundle every dependency so the published package has no dependencies and `npx` starts fast.
   noExternal: [/.*/],
   banner: {
     js: [

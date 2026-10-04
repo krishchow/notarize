@@ -1,10 +1,6 @@
-import { homedir } from "node:os";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { install, parseInstallFlags, uninstall } from "./cli/install";
 import { parseFlags, requireArg, watchJob, watchNotarization } from "./cli/watch";
 import { createContext } from "./context";
-import { SpawnRunner } from "./core/exec";
-import { findSkillDir } from "./resources/index";
 import { createServer, SERVER_NAME, SERVER_VERSION } from "./server";
 import { allTools } from "./tools/index";
 
@@ -14,10 +10,6 @@ const HELP = [
   "Usage:",
   "  notarize-mcp                              speak MCP over stdio (what MCP clients run)",
   "  notarize-mcp --list-tools",
-  "  notarize-mcp install [--client claude-code|claude-desktop|cursor|all] [--scope user|project] [--no-skill] [--pin] [--force] [--dry-run]",
-  "      Register the MCP server with your AI clients (default: the ones detected) and install the skill.",
-  "      e.g.  npx -y notarize-mcp install",
-  "  notarize-mcp uninstall [--client …] [--scope …] [--dry-run]",
   "  notarize-mcp watch-job <job-id> [--state-dir DIR] [--interval SECONDS] [--max-minutes N]",
   "      Follow a background job (notarization, signing, upload…). One line per status change;",
   "      exits 0 succeeded, 1 failed, 3 lost (server stopped), 4 max time reached. Built for Claude Code's Monitor tool.",
@@ -40,20 +32,6 @@ async function main(): Promise<number | undefined> {
   const argv = process.argv.slice(2);
   const [command, ...rest] = argv;
 
-  if (command === "install" || command === "uninstall") {
-    const { flags } = parseFlags(rest);
-    const opts = parseInstallFlags(flags);
-    const deps = {
-      runner: new SpawnRunner(),
-      home: homedir(),
-      cwd: process.cwd(),
-      platform: process.platform,
-      version: SERVER_VERSION,
-      skillDir: findSkillDir(),
-      print: (line: string) => process.stdout.write(`${line}\n`),
-    };
-    return command === "install" ? install(opts, deps) : uninstall(opts, deps);
-  }
   if (command === "watch-job") {
     const { positional, flags } = parseFlags(rest);
     const id = requireArg(positional[0], "notarize-mcp watch-job <job-id>");
