@@ -3,6 +3,7 @@ import { basename, dirname, extname, join } from "node:path";
 import { z } from "zod";
 import { cmdStep } from "../core/confirm";
 import { ok, output } from "../core/exec";
+import { FOREGROUND_SECONDS } from "../core/jobs";
 import { compareVersions, requireMacOS, xcodeInfo } from "../core/platform";
 import { buildPlist, type PlistValue } from "../core/plist";
 import { ToolError } from "../core/result";
@@ -30,6 +31,72 @@ async function containerArgs(
   throw new ToolError(`No .xcworkspace or .xcodeproj at ${p}.`, {
     hint: "Flutter: ios/Runner.xcworkspace or macos/Runner.xcworkspace; React Native: ios/<Name>.xcworkspace (run pod install first).",
   });
+}
+
+async function showBuildSettings(
+  ctx: ToolContext,
+  c: { flag: string; path: string },
+  scheme: string,
+  configuration: string,
+) {
+  const r = await ctx.runner.run(
+    "xcodebuild",
+    ["-showBuildSettings", "-json", c.flag, c.path, "-scheme", scheme, "-configuration", configuration],
+    { timeoutMs: 300000 },
+  );
+  const targets = parseShowBuildSettings(r.stdout);
+  if (!targets.length)
+    throw new ToolError(`xcodebuild -showBuildSettings failed: ${output(r).slice(0, 800)}`);
+  return targets;
+}
+
+/**
+ * Manual signing has to live in the project, per target. Passing CODE_SIGN_IDENTITY or
+ * PROVISIONING_PROFILE_SPECIFIER to `xcodebuild archive` applies them to every target, including
+ * CocoaPods/SwiftPM ones that can't take a profile ("does not support provisioning profiles").
+ * So check the app targets' own settings and say exactly what to set, instead of overriding.
+ */
+async function checkManualSigning(
+  ctx: ToolContext,
+  c: { flag: string; path: string },
+  scheme: string,
+  configuration: string,
+  want: { certificate?: string; profiles?: Record<string, string> },
+): Promise<string[]> {
+  if (!want.profiles || !Object.keys(want.profiles).length)
+    return [
+      "Manual signing without provisioning_profiles: each app target must already set CODE_SIGN_IDENTITY and PROVISIONING_PROFILE_SPECIFIER in the project.",
+    ];
+  const targets = await showBuildSettings(ctx, c, scheme, configuration);
+  const missing: string[] = [];
+  for (const [bundleId, profile] of Object.entries(want.profiles)) {
+    const t = targets.find((x) => x.settings.PRODUCT_BUNDLE_IDENTIFIER === bundleId);
+    if (!t) {
+      missing.push(`No target in scheme ${scheme} has PRODUCT_BUNDLE_IDENTIFIER ${bundleId}.`);
+      continue;
+    }
+    const s = t.settings;
+    const wrong: string[] = [];
+    if (s.CODE_SIGN_STYLE !== "Manual") wrong.push("CODE_SIGN_STYLE = Manual");
+    if (s.PROVISIONING_PROFILE_SPECIFIER !== profile && s.PROVISIONING_PROFILE !== profile)
+      wrong.push(`PROVISIONING_PROFILE_SPECIFIER = "${profile}"`);
+    if (want.certificate && !(s.CODE_SIGN_IDENTITY ?? "").startsWith(want.certificate))
+      wrong.push(`CODE_SIGN_IDENTITY = "${want.certificate}" (and CODE_SIGN_IDENTITY[sdk=iphoneos*] on iOS)`);
+    if (wrong.length) missing.push(`${t.target} (${bundleId}): ${wrong.join("; ")}`);
+  }
+  if (!missing.length) return [];
+  throw new ToolError(
+    "Manual archive: the project doesn't carry the signing settings for its app targets yet.",
+    {
+      hint: [
+        `Set these in each target's ${configuration} build configuration (Xcode → target → Signing & Capabilities, or the XCBuildConfiguration in project.pbxproj):`,
+        ...missing.map((m) => `• ${m}`),
+        'They are not passed on the xcodebuild command line on purpose: command-line settings apply to every target, and Pods/SwiftPM targets fail with "does not support provisioning profiles".',
+        "Expo prebuild regenerates ios/, so re-apply after each prebuild (or set them from a config plugin).",
+      ].join("\n"),
+      next_steps: [`xcode action=signing_settings scheme=${scheme} to check, then archive again`],
+    },
+  );
 }
 
 /** -allowProvisioningUpdates with API-key auth so automatic signing works without an Xcode login. */
@@ -89,7 +156,7 @@ export const xcodeTool = defineTool({
   name: "xcode",
   title: "Xcode: schemes, signing settings, archive, export / upload",
   description:
-    "action=schemes: list schemes/targets/configurations. action=signing_settings: signing-related build settings per target (team, style, identity, profile, hardened runtime, entitlements, versions) with problems flagged. action=archive (confirm): `xcodebuild archive` for generic/platform=macOS|iOS with automatic signing + -allowProvisioningUpdates using the App Store Connect API key (Xcode then creates/fetches certificates and profiles itself — the easiest path), optional team/settings overrides; runs as a background job with a Monitor command if slow. action=export (confirm): writes ExportOptions.plist for the target (developer-id, app-store-connect, release-testing, debugging, enterprise) and runs -exportArchive; destination=upload sends it straight to App Store Connect.",
+    "action=schemes: list schemes/targets/configurations. action=signing_settings: signing-related build settings per target (team, style, identity, profile, hardened runtime, entitlements, versions) with problems flagged. action=archive (confirm): `xcodebuild archive` for generic/platform=macOS|iOS with automatic signing + -allowProvisioningUpdates using the App Store Connect API key (Xcode then creates/fetches certificates and profiles itself — the easiest path), optional team/settings overrides; signing_style=manual checks that each app target already sets CODE_SIGN_IDENTITY / PROVISIONING_PROFILE_SPECIFIER in the project (they are never passed on the command line, which would also hit Pods targets); runs as a background job with a Monitor command if slow. action=export (confirm): writes ExportOptions.plist for the target (developer-id, app-store-connect, release-testing, debugging, enterprise) and runs -exportArchive; destination=upload sends it straight to App Store Connect.",
   mutating: true,
   input: {
     action: z.enum(["schemes", "signing_settings", "archive", "export"]),
@@ -131,7 +198,7 @@ export const xcodeTool = defineTool({
       .min(5)
       .max(3600)
       .optional()
-      .describe("Foreground wait before handing off to a background job (default 120)."),
+      .describe("Foreground wait before handing off to a background job (default 90)."),
   },
   async handler(args, ctx, extra) {
     requireMacOS(ctx.platform, "xcodebuild");
@@ -152,23 +219,7 @@ export const xcodeTool = defineTool({
     if (args.action === "signing_settings") {
       if (!args.path || !args.scheme) throw new ToolError("path and scheme are required.");
       const c = await containerArgs(ctx, args.path);
-      const r = await ctx.runner.run(
-        "xcodebuild",
-        [
-          "-showBuildSettings",
-          "-json",
-          c.flag,
-          c.path,
-          "-scheme",
-          args.scheme,
-          "-configuration",
-          configuration,
-        ],
-        { timeoutMs: 300000 },
-      );
-      const targets = parseShowBuildSettings(r.stdout);
-      if (!targets.length)
-        throw new ToolError(`xcodebuild -showBuildSettings failed: ${output(r).slice(0, 800)}`);
+      const targets = await showBuildSettings(ctx, c, args.scheme, configuration);
       const findings: Finding[] = [];
       for (const t of targets) {
         const s = t.settings;
@@ -225,6 +276,19 @@ export const xcodeTool = defineTool({
       const archivePath = args.archive_path
         ? await resolveUserPath(ctx, args.archive_path, false)
         : join(dirname(c.path), "build", `${args.scheme}.xcarchive`);
+      const manualWarnings: string[] = [];
+      if (args.signing_style === "manual") {
+        manualWarnings.push(
+          ...(await checkManualSigning(ctx, c, args.scheme, configuration, {
+            certificate: args.signing_certificate,
+            profiles: args.provisioning_profiles,
+          })),
+        );
+      } else if (args.signing_certificate || args.provisioning_profiles) {
+        manualWarnings.push(
+          "signing_certificate / provisioning_profiles only apply to archive with signing_style=manual (export uses them either way); they are ignored here.",
+        );
+      }
       const cmd = [
         "archive",
         c.flag,
@@ -251,6 +315,7 @@ export const xcodeTool = defineTool({
         () => ({
           title: `Archive ${args.scheme} (${configuration}, ${platform})`,
           steps: [cmdStep("xcodebuild archive", "xcodebuild", cmd)],
+          warnings: manualWarnings,
           notes:
             args.allow_provisioning_updates === false
               ? []
@@ -262,7 +327,7 @@ export const xcodeTool = defineTool({
           const job = await ctx.jobs.runWithDeadline(
             "archive",
             `Archive ${args.scheme}`,
-            (args.max_wait_seconds ?? 120) * 1000,
+            (args.max_wait_seconds ?? FOREGROUND_SECONDS) * 1000,
             async (j) => {
               j.progress("xcodebuild archive running");
               const r = await ctx.runner.run("xcodebuild", cmd, {
@@ -346,7 +411,7 @@ export const xcodeTool = defineTool({
         const job = await ctx.jobs.runWithDeadline(
           "export",
           `Export ${basename(archive)}`,
-          (args.max_wait_seconds ?? 120) * 1000,
+          (args.max_wait_seconds ?? FOREGROUND_SECONDS) * 1000,
           async (j) => {
             j.progress(`xcodebuild -exportArchive (${method})`);
             const r = await ctx.runner.run("xcodebuild", cmd, {

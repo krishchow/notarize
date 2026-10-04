@@ -5,6 +5,17 @@
 - Build signed for distribution (Apple Distribution + store profile), unique build number, recent Xcode.
 - Export compliance: add `ITSAppUsesNonExemptEncryption = NO` to Info.plist if you only use HTTPS/OS crypto (otherwise answer per build with `asc_builds set_encryption_compliance`).
 
+## iOS, TestFlight only: which signing route
+1. **No registered devices on the team → sign manually for distribution (the default here).** No device needed. Verified end to end on an Expo app:
+   1. `keychain action=create_csr key_name=<name>` → `asc_certificates action=create certificate_type=DISTRIBUTION key_name=<name>` (installs the cert + key) → `asc_profiles action=create profile_type=IOS_APP_STORE bundle_id=<id>` (installs it for Xcode; note the profile name it returns). Then offer to back up the new key with `keychain action=export_p12` (see certificates-and-profiles.md for why: Apple can't reissue it).
+   2. Set the app target's Release signing **in the project**: `CODE_SIGN_STYLE = Manual`, `CODE_SIGN_IDENTITY` and `CODE_SIGN_IDENTITY[sdk=iphoneos*] = "Apple Distribution"`, `PROVISIONING_PROFILE_SPECIFIER = "<profile name>"` (Signing & Capabilities, or the app target's XCBuildConfiguration in `project.pbxproj`). Don't pass these as command-line build settings: they'd apply to every target, and CocoaPods/SwiftPM targets fail with "does not support provisioning profiles". With Expo, `prebuild` regenerates `ios/`, so re-apply them after each prebuild.
+   3. `xcode action=archive target=testflight-ios signing_style=manual allow_provisioning_updates=false signing_certificate='Apple Distribution' provisioning_profiles={<bundle id>: <profile name>}`. It checks the settings from step 2 and refuses with the exact list if any are missing.
+   4. `xcode action=export destination=export target=testflight-ios signing_style=manual signing_certificate='Apple Distribution' provisioning_profiles={<bundle id>: <profile name>}` (ExportOptions method `app-store-connect`, signing style manual). Export does pass the certificate and profile through.
+   5. `upload_build path=<the .ipa>`. Allow a few minutes; past the foreground wait it continues as a background job with a Monitor command. (`xcode action=export destination=upload` exports and uploads in one step, but hasn't been verified on this route.)
+2. **Automatic signing** (the `xcode` tool's default) needs **one** registered device, because an iOS archive is first signed with a development profile. Without one: "Your team has no devices…". Register one with the setup skill's device step, or use route 1.
+3. **Managed Expo apps:** EAS (`eas build` + `eas submit`) does all of this in Expo's cloud with its own credentials. Building locally means `npx expo prebuild -p ios`, then route 1 or 2 against `ios/*.xcworkspace`. Ask which the user wants; don't assume EAS.
+4. **Only register a device if they'll install development builds straight onto it.** TestFlight installs and the simulator don't need one, as long as they use route 1, EAS, or a team that already has a device.
+
 ## Upload → processing
 1. `xcode action=export target=testflight-ios destination=upload` (Xcode projects) or `upload_build path=App.ipa|App.pkg`.
 2. `asc_builds action=wait_processing app=<bundle id> build_number=<N>` — 5–30 min; returns a Monitor command when it runs long. States: PROCESSING → VALID (or FAILED/INVALID; App Store Connect emails the ITMS reasons).

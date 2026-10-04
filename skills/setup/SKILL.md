@@ -1,6 +1,6 @@
 ---
 name: setup
-description: One-time setup for Apple signing/notarization work. It checks the App Store Connect API key (ASC_KEY_ID, ASC_ISSUER_ID, the AuthKey .p8 file) and Team ID, and creates them if missing. Then it confirms a project's bundle ID, team and version, and that the bundle ID and app record exist on Apple's side. Use it on first use of notarize, when someone asks to "set up", "configure" or "init" Apple credentials or an API key, when a notarize tool says no API key is configured, or before shipping a project whose bundle ID hasn't been confirmed.
+description: One-time setup for Apple signing/notarization work. It checks the App Store Connect API key (ASC_KEY_ID, ASC_ISSUER_ID, the AuthKey .p8 file) and Team ID, and creates them if missing. Optionally it registers a physical iPhone/iPad, reading the UDID itself. Then it confirms a project's bundle ID, team and version, and that the bundle ID and app record exist on Apple's side. Use it on first use of notarize, when someone asks to "set up", "configure" or "init" Apple credentials or an API key, when a notarize tool says no API key is configured, or before shipping a project whose bundle ID hasn't been confirmed.
 ---
 
 # notarize setup
@@ -8,9 +8,12 @@ description: One-time setup for Apple signing/notarization work. It checks the A
 This skill puts a machine, and optionally a project, into the state that the `apple-distribution` skill and the `notarize` MCP tools assume:
 
 1. **Machine (credentials).** A valid App Store Connect API key is installed and visible to the MCP server, new shells, `xcodebuild` and `altool`.
-2. **Project (metadata), optional.** The bundle ID, Team ID and version are confirmed with the user. The bundle ID is registered with Apple, and an app record exists if the target needs one.
+2. **Device, optional.** A physical iPhone/iPad is registered with the team, when the user needs one (Part 1b says who does).
+3. **Project (metadata), optional.** The bundle ID, Team ID and version are confirmed with the user. The bundle ID is registered with Apple, and an app record exists if the target needs one.
 
 **Never ask for or handle key contents.** Only ever ask for the Key ID, the Issuer ID, the Team ID and the *path* to the downloaded `.p8`.
+
+**Where requests go.** If the user asks, the `notarize` MCP server is a local process on their Mac (the plugin starts it with `npx`, talking over stdio). It signs a short-lived token with the `.p8` locally and calls `api.appstoreconnect.apple.com` directly. No other server sits in between, and the key never leaves the machine. A preview may read from Apple to build its plan, but it never changes anything; only the call with `confirm_token` does.
 
 **When you ask for values, say where to find them.** Ask for everything the user still owes you in a single message, and tell them where each value comes from (which site, roughly where on the page). Include the `.p8` if they still need to create one. The user shouldn't have to come back and ask "how do I get these?". You don't need to repeat exact click paths you aren't sure of: point them in the right direction, and mention that every value except the `.p8` file is safe to paste into the chat.
 
@@ -63,6 +66,20 @@ Exit codes: `0` means ready, or the plan was computed; `1` means not ready; `2` 
   3. the profile named by `ASC_PROFILE`, or else the default profile;
   4. `AuthKey_<KEYID>.p8` in `~/.appstoreconnect/private_keys`, `~/private_keys`, `~/.private_keys` or `~/.config/notarize-mcp/keys`.
 
+## Part 1b: register a device (optional, ask once)
+
+After the credentials are ready, ask once: **"Will you install development builds on a physical iPhone or iPad?"** Before they answer, explain who needs this:
+- **Yes, they will:** development (and Ad Hoc) profiles only run on registered devices.
+- **TestFlight / App Store only, with automatic signing (the `xcode` tool's default):** they still need **one** registered device. An iOS archive with automatic signing is built with a development profile first, and Apple won't make one for a team with no devices ("Your team has no devices…").
+- **TestFlight / App Store only, signing manually** (an `IOS_APP_STORE` profile + `xcode archive signing_style=manual`) or **building with EAS:** they can skip this.
+
+If they want it, don't make them hunt for a UDID:
+1. Ask them to plug the device into this Mac with a cable, unlock it, and tap **Trust** on the device. Recent iOS versions may also need Developer Mode turned on (Settings → Privacy & Security), which only matters for running builds, not for registering.
+2. Run `devices` and read the device's UDID and name from the result. If it isn't listed, the device is usually locked or not yet trusted.
+3. `asc_devices action=register name=<device name> udid=<UDID> platform=IOS`, through the confirm flow. Say up front that a team can register at most 100 devices of each type per membership year, and removing one doesn't free its slot until the membership renews.
+
+Registering is once per device per team, not per project. If a later archive or profile step reports no devices, come back here.
+
 ## Part 2: project metadata (MCP tools + your editor)
 
 Do this when the user names a project, or before the first build, upload or notarization of one. The goal is a confirmed set of values: **bundle ID, Team ID, app name, version + build number, and target(s)**.
@@ -76,8 +93,13 @@ Do this when the user names a project, or before the first build, upload or nota
    - Look up the ID with `asc_bundle_ids action=list bundle_id=<id>`. If it is missing, run `asc_bundle_ids action=create bundle_id=<id> name=<App Name> platform=IOS|MAC_OS|UNIVERSAL`.
    - Enable the capabilities the entitlements need with `asc_bundle_ids action=enable_capability`.
    - For App Store or TestFlight targets, run `asc_apps action=find_by_bundle_id bundle_id=<id>`. If no record exists, `asc_apps action=create_instructions` gives the manual click path. The API can't create app records, so the user will also choose a **SKU** and **primary language** there.
-5. If the Team ID was missing from the credentials profile, save it with `setup.mjs apply --team-id <ID>`.
-6. Hand off to `apple-distribution`. Its next step is `distribution_checklist path=<repo> target=<target>`.
+5. **TestFlight group** (TestFlight/App Store targets, once the app record exists). Like the app record, this is a one-time step per app, not per build:
+   - Ask "Who should get builds?" Start with the user themselves.
+   - `testflight action=create_group app=<bundle id> group_name="<App> Internal" internal=true`, then `testflight action=add_testers group_id=<id> testers=[{email: <their Apple ID email>}]`. Internal testers must already be users on the App Store Connect team, so an Account Holder or Admin can add themselves; internal groups need no review.
+   - Say what happens per upload: each processed build is attached with `testflight action=add_build_to_group`, and testers get it in the TestFlight app.
+   - External testers (anyone by email or public link) go in a separate external group, and the first build of each version needs beta app review (`submit_beta_review`). Only set that up if they ask.
+6. If the Team ID was missing from the credentials profile, save it with `setup.mjs apply --team-id <ID>`.
+7. Hand off to `apple-distribution`. Its next step is `distribution_checklist path=<repo> target=<target>`.
 
 ### Where the metadata lives, by project type
 

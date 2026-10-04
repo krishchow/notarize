@@ -161,6 +161,7 @@ export function classifyAscCertificateType(ascType: string): CertificateTypeInfo
 }
 
 /** "Developer ID Application: Jane Doe (ABCDE12345)" → "ABCDE12345" */
+/** Best guess from the name alone; prefer the certificate's subject OU (CertificateDetails.teamId) when available. */
 export function teamIdFromCertName(name: string): string | undefined {
   return /\(([A-Z0-9]{10})\)\s*$/.exec(name)?.[1];
 }

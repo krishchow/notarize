@@ -40,9 +40,17 @@ export function toCallToolResult(out: ToolOutput): CallToolResult {
     }
     content.push({ type: "text", text: json });
   }
+  // Some clients (Claude Code among them) show only structuredContent when it is present, so the
+  // summary must travel there too or the model never reads it. The text block above already has it.
   return {
     content,
-    ...(structured ? { structuredContent: JSON.parse(JSON.stringify(structured, jsonReplacer)) } : {}),
+    ...(structured
+      ? {
+          structuredContent: JSON.parse(
+            JSON.stringify({ summary: out.summary, ...structured }, jsonReplacer),
+          ),
+        }
+      : {}),
     ...(out.isError ? { isError: true } : {}),
   };
 }

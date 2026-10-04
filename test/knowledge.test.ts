@@ -57,6 +57,17 @@ describe("knowledge base consistency", () => {
     expect(certTypesForProfile("IOS_APP_STORE")).toContain("DISTRIBUTION");
   });
 
+  it("explains a no-devices archive failure instead of repeating -allowProvisioningUpdates", () => {
+    const log = [
+      "error: No profiles for 'com.absurdism.radarrconnect' were found: Xcode couldn't find any iOS App Development provisioning profiles matching 'com.absurdism.radarrconnect'.",
+      "error: Your team has no devices from which to generate a provisioning profile. Connect a device to use or manually add device IDs in Certificates, Identifiers & Profiles.",
+    ].join("\n");
+    const ids = matchKnownErrors(log).map((m) => m.id);
+    expect(ids).toContain("xc-no-devices");
+    expect(ids).not.toContain("xc-no-profile");
+    expect(matchKnownErrors(log)[0].fix.join("\n")).toMatch(/signing_style=manual/);
+  });
+
   it("matches representative real-world error messages", () => {
     const cases: [string, string][] = [
       ["/x/App.app: errSecInternalComponent", "errSecInternalComponent"],

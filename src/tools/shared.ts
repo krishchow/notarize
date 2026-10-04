@@ -103,6 +103,9 @@ export async function listIdentities(ctx: ToolContext, keychain?: string): Promi
     const certs = await findCertificates(ctx, name, keychain);
     for (const id of ids.filter((i) => i.name === name)) {
       id.certificate = certs.find((c) => c.sha1 === id.sha1);
+      // The "(XXXXXXXXXX)" in a certificate name isn't always the team: Apple Development certs carry a
+      // member ID, and API-created ones the API key ID. The subject OU is the team.
+      if (id.certificate?.teamId) id.teamId = id.certificate.teamId;
     }
   }
   return ids;
@@ -563,4 +566,18 @@ export async function extractIpa(ctx: ToolContext, ipa: string): Promise<string>
   const apps = (await readdir(payload)).filter((f) => f.endsWith(".app"));
   if (!apps.length) throw new ToolError("No .app found in Payload/ of the IPA.");
   return join(payload, apps[0]);
+}
+
+/**
+ * Why and how to back up a private key that keychain create_csr generated. Apple only ever holds the
+ * certificate; the key lives in ~/.config/notarize-mcp/keys and the login keychain, and can't be reissued.
+ */
+export function backupKeyAdvice(
+  keyName: string,
+  certificatePath: string,
+): { summary: string; nextStep: string } {
+  return {
+    summary: `Back up this signing key now. Apple keeps only the certificate. The private key exists only in ~/.config/notarize-mcp/keys/${keyName}.key and this Mac's login keychain, and Apple can't reissue it. If this Mac is lost or wiped you can't sign with this certificate again and must create a new one (certificate counts are limited, and Developer ID ones need the Account Holder). Export a .p12 (a random password is generated and saved beside it), move the .p12, .p12.base64 and .p12.password into a password manager, then delete all three from disk.`,
+    nextStep: `keychain action=export_p12 key_name=${keyName} certificate_path=${certificatePath} output_path=<where to write the .p12>`,
+  };
 }

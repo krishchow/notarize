@@ -131,6 +131,11 @@ describe("bundle IDs, certificates, profiles", () => {
     expect(result.text).toMatch(/Created certificate Example Corp \(C1\)/);
     expect(asc.requests[0].body.data.attributes.csrContent).toMatch(/BEGIN CERTIFICATE REQUEST/);
     expect((await stat(join(ctx.config.keysDir, "dist.cer"))).size).toBe(der.length);
+    // The key can't be reissued by Apple: the result says so and makes the backup the first next step.
+    expect(result.text).toMatch(/Back up this signing key now/);
+    expect(result.data.next_steps[0]).toBe(
+      `keychain action=export_p12 key_name=dist certificate_path=${join(ctx.config.keysDir, "dist.cer")} output_path=<where to write the .p12>`,
+    );
   });
 
   it("returns manual portal steps when Developer ID creation is refused", async () => {
@@ -293,5 +298,34 @@ describe("distribution_checklist", () => {
     expect(items["app-record"]).toMatchObject({ status: "missing" });
     expect(items["cert-apple-distribution"].detail).toMatch(/exist in the portal but none is usable/);
     expect(r.data.ready).toBe(false);
+  });
+
+  it("compares an Expo string buildNumber and drops the app-record step once the record exists", async () => {
+    const proj = await mkdtemp(join(tmpdir(), "expo-"));
+    await writeFile(
+      join(proj, "package.json"),
+      JSON.stringify({ name: "ex", dependencies: { expo: "^52.0.0", "react-native": "0.76.0" } }),
+    );
+    await writeFile(
+      join(proj, "app.json"),
+      JSON.stringify({ expo: { name: "Ex", ios: { bundleIdentifier: "com.example.ex", buildNumber: "1" } } }),
+    );
+    const { client } = await setup({
+      "GET /v1/apps": {
+        body: { data: [{ type: "apps", id: "A1", attributes: { name: "Ex", bundleId: "com.example.ex" } }] },
+      },
+      "GET /v1/builds": { body: { data: [{ type: "builds", id: "B1", attributes: { version: "1" } }] } },
+      "GET /v1/certificates": { body: { data: [] } },
+      "GET /v1/bundleIds": { body: { data: [] } },
+    });
+    const r = await call(client, "distribution_checklist", { target: "testflight-ios", path: proj });
+    const records = r.data.items.filter((i: any) => i.id === "app-record");
+    expect(records).toEqual([expect.objectContaining({ status: "ok" })]);
+    expect(r.data.items.find((i: any) => i.id === "build-number")).toMatchObject({
+      status: "missing",
+      detail: "Latest uploaded build: 1; project: 1",
+    });
+    const manual = r.data.items.filter((i: any) => i.id === "human").map((i: any) => i.detail);
+    expect(manual.join("\n")).not.toMatch(/create the app record/i);
   });
 });

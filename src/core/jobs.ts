@@ -1,3 +1,10 @@
+/**
+ * Default foreground wait before a long operation hands off to a background job + Monitor command.
+ * Kept under MCP clients' own tool-call limits: Claude Code moves a call that runs past ~2 minutes to
+ * the background itself, and the Monitor command only arrives once that call completes.
+ */
+export const FOREGROUND_SECONDS = 90;
+
 import { randomBytes } from "node:crypto";
 import { mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

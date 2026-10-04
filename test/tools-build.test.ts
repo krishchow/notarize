@@ -37,6 +37,58 @@ describe("xcode tool", () => {
     );
   });
 
+  it("manual archive checks the app target's own signing settings and never overrides them globally", async () => {
+    const dir = await project();
+    const settings = (extra: Record<string, string>) =>
+      JSON.stringify([
+        { target: "Pods-App", buildSettings: { PRODUCT_NAME: "Pods_App", CODE_SIGN_STYLE: "Automatic" } },
+        {
+          target: "App",
+          buildSettings: {
+            PRODUCT_BUNDLE_IDENTIFIER: "com.example.app",
+            PRODUCT_TYPE: "com.apple.product-type.application",
+            ...extra,
+          },
+        },
+      ]);
+    const manual = {
+      action: "archive",
+      path: dir,
+      scheme: "App",
+      target: "testflight-ios",
+      signing_style: "manual",
+      signing_certificate: "Apple Distribution",
+      provisioning_profiles: { "com.example.app": "App Store Profile" },
+    };
+
+    const bare = await makeCtx();
+    bare.runner.on("xcodebuild", ["-showBuildSettings"], {
+      stdout: settings({ CODE_SIGN_STYLE: "Automatic" }),
+    });
+    const refused = await call(await connect(bare.ctx), "xcode", manual);
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toMatch(
+      /App \(com\.example\.app\): CODE_SIGN_STYLE = Manual; PROVISIONING_PROFILE_SPECIFIER = "App Store Profile"; CODE_SIGN_IDENTITY = "Apple Distribution"/,
+    );
+    expect(refused.text).toMatch(/does not support provisioning profiles/);
+    expect(bare.runner.callsTo("xcodebuild").some((a) => a[0] === "archive")).toBe(false);
+
+    const set = await makeCtx();
+    set.runner
+      .on("xcodebuild", ["-showBuildSettings"], {
+        stdout: settings({
+          CODE_SIGN_STYLE: "Manual",
+          CODE_SIGN_IDENTITY: "Apple Distribution",
+          PROVISIONING_PROFILE_SPECIFIER: "App Store Profile",
+        }),
+      })
+      .on("xcodebuild", ["archive"], { stdout: "** ARCHIVE SUCCEEDED **\n" });
+    const { preview } = await callConfirmed(await connect(set.ctx), "xcode", manual);
+    expect(preview.text).not.toMatch(/PROVISIONING_PROFILE_SPECIFIER=|CODE_SIGN_IDENTITY=/);
+    const archive = set.runner.callsTo("xcodebuild").find((a) => a[0] === "archive");
+    expect(archive).toContain("CODE_SIGN_STYLE=Manual");
+  });
+
   it("explains archive failures", async () => {
     const dir = await project();
     const { ctx, runner } = await makeCtx();

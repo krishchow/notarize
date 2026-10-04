@@ -11,6 +11,7 @@ import { tail } from "../src/core/logs";
 import { compareVersions } from "../src/core/platform";
 import { buildPlist, extractEmbeddedPlist, parsePlistDict } from "../src/core/plist";
 import { formatCommand, redact, redactDeep } from "../src/core/redact";
+import { toCallToolResult } from "../src/core/result";
 
 describe("confirm tokens", () => {
   it("previews without a token, executes with a matching token", () => {
@@ -222,5 +223,43 @@ describe("misc", () => {
     expect(missing.spawnError).toMatch(/command not found/);
     const timed = await r.run(process.execPath, ["-e", "setTimeout(()=>{}, 10000)"], { timeoutMs: 100 });
     expect(timed.timedOut).toBe(true);
+  });
+});
+
+describe("toCallToolResult", () => {
+  it("carries the summary in structuredContent, for clients that show only that", () => {
+    const r = toCallToolResult({
+      summary: "1. Open App Store Connect.",
+      data: { manual: true },
+      next_steps: ["asc_apps action=find_by_bundle_id"],
+    });
+    expect(r.structuredContent).toEqual({
+      summary: "1. Open App Store Connect.",
+      manual: true,
+      next_steps: ["asc_apps action=find_by_bundle_id"],
+    });
+    expect((r.content[0] as { text: string }).text).toMatch(/^1\. Open App Store Connect\./);
+    expect(toCallToolResult({ summary: "plain" }).structuredContent).toBeUndefined();
+  });
+});
+
+describe("ConfigStore.resolveAsc without a Key ID", () => {
+  it("names installed AuthKey_*.p8 files instead of only saying to create a key", async () => {
+    const home = await mkdtemp(join(tmpdir(), "cfg-home-"));
+    const cfgDir = join(home, "cfg");
+    const bare = new ConfigStore(home, { HOME: home }, cfgDir);
+    await expect(bare.resolveAsc()).rejects.toMatchObject({
+      details: { hint: expect.stringMatching(/Create a Team API key/) },
+    });
+
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(join(home, ".appstoreconnect", "private_keys"), { recursive: true });
+    await writeFile(join(home, ".appstoreconnect", "private_keys", "AuthKey_ABCDE12345.p8"), "x");
+    await expect(bare.resolveAsc()).rejects.toMatchObject({
+      details: {
+        hint: expect.stringMatching(/AuthKey_ABCDE12345\.p8 \(Key ID ABCDE12345\)/),
+        data: { discoveredKeys: [{ keyId: "ABCDE12345" }] },
+      },
+    });
   });
 });

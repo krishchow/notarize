@@ -107,6 +107,13 @@ export class ConfigStore {
       useEnv && env.ASC_KEY_ID ? "environment" : name ? `profile "${name}" (${this.path})` : "none";
 
     if (!keyId) {
+      const installed = await this.listDiscoveredP8();
+      if (installed.length)
+        throw new ToolError("No App Store Connect API key configured.", {
+          hint: `Found ${installed.map((k) => `${k.path} (Key ID ${k.keyId})`).join(", ")} but no Key ID is configured. Confirm which key to use with the user, then call asc_auth action=configure with that key_id and its Issuer ID, or set ASC_KEY_ID / ASC_ISSUER_ID.`,
+          data: { discoveredKeys: installed },
+          next_steps: ["asc_auth action=configure key_id=<one of the found Key IDs> issuer_id=<Issuer ID>"],
+        });
       throw new ToolError("No App Store Connect API key configured.", {
         hint: "Create a Team API key in App Store Connect → Users and Access → Integrations → App Store Connect API (role Admin or App Manager), download the .p8 once, then call asc_auth action=configure, or set ASC_KEY_ID / ASC_ISSUER_ID / ASC_PRIVATE_KEY_PATH.",
         next_steps: ["asc_auth action=status to see what is configured", "asc_auth action=configure"],

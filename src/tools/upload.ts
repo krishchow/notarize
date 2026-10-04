@@ -3,6 +3,7 @@ import { basename, extname, join } from "node:path";
 import { z } from "zod";
 import { cmdStep, type PlanStep } from "../core/confirm";
 import { ok, output } from "../core/exec";
+import { FOREGROUND_SECONDS } from "../core/jobs";
 import { requireMacOS } from "../core/platform";
 import { parsePlistDict } from "../core/plist";
 import { ToolError } from "../core/result";
@@ -57,7 +58,7 @@ export const uploadBuildTool = defineTool({
       .min(1)
       .max(3600)
       .optional()
-      .describe("Foreground wait before handing off to a background job (default 120)."),
+      .describe("Foreground wait before handing off to a background job (default 90)."),
   },
   async handler(args, ctx, extra) {
     requireMacOS(ctx.platform, "Uploading builds");
@@ -156,7 +157,7 @@ export const uploadBuildTool = defineTool({
         const job = await ctx.jobs.runWithDeadline(
           "upload",
           `Upload ${basename(file)}`,
-          (args.max_wait_seconds ?? 120) * 1000,
+          (args.max_wait_seconds ?? FOREGROUND_SECONDS) * 1000,
           async (j) => {
             j.progress(`Uploading ${basename(file)}`);
             const r = await ctx.runner.run("xcrun", cmd, {
