@@ -6,3 +6,4 @@
 `/notarize:setup` can also register a connected iPhone/iPad, reading its UDID itself, and explains who needs a registered device.
 `xcode action=archive signing_style=manual` no longer silently ignores `signing_certificate` / `provisioning_profiles`: it checks the app targets' own signing settings and lists exactly what to set, without overriding them for Pods targets.
 The apple-distribution skill now says which steps go through the tools and which the agent runs itself, and tells agents to name the tool when showing a preview, so a previewed command isn't mistaken for an improvised one.
+Long-running tools (`xcode`, `upload_build`, `sign`, `resign`) now hand off to a background job after 90 seconds by default instead of 120–900, so the Monitor command arrives before Claude Code backgrounds the call itself.

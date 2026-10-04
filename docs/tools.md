@@ -268,7 +268,7 @@ Signs nested code deepest-first (frameworks, dylibs, helpers, XPC services, app 
 | `clear_xattrs` | boolean |  | Run xattr -cr before signing (default true). |
 | `embed_profile` | string |  | Provisioning profile to embed before signing. |
 | `keychain` | string |  | Keychain containing the identity. |
-| `max_wait_seconds` | integer |  | Foreground wait before continuing as a background job (default 600). |
+| `max_wait_seconds` | integer |  | Foreground wait before continuing as a background job (default 90). |
 
 ## resign
 
@@ -285,7 +285,7 @@ Re-signs a prebuilt artifact you have rights to distribute (no source needed): c
 | `profile` | string |  | New provisioning profile for the main app. |
 | `extension_profiles` | object |  | Bundle-relative path of each .appex → profile. |
 | `entitlements` | string |  | Explicit entitlements for the main app (otherwise derived). |
-| `max_wait_seconds` | integer |  |  |
+| `max_wait_seconds` | integer |  | Foreground wait before continuing as a background job (default 90). |
 
 ## package
 
@@ -507,7 +507,7 @@ action=schemes: list schemes/targets/configurations. action=signing_settings: si
 | `build_settings` | object |  | Extra KEY=VALUE overrides (e.g. CURRENT_PROJECT_VERSION). |
 | `allow_provisioning_updates` | boolean |  | Let Xcode create/download certificates and profiles (default true). |
 | `profile` | string |  | Credential profile name from asc_auth configure (defaults to env vars / default profile). |
-| `max_wait_seconds` | integer |  | Foreground wait before handing off to a background job (default 120). |
+| `max_wait_seconds` | integer |  | Foreground wait before handing off to a background job (default 90). |
 
 ## upload_build
 
@@ -524,7 +524,7 @@ Uploads a distribution-signed .ipa (iOS/tvOS/visionOS) or Mac App Store .pkg to 
 | `version` | string |  | CFBundleShortVersionString (for .pkg). |
 | `build_number` | string |  | CFBundleVersion (for .pkg). |
 | `profile` | string |  | Credential profile name from asc_auth configure (defaults to env vars / default profile). |
-| `max_wait_seconds` | integer |  | Foreground wait before handing off to a background job (default 120). |
+| `max_wait_seconds` | integer |  | Foreground wait before handing off to a background job (default 90). |
 
 ## testflight
 

@@ -3,6 +3,7 @@ import { basename, dirname, extname, join } from "node:path";
 import { z } from "zod";
 import { cmdStep } from "../core/confirm";
 import { ok, output } from "../core/exec";
+import { FOREGROUND_SECONDS } from "../core/jobs";
 import { compareVersions, requireMacOS, xcodeInfo } from "../core/platform";
 import { buildPlist, type PlistValue } from "../core/plist";
 import { ToolError } from "../core/result";
@@ -197,7 +198,7 @@ export const xcodeTool = defineTool({
       .min(5)
       .max(3600)
       .optional()
-      .describe("Foreground wait before handing off to a background job (default 120)."),
+      .describe("Foreground wait before handing off to a background job (default 90)."),
   },
   async handler(args, ctx, extra) {
     requireMacOS(ctx.platform, "xcodebuild");
@@ -326,7 +327,7 @@ export const xcodeTool = defineTool({
           const job = await ctx.jobs.runWithDeadline(
             "archive",
             `Archive ${args.scheme}`,
-            (args.max_wait_seconds ?? 120) * 1000,
+            (args.max_wait_seconds ?? FOREGROUND_SECONDS) * 1000,
             async (j) => {
               j.progress("xcodebuild archive running");
               const r = await ctx.runner.run("xcodebuild", cmd, {
@@ -410,7 +411,7 @@ export const xcodeTool = defineTool({
         const job = await ctx.jobs.runWithDeadline(
           "export",
           `Export ${basename(archive)}`,
-          (args.max_wait_seconds ?? 120) * 1000,
+          (args.max_wait_seconds ?? FOREGROUND_SECONDS) * 1000,
           async (j) => {
             j.progress(`xcodebuild -exportArchive (${method})`);
             const r = await ctx.runner.run("xcodebuild", cmd, {

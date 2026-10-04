@@ -3,6 +3,7 @@ import { basename, dirname, extname, join } from "node:path";
 import { z } from "zod";
 import { cmdStep, type Plan, type PlanStep } from "../core/confirm";
 import { ok, output } from "../core/exec";
+import { FOREGROUND_SECONDS } from "../core/jobs";
 import { requireMacOS } from "../core/platform";
 import {
   asDict,
@@ -218,7 +219,7 @@ export const signTool = defineTool({
       .min(5)
       .max(3600)
       .optional()
-      .describe("Foreground wait before continuing as a background job (default 600)."),
+      .describe("Foreground wait before continuing as a background job (default 90)."),
   },
   async handler(args, ctx, extra) {
     requireMacOS(ctx.platform, "Code signing");
@@ -275,7 +276,7 @@ export const signTool = defineTool({
         const job = await ctx.jobs.runWithDeadline(
           "sign",
           `Sign ${basename(path)}`,
-          (args.max_wait_seconds ?? 600) * 1000,
+          (args.max_wait_seconds ?? FOREGROUND_SECONDS) * 1000,
           async (j) => {
             if (profileDest) await copyFile(profile!, profileDest);
             if (args.clear_xattrs !== false && isBundle)
@@ -388,7 +389,13 @@ export const resignTool = defineTool({
       .string()
       .optional()
       .describe("Explicit entitlements for the main app (otherwise derived)."),
-    max_wait_seconds: z.number().int().min(5).max(3600).optional(),
+    max_wait_seconds: z
+      .number()
+      .int()
+      .min(5)
+      .max(3600)
+      .optional()
+      .describe("Foreground wait before continuing as a background job (default 90)."),
   },
   async handler(args, ctx, extra) {
     requireMacOS(ctx.platform, "Re-signing");
@@ -431,7 +438,7 @@ export const resignTool = defineTool({
         const job = await ctx.jobs.runWithDeadline(
           "resign",
           `Re-sign ${basename(src)}`,
-          (args.max_wait_seconds ?? 900) * 1000,
+          (args.max_wait_seconds ?? FOREGROUND_SECONDS) * 1000,
           async (j) => {
             const work = await scratchDir("resign");
             let app: string;

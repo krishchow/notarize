@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { AscResource } from "../asc/client";
+import { FOREGROUND_SECONDS } from "../core/jobs";
 import { ToolError } from "../core/result";
 import { resolveAppId, slimResource, table } from "./asc-common";
 import { detachedOutput } from "./detached";
@@ -142,7 +143,7 @@ export const ascBuildsTool = defineTool({
       const job = await ctx.jobs.runWithDeadline(
         "build-processing",
         `Processing of build ${args.build_number}`,
-        (args.max_wait_seconds ?? 90) * 1000,
+        (args.max_wait_seconds ?? FOREGROUND_SECONDS) * 1000,
         async (j) => {
           const deadline = Date.now() + (args.wait_minutes ?? 60) * 60000;
           let state = "NOT_VISIBLE_YET";

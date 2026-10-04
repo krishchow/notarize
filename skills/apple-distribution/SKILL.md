@@ -87,7 +87,7 @@ One convention, so every project, the MCP server, `xcodebuild`, `altool` and EAS
 
 **Notarization usually takes 2–15 minutes** but can take an hour or more, especially for a team's first submissions or during Apple backlogs. **App Store Connect build processing** takes 5–30 minutes, and archives and uploads can also be slow. The tools handle this:
 
-- `notarize_and_staple`, `notary submit|wait` and `asc_builds wait_processing` wait in the foreground for about 90 seconds. `xcode archive|export`, `upload_build`, `sign` and `resign` wait longer before handing off. Anything still running continues in a **background job** inside the MCP server.
+- Long tools (`notarize_and_staple`, `notary submit|wait`, `asc_builds wait_processing`, `xcode archive|export`, `upload_build`, `sign`, `resign`) wait in the foreground for about 90 seconds by default (`max_wait_seconds`). Anything still running continues in a **background job** inside the MCP server. Keep `max_wait_seconds` under about 2 minutes: Claude Code backgrounds a tool call that runs longer, and the Monitor command then arrives late.
 - The result then has `status: "running"`, a `job_id`, the Apple `submission_id` (for notarization), and a **`monitor`** object. That object holds a ready-to-run `command`, a `description`, `timeout_ms` and a `fallback_command`.
 
 **In Claude Code, always start a Monitor** with exactly that command:

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { cmdStep, type PlanStep } from "../core/confirm";
 import { ok, output } from "../core/exec";
 import type { JobHandle } from "../core/jobs";
+import { FOREGROUND_SECONDS } from "../core/jobs";
 import { jobMonitor, notarizationMonitor } from "../core/monitor";
 import { requireMacOS } from "../core/platform";
 import { ToolError, type ToolOutput } from "../core/result";
@@ -96,7 +97,7 @@ function explainLog(log: ReturnType<typeof parseNotaryLog>): string {
 
 const POLL_MS = 20000;
 /** Keep the conversation responsive: hand off to a Monitor after this long. */
-export const NOTARY_FOREGROUND_SECONDS = 90;
+export const NOTARY_FOREGROUND_SECONDS = FOREGROUND_SECONDS;
 
 /** Temp key files are only removed by the executing job; previews must clean up themselves. */
 async function cleanupOnPreview(auth: NotaryAuth, result: Promise<ToolOutput>): Promise<ToolOutput> {
