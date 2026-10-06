@@ -27,6 +27,7 @@ interface Result {
     issuerId?: string;
     privateKeyPath?: string;
     source: string;
+    notaryKeychainProfile?: string;
     discoveredKeys?: { keyId: string; path: string }[];
   };
   checks?: Check[];
@@ -342,6 +343,46 @@ describe("setup.mjs", () => {
     const r = await run(["apply", "--key-id", KEY_ID, "--issuer-id", ISSUER, "--p8", other], env);
     expect(r.code).toBe(2);
     expect(r.json.error).toMatch(/refusing to overwrite/);
+  });
+
+  it("reports the notarytool keychain profile like ConfigStore.notaryProfile and validates it --online", async () => {
+    const s = await sandbox();
+    mkdirSync(s.configDir, { recursive: true });
+    writeFileSync(
+      join(s.configDir, "config.json"),
+      JSON.stringify({ defaultProfile: "main", profiles: { main: { notaryKeychainProfile: "app-notary" } } }),
+    );
+    const offline = await run([], s.env);
+    const expected = await new ConfigStore(s.home, s.env, s.configDir).notaryProfile();
+    expect(offline.json.resolved?.notaryKeychainProfile).toBe(expected);
+    expect(byId(offline.json, "notary_profile")?.message).toMatch(/app-notary.*--online/);
+
+    s.env.NOTARY_KEYCHAIN_PROFILE = "from-env";
+    const fromEnv = await run([], s.env);
+    expect(fromEnv.json.resolved?.notaryKeychainProfile).toBe(
+      await new ConfigStore(s.home, s.env, s.configDir).notaryProfile(),
+    );
+    delete s.env.NOTARY_KEYCHAIN_PROFILE;
+
+    // A fake xcrun on PATH: logs its argv, fails when FAKE_XCRUN_FAIL is set.
+    const bin = join(s.home, "bin");
+    const log = join(s.home, "xcrun.log");
+    mkdirSync(bin);
+    writeFileSync(
+      join(bin, "xcrun"),
+      `#!/bin/sh\necho "$@" >> "${log}"\nif [ -n "$FAKE_XCRUN_FAIL" ]; then echo "Error: No Keychain password item found for profile" >&2; exit 69; fi\necho '{"history":[]}'\n`,
+    );
+    chmodSync(join(bin, "xcrun"), 0o755);
+    s.env.PATH = `${bin}:${process.env.PATH}`;
+    const good = await run(["--online"], s.env);
+    expect(byId(good.json, "notary_profile")).toMatchObject({ status: "ok" });
+    expect(readFileSync(log, "utf8")).toContain("notarytool history --keychain-profile app-notary");
+
+    s.env.FAKE_XCRUN_FAIL = "1";
+    const bad = await run(["--online"], s.env);
+    expect(byId(bad.json, "notary_profile")).toMatchObject({ status: "warn" });
+    expect(byId(bad.json, "notary_profile")?.message).toMatch(/No Keychain password item/);
+    expect(byId(bad.json, "notary_profile")?.fix).toMatch(/store_credentials profile_name=app-notary/);
   });
 
   it("--online signs an ES256 JWT and maps HTTP status codes", async () => {

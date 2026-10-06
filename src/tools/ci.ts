@@ -14,6 +14,7 @@ const FRAMEWORKS = [
   "expo",
   "swiftpm",
   "prebuilt",
+  "custom",
 ] as const;
 type Framework = (typeof FRAMEWORKS)[number];
 const CI_TARGETS = [
@@ -33,6 +34,8 @@ interface CiOptions {
   appName: string;
   appPath?: string;
   runner: string;
+  /** custom: the command that builds, signs and notarizes (e.g. a fastlane lane). */
+  buildCommand?: string;
 }
 
 const KEYCHAIN_SETUP = `      - name: Import signing certificate into a temporary keychain
@@ -68,6 +71,57 @@ const CLEANUP = `      - name: Clean up keychain
         if: always()
         run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
 `;
+
+/** Certificate name prefix the custom-mode step exports as CODESIGN_IDENTITY. */
+function identityPrefix(target: CiTarget): string {
+  if (target === "mac-developer-id") return "Developer ID Application";
+  if (target === "mac-app-store" || target === "testflight-mac")
+    return "(Apple Distribution|3rd Party Mac Developer Application)";
+  return "(Apple Distribution|iPhone Distribution)";
+}
+
+/**
+ * custom: hand the job's credentials to the user's own release command. The command gets
+ * CODESIGN_IDENTITY, NOTARY_PROFILE + NOTARY_KEYCHAIN, ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_PATH.
+ */
+function customSteps(o: CiOptions): string {
+  const cmd = (o.buildCommand ?? "").trim().split("\n");
+  const ruby = /^bundle\s+exec\b/.test(cmd[0] ?? "")
+    ? `      - uses: ruby/setup-ruby@v1
+        with: { bundler-cache: true }
+`
+    : "";
+  return `${ruby}      - name: Store a notarytool profile and export signing settings
+        env:
+          ASC_KEY_ID: \${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: \${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          # Saved in the temporary keychain, so commands must pass --keychain "$NOTARY_KEYCHAIN" with --keychain-profile.
+          xcrun notarytool store-credentials ci-notary \\
+            --key "$ASC_KEY_PATH" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID" --keychain "$KEYCHAIN"
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" | sed -nE 's/.*"(${identityPrefix(o.target)}: [^"]+)".*/\\1/p' | head -n 1)
+          if [ -z "$IDENTITY" ]; then echo "No matching signing identity in the imported certificate" >&2; exit 1; fi
+          {
+            echo "CODESIGN_IDENTITY=$IDENTITY"
+            echo "NOTARY_PROFILE=ci-notary"
+            echo "NOTARY_KEYCHAIN=$KEYCHAIN"
+            echo "ASC_KEY_ID=$ASC_KEY_ID"
+            echo "ASC_ISSUER_ID=$ASC_ISSUER_ID"
+          } >> "$GITHUB_ENV"
+      - name: Release
+        run: |
+${cmd.map((l) => `          ${l}`).join("\n")}
+${
+  o.appPath
+    ? `      - uses: actions/upload-artifact@v4
+        with:
+          name: ${o.appName}
+          path: ${o.appPath}
+`
+    : ""
+}`;
+}
 
 function notarizeSteps(appPathExpr: string, appName: string): string {
   return `      - name: Notarize and staple
@@ -193,6 +247,8 @@ ${xcodeArchive(`-workspace "${isMac ? "macos" : "ios"}/Runner.xcworkspace"`).rep
 `;
     case "prebuilt":
       return "";
+    case "custom":
+      return customSteps(o);
   }
 }
 
@@ -290,7 +346,7 @@ export const ciConfigTool = defineTool({
   name: "ci_config",
   title: "Generate a CI workflow for signing + notarization / upload",
   description:
-    "Generates a GitHub Actions workflow for a target (mac-developer-id, testflight-ios, ios-app-store, mac-app-store, testflight-mac) and framework (xcode, electron, tauri, flutter, react-native, expo, swiftpm, prebuilt): temporary keychain + set-key-partition-list (avoids errSecInternalComponent), API key from secrets, archive/export with automatic signing via the API key (or the framework's own signing), notarytool --wait + staple, artifact upload, and keychain cleanup. Returns the YAML and the list of repository secrets to create. Writing to output_path needs confirmation only when overwriting.",
+    "Generates a GitHub Actions workflow for a target (mac-developer-id, testflight-ios, ios-app-store, mac-app-store, testflight-mac) and framework (xcode, electron, tauri, flutter, react-native, expo, swiftpm, prebuilt, custom): temporary keychain + set-key-partition-list (avoids errSecInternalComponent), API key from secrets, archive/export with automatic signing via the API key (or the framework's own signing), notarytool --wait + staple, artifact upload, and keychain cleanup. framework=custom runs your own release command (a fastlane lane, Makefile or script) after setting up the keychain and API key, storing a notarytool keychain profile, and exporting CODESIGN_IDENTITY / NOTARY_PROFILE / NOTARY_KEYCHAIN / ASC_*. Returns the YAML and the list of repository secrets to create. Writing to output_path needs confirmation only when overwriting.",
   mutating: true,
   input: {
     target: z.enum(CI_TARGETS),
@@ -298,11 +354,26 @@ export const ciConfigTool = defineTool({
     app_name: z.string().describe("Product / scheme name (used for paths)."),
     scheme: z.string().optional(),
     workspace: z.string().optional().describe("Relative .xcworkspace path (xcode)."),
-    app_path: z.string().optional().describe("Built .app path expression (prebuilt / custom layouts)."),
+    app_path: z
+      .string()
+      .optional()
+      .describe(
+        "Built .app path expression (prebuilt / custom layouts). framework=custom: file or glob of the release artifact to upload, e.g. build/*.dmg.",
+      ),
+    build_command: z
+      .string()
+      .optional()
+      .describe(
+        `framework=custom (required): the shell command(s) that build, sign and notarize, e.g. "bundle exec fastlane mac release version:\${{ github.ref_name }}". It runs after the certificate and API key are set up, with CODESIGN_IDENTITY, NOTARY_PROFILE, NOTARY_KEYCHAIN, ASC_KEY_ID, ASC_ISSUER_ID and ASC_KEY_PATH exported.`,
+      ),
     runner: z.string().optional().describe("GitHub runner label (default macos-15)."),
     output_path: z.string().optional().describe("e.g. .github/workflows/release.yml"),
   },
   async handler(args, ctx, extra) {
+    if (args.framework === "custom" && !args.build_command?.trim())
+      throw new ToolError(
+        "framework=custom needs build_command: the command that builds, signs and notarizes, e.g. `bundle exec fastlane mac release`.",
+      );
     if (args.framework === "expo" && args.target.startsWith("mac"))
       throw new ToolError("Expo targets iOS; use testflight-ios or ios-app-store.");
     const { yaml, secrets } = generateWorkflow({
@@ -313,6 +384,7 @@ export const ciConfigTool = defineTool({
       appName: args.app_name,
       appPath: args.app_path,
       runner: args.runner ?? "macos-15",
+      buildCommand: args.build_command,
     });
     const summary = `Workflow (${args.framework} → ${args.target}):\n\n${yaml}\nRepository secrets to create:\n${secrets.map((s) => `• ${s.name}: ${s.how}`).join("\n")}`;
     const result = { summary, data: { yaml, secrets } };

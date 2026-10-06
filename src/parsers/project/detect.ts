@@ -45,9 +45,22 @@ export interface DetectedComponent {
   buildCommands: string[];
 }
 
+/** A fastlane setup (fastlane/Appfile + Fastfile) next to the project. */
+export interface FastlaneConfig {
+  /** Directory holding Appfile/Fastfile. */
+  path: string;
+  appIdentifiers: string[];
+  teamIds: string[];
+  appleIds: string[];
+  /** Public lanes as you'd invoke them, e.g. "mac release" or "beta". */
+  lanes: string[];
+  findings: string[];
+}
+
 export interface ProjectReport {
   root: string;
   components: DetectedComponent[];
+  fastlane?: FastlaneConfig[];
 }
 
 const SKIP_DIRS = new Set([
@@ -720,6 +733,82 @@ async function detectArtifact(path: string): Promise<DetectedComponent | undefin
   return undefined;
 }
 
+// ---------------------------------------------------------------- fastlane
+
+/**
+ * Literal values of an Appfile setting: `app_identifier("x")`, `app_identifier "x"`, `team_id 'x'`.
+ * Values computed in Ruby (ENV[...], CredentialsManager) are skipped.
+ */
+function appfileValues(text: string, key: string): string[] {
+  const re = new RegExp(`^\\s*${key}\\s*\\(?\\s*["']([^"'#{}]+)["']`, "gm");
+  return uniq([...text.matchAll(re)].map((m) => m[1].trim()));
+}
+
+/** Public lanes from a Fastfile; a lane indented under `platform :x do` is invoked as "x lane". */
+export function parseFastfileLanes(text: string): string[] {
+  const lanes: string[] = [];
+  let platform: { name: string; indent: number } | undefined;
+  for (const line of text.split("\n")) {
+    if (/^\s*#/.test(line)) continue;
+    const indent = line.length - line.trimStart().length;
+    const p = /^\s*platform\s+:(\w+)\s+do\b/.exec(line);
+    if (p) {
+      platform = { name: p[1], indent };
+      continue;
+    }
+    const l = /^\s*lane\s+:(\w+)\s+do\b/.exec(line);
+    if (!l) continue;
+    if (platform && indent <= platform.indent) platform = undefined;
+    lanes.push(platform ? `${platform.name} ${l[1]}` : l[1]);
+  }
+  return uniq(lanes);
+}
+
+export function parseAppfile(text: string): Pick<FastlaneConfig, "appIdentifiers" | "teamIds" | "appleIds"> {
+  return {
+    appIdentifiers: appfileValues(text, "app_identifier"),
+    teamIds: appfileValues(text, "team_id"),
+    appleIds: appfileValues(text, "apple_id"),
+  };
+}
+
+async function detectFastlane(dir: string): Promise<FastlaneConfig | undefined> {
+  for (const d of [join(dir, "fastlane"), join(dir, ".fastlane")]) {
+    const appfile = await readText(join(d, "Appfile"));
+    const fastfile = await readText(join(d, "Fastfile"));
+    if (appfile === undefined && fastfile === undefined) continue;
+    return {
+      path: d,
+      ...parseAppfile(appfile ?? ""),
+      lanes: fastfile ? parseFastfileLanes(fastfile) : [],
+      findings: [],
+    };
+  }
+  return undefined;
+}
+
+/** Flags Appfile values that disagree with what the project's own files say. */
+function crossCheckFastlane(f: FastlaneConfig, components: DetectedComponent[]): void {
+  const bundleIds = new Set(components.flatMap((c) => c.bundleIds));
+  const teamIds = new Set(components.flatMap((c) => c.teamIds));
+  for (const id of f.appIdentifiers) {
+    if (bundleIds.size && !bundleIds.has(id))
+      f.findings.push(
+        `Appfile app_identifier "${id}" is not a bundle ID in the project (${[...bundleIds].join(", ")}); fastlane would sign, upload or look up the wrong app.`,
+      );
+  }
+  for (const id of f.teamIds) {
+    if (teamIds.size && !teamIds.has(id))
+      f.findings.push(
+        `Appfile team_id "${id}" differs from the project's team (${[...teamIds].join(", ")}).`,
+      );
+  }
+  if (!f.appIdentifiers.length)
+    f.findings.push(
+      "No literal app_identifier in the Appfile; fastlane actions will need app_identifier passed in.",
+    );
+}
+
 // ---------------------------------------------------------------- Entry point
 
 /** Detect what kind of app/project lives at `root` (a directory or an artifact). */
@@ -741,6 +830,7 @@ export async function detectProject(root: string, maxDepth = 2): Promise<Project
   }
 
   const components: DetectedComponent[] = [];
+  const fastlane: FastlaneConfig[] = [];
   const claimed = new Set<string>();
 
   async function scanDir(dir: string, depth: number): Promise<void> {
@@ -767,6 +857,8 @@ export async function detectProject(root: string, maxDepth = 2): Promise<Project
     }
     const spm = await detectSwiftPM(dir);
     if (spm) components.push(spm);
+    const fl = await detectFastlane(dir);
+    if (fl) fastlane.push(fl);
 
     let entries: Dirent[] = [];
     try {
@@ -804,5 +896,6 @@ export async function detectProject(root: string, maxDepth = 2): Promise<Project
   }
 
   await scanDir(root, 0);
-  return { root, components };
+  for (const f of fastlane) crossCheckFastlane(f, components);
+  return { root, components, ...(fastlane.length ? { fastlane } : {}) };
 }

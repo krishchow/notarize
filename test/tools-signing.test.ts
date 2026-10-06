@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -5,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { ConfigStore } from "../src/core/config";
 import { SpawnRunner } from "../src/core/exec";
 import { buildPlist } from "../src/core/plist";
+import { dmgbuildSettings } from "../src/tools/package";
 import { codesignArgs, entitlementsFromProfile } from "../src/tools/signing";
 import { call, callConfirmed, connect, makeCtx } from "./helpers";
 
@@ -237,6 +239,55 @@ describe("package + keychain", () => {
       app,
       app.replace(/\.app$/, ".zip"),
     ]);
+  });
+
+  it("builds a styled DMG with dmgbuild (no Finder) from appdmg-format JSON", async () => {
+    const app = await makeApp();
+    const bg = join(app, "..", "bg.png");
+    await writeFile(bg, "png");
+    const { ctx, runner } = await makeCtx();
+    let settings: Record<string, any> = {};
+    runner.on("dmgbuild", ["--help"], {});
+    runner.on("dmgbuild", ["-s"], (_c, a) => {
+      settings = JSON.parse(readFileSync(a[1], "utf8"));
+      return {};
+    });
+    const r = await call(await connect(ctx), "package", {
+      action: "dmg",
+      path: app,
+      volume_name: "Example Installer",
+      background: bg,
+      window_size: { width: 600, height: 400 },
+      icon_positions: { Applications: [450, 200] },
+    });
+    expect(r.text).toMatch(/Created .*Example\.dmg/);
+    const argv = runner.callsTo("dmgbuild")[1];
+    expect(argv.slice(2)).toEqual(["--", "Example Installer", app.replace(/\.app$/, ".dmg")]);
+    expect(settings).toMatchObject({
+      title: "Example Installer",
+      background: bg,
+      "icon-size": 128,
+      window: { size: { width: 600, height: 400 } },
+      contents: [
+        { type: "file", path: app, x: 150, y: 180 },
+        { type: "link", path: "/Applications", name: "Applications", x: 450, y: 200 },
+      ],
+    });
+    expect(runner.callsTo("hdiutil")).toEqual([]);
+  });
+
+  it("explains how to install dmgbuild when a styled DMG is requested without it", async () => {
+    const app = await makeApp();
+    const { ctx } = await makeCtx();
+    const r = await call(await connect(ctx), "package", { action: "dmg", path: app, icon_size: 96 });
+    expect(r.isError).toBe(true);
+    expect(r.text).toMatch(/pipx install dmgbuild/);
+  });
+
+  it("rejects icon positions for items the DMG doesn't contain", () => {
+    expect(() =>
+      dmgbuildSettings("/x/Example.app", "Ex", { iconPositions: { "Other.app": [1, 2] } }),
+    ).toThrow(/unknown item "Other.app"/);
   });
 
   it("creates a real key + CSR with openssl (0600 key)", async () => {

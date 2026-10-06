@@ -171,6 +171,8 @@ function resolveCredentials(ctx, profileName) {
     source,
     profileName: name,
     profile,
+    // Mirrors ConfigStore.notaryProfile(): the env var wins over the saved profile.
+    notaryKeychainProfile: env.NOTARY_KEYCHAIN_PROFILE || profile.notaryKeychainProfile || undefined,
   };
 }
 
@@ -309,6 +311,44 @@ function tryRun(cmd, args) {
   } catch {
     return undefined;
   }
+}
+
+/** Like tryRun, but keeps the failure output for the user. */
+function runCapture(cmd, args, timeout) {
+  try {
+    const out = execFileSync(cmd, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout });
+    return { ok: true, out: out.trim() };
+  } catch (e) {
+    return {
+      ok: false,
+      missing: e.code === "ENOENT",
+      out: `${e.stderr ?? ""}${e.stdout ?? ""}`.trim() || e.message,
+    };
+  }
+}
+
+/** A `notarytool store-credentials` keychain profile, validated by listing history when --online. */
+function notaryProfileCheck(name, online) {
+  if (!online)
+    return check(
+      "notary_profile",
+      "ok",
+      `notarytool keychain profile "${name}" (run with --online to validate it).`,
+    );
+  const r = runCapture(
+    "xcrun",
+    ["notarytool", "history", "--keychain-profile", name, "--output-format", "json"],
+    60000,
+  );
+  if (r.ok) return check("notary_profile", "ok", `notarytool keychain profile "${name}" works.`);
+  if (r.missing)
+    return check("notary_profile", "warn", `Can't validate "${name}": xcrun is not available here.`);
+  return check(
+    "notary_profile",
+    "warn",
+    `notarytool keychain profile "${name}" failed: ${r.out.slice(0, 300)}`,
+    `Re-create it (for example after rotating the API key) with the notarize MCP tool \`notary action=store_credentials profile_name=${name}\`.`,
+  );
 }
 
 async function runChecks(ctx, flags) {
@@ -540,6 +580,9 @@ async function runChecks(ctx, flags) {
           ),
     );
   }
+
+  if (r.notaryKeychainProfile)
+    checks.push(notaryProfileCheck(r.notaryKeychainProfile, Boolean(flags.online)));
 
   if (flags.online) {
     if (!key || !r.keyId || (!r.issuerId && !individual)) {
@@ -831,6 +874,7 @@ async function main() {
         source: resolved.source,
         profile: resolved.profileName,
         configPath: ctx.configPath,
+        ...(resolved.notaryKeychainProfile ? { notaryKeychainProfile: resolved.notaryKeychainProfile } : {}),
         ...(resolved.discoveredKeys ? { discoveredKeys: resolved.discoveredKeys } : {}),
       },
       checks,
