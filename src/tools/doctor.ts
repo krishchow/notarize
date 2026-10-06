@@ -28,7 +28,13 @@ const TOOLS = [
   "xcodebuild",
   "devicectl",
   "simctl",
+  "dmgbuild",
 ];
+
+/** What an optional tool is for, when it's missing. */
+const OPTIONAL_HINTS: Record<string, string> = {
+  dmgbuild: "dmgbuild: styled DMGs without Finder (package action=dmg background=…); pipx install dmgbuild",
+};
 
 export const doctorTool = defineTool({
   name: "doctor",
@@ -199,7 +205,16 @@ export const doctorTool = defineTool({
         ),
       );
     else if (missing.length)
-      findings.push(finding("info", `Optional tools not found: ${missing.join(", ")}.`));
+      findings.push(
+        finding(
+          "info",
+          `Optional tools not found: ${missing.join(", ")}.`,
+          missing
+            .map((m) => OPTIONAL_HINTS[m])
+            .filter(Boolean)
+            .join("; ") || undefined,
+        ),
+      );
 
     // ---- Identities
     try {

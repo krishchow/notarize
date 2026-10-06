@@ -1,6 +1,6 @@
 ---
 name: setup
-description: One-time setup for Apple signing/notarization work. It checks the App Store Connect API key (ASC_KEY_ID, ASC_ISSUER_ID, the AuthKey .p8 file) and Team ID, and creates them if missing. Optionally it registers a physical iPhone/iPad, reading the UDID itself. Then it confirms a project's bundle ID, team and version, and that the bundle ID and app record exist on Apple's side. Use it on first use of notarize, when someone asks to "set up", "configure" or "init" Apple credentials or an API key, when a notarize tool says no API key is configured, or before shipping a project whose bundle ID hasn't been confirmed.
+description: One-time setup for Apple signing/notarization work. It checks the App Store Connect API key (ASC_KEY_ID, ASC_ISSUER_ID, the AuthKey .p8 file) and Team ID, and creates them if missing. Optionally it registers a physical iPhone/iPad, reading the UDID itself, and stores a notarytool keychain profile for scripts/fastlane/CI. Then it confirms a project's bundle ID, team and version, and that the bundle ID and app record exist on Apple's side. Use it on first use of notarize, when someone asks to "set up", "configure" or "init" Apple credentials or an API key, when a notarize tool says no API key is configured, or before shipping a project whose bundle ID hasn't been confirmed.
 ---
 
 # notarize setup
@@ -30,8 +30,8 @@ node <skill-dir>/scripts/setup.mjs apply <same arguments as plan>
 
 Output fields:
 - `ready`: true when no check failed.
-- `resolved`: `keyId`, `issuerId`, `privateKeyPath`, `source`, `profile`, `configPath`, plus `discoveredKeys[]` (`{keyId, path}`) when no Key ID is configured but `AuthKey_<ID>.p8` files are already installed.
-- `checks[]`: each has `{id, status: ok|warn|fail, message, fix?}`. The ids are stable: `platform`, `node_version`, `config_file`, `asc_key_id`, `asc_issuer_id`, `p8_path`, `p8_readable`, `p8_mode`, `p8_filename`, `team_id`, `persisted_shell`, `persisted_profile`, `xcode_tools`, `asc_online`.
+- `resolved`: `keyId`, `issuerId`, `privateKeyPath`, `source`, `profile`, `configPath`, `notaryKeychainProfile` (when one is configured), plus `discoveredKeys[]` (`{keyId, path}`) when no Key ID is configured but `AuthKey_<ID>.p8` files are already installed.
+- `checks[]`: each has `{id, status: ok|warn|fail, message, fix?}`. The ids are stable: `platform`, `node_version`, `config_file`, `asc_key_id`, `asc_issuer_id`, `p8_path`, `p8_readable`, `p8_mode`, `p8_filename`, `team_id`, `persisted_shell`, `persisted_profile`, `xcode_tools`, `notary_profile` (only when a notarytool keychain profile is configured), `asc_online`.
 - `actions[]`: what `plan` would do, or what `apply` did (marked `done: true`).
 - `next_steps[]`: what to do next.
 
@@ -80,6 +80,18 @@ If they want it, don't make them hunt for a UDID:
 
 Registering is once per device per team, not per project. If a later archive or profile step reports no devices, come back here.
 
+## Part 1c: notarytool keychain profile (optional, ask once)
+
+The MCP tools don't need this: they sign with the API key directly. It is for **scripts, fastlane lanes, Makefiles and CI** that call `xcrun notarytool … --keychain-profile <name>` themselves. If `resolved.notaryKeychainProfile` is already set and `check --online` reports `notary_profile` as ok, skip this part.
+
+Ask once: **"Will a script, fastlane lane or Makefile run `notarytool` itself?"** If yes:
+1. Suggest a name such as `<app>-notary`. One profile per API key is enough; projects can share it.
+2. Call `notary action=store_credentials profile_name=<name>` through the confirm flow. It saves the API key into the login keychain (`notarytool store-credentials`, which validates it with Apple) and remembers the name in the notarize-mcp profile.
+3. Run `check --online` again; `notary_profile` should be ok.
+4. Tell the user the name to use, e.g. `NOTARY_PROFILE=<name>` / `xcrun notarytool submit … --keychain-profile <name>`. With fastlane, prefer the API key directly where the action supports it (see the apple-distribution `fastlane` guide).
+
+The keychain copy doesn't follow key rotation: after revoking or replacing the API key, run step 2 again with the same name. `check --online` reports a stale profile as a `notary_profile` warning.
+
 ## Part 2: project metadata (MCP tools + your editor)
 
 Do this when the user names a project, or before the first build, upload or notarization of one. The goal is a confirmed set of values: **bundle ID, Team ID, app name, version + build number, and target(s)**.
@@ -113,6 +125,7 @@ Do this when the user names a project, or before the first build, upload or nota
 | **Electron** (electron-builder) | `build.appId` in `package.json` or `appId` in `electron-builder.yml` | `APPLE_TEAM_ID` env (notarize) / identity name | `version` in `package.json` (`buildVersion` optional) |
 | **Electron** (Forge) | `packagerConfig.appBundleId` in `forge.config.*` | `osxNotarize.teamId` | `package.json` `version` |
 | **Tauri** | `identifier` in `src-tauri/tauri.conf.json` (v2), or `tauri.bundle.identifier` (v1) | `APPLE_TEAM_ID` env / `bundle.macOS.signingIdentity` | `version` in `tauri.conf.json` (or `Cargo.toml`) |
+| **fastlane** (alongside any of the above) | `app_identifier` in `fastlane/Appfile`. It must match the project's own bundle ID; `detect_project` flags a mismatch. Write the project file first, then the Appfile | `team_id` in the Appfile (`itc_team_id` is the App Store Connect team, a different number) | Comes from the project; lanes usually set it with `increment_version_number` / `increment_build_number` or a `version:` option |
 
 Other metadata Apple will ask for, which you should collect at the same time when relevant:
 - **App name** (display name, `CFBundleDisplayName`).

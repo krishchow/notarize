@@ -9,7 +9,12 @@ import { parseCrashReport } from "../src/parsers/ips";
 import { discoverNestedCode, isMachO } from "../src/parsers/macho";
 import { groupIssues, parseNotaryJson, parseNotaryLog } from "../src/parsers/notarytool";
 import { parseLipoArchs, parseOtoolL, parseOtoolLoadCommands } from "../src/parsers/otool";
-import { detectProject, summarizePbxproj } from "../src/parsers/project/detect";
+import {
+  detectProject,
+  parseAppfile,
+  parseFastfileLanes,
+  summarizePbxproj,
+} from "../src/parsers/project/detect";
 import { parseSandboxViolations } from "../src/parsers/sandbox-log";
 import { duplicateNames, parseFindCertificateZ, parseFindIdentity } from "../src/parsers/security";
 import { parseSpctl } from "../src/parsers/spctl";
@@ -318,6 +323,66 @@ describe("project detection", () => {
       hardenedRuntime: ["YES"],
       entitlementsFiles: ["Example/Example.entitlements"],
     });
+  });
+
+  it("parses fastlane Appfile literals and Fastfile lanes", () => {
+    expect(
+      parseAppfile(`# comment
+app_identifier("com.example.app") # The bundle identifier
+apple_id "dev@example.com"
+team_id 'ABCDE12345'
+itc_team_id("123456")
+# app_identifier("com.commented.out")
+for_platform :ios do
+  app_identifier ENV["IOS_ID"]
+end
+`),
+    ).toEqual({
+      appIdentifiers: ["com.example.app"],
+      teamIds: ["ABCDE12345"],
+      appleIds: ["dev@example.com"],
+    });
+    expect(
+      parseFastfileLanes(`default_platform(:mac)
+lane :bump do
+end
+platform :mac do
+  desc "Release"
+  lane :release do |options|
+    sh("x")
+  end
+  private_lane :helper do
+  end
+  # lane :old do
+end
+platform :ios do
+  lane :beta do
+  end
+end
+`),
+    ).toEqual(["bump", "mac release", "ios beta"]);
+  });
+
+  it("finds fastlane next to a project and flags an Appfile bundle ID the project doesn't use", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "detect-fl-"));
+    await mkdir(join(dir, "Example.xcodeproj"), { recursive: true });
+    await writeFile(join(dir, "Example.xcodeproj", "project.pbxproj"), pbx);
+    await mkdir(join(dir, "fastlane"));
+    await writeFile(
+      join(dir, "fastlane", "Appfile"),
+      'app_identifier("com.example.old")\nteam_id("ABCDE12345")\n',
+    );
+    await writeFile(join(dir, "fastlane", "Fastfile"), "platform :mac do\n  lane :release do\n  end\nend\n");
+    const r = await detectProject(dir);
+    expect(r.fastlane).toHaveLength(1);
+    expect(r.fastlane?.[0]).toMatchObject({
+      path: join(dir, "fastlane"),
+      appIdentifiers: ["com.example.old"],
+      teamIds: ["ABCDE12345"],
+      lanes: ["mac release"],
+    });
+    expect(r.fastlane?.[0].findings.join("\n")).toMatch(/com\.example\.old.*not a bundle ID/);
+    expect(r.fastlane?.[0].findings.join("\n")).not.toMatch(/team_id/);
   });
 
   it("detects Xcode, Electron, Tauri, Flutter and Expo projects", async () => {

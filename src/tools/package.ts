@@ -1,4 +1,4 @@
-import { mkdir, rm, symlink } from "node:fs/promises";
+import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
 import { z } from "zod";
 import { cmdStep, type PlanStep } from "../core/confirm";
@@ -39,11 +39,56 @@ async function installerIdentity(
   return pick.name;
 }
 
+export interface DmgStyle {
+  background?: string;
+  windowSize?: { width: number; height: number };
+  iconSize?: number;
+  iconPositions?: Record<string, [number, number]>;
+}
+
+/**
+ * appdmg-format JSON that `dmgbuild -s settings.json` reads. dmgbuild writes the window layout
+ * into .DS_Store itself, so unlike create-dmg/appdmg it never scripts Finder (works on CI).
+ */
+export function dmgbuildSettings(app: string, volumeName: string, style: DmgStyle): Record<string, unknown> {
+  const { width, height } = style.windowSize ?? { width: 640, height: 400 };
+  const appName = basename(app);
+  const pos = style.iconPositions ?? {};
+  for (const name of Object.keys(pos))
+    if (name !== appName && name !== "Applications")
+      throw new ToolError(`icon_positions: unknown item "${name}".`, {
+        hint: `The DMG holds "${appName}" and "Applications".`,
+      });
+  const y = Math.round(height * 0.45);
+  return {
+    title: volumeName,
+    ...(style.background ? { background: style.background } : {}),
+    "icon-size": style.iconSize ?? 128,
+    window: { position: { x: 200, y: 120 }, size: { width, height } },
+    format: "UDZO",
+    contents: [
+      {
+        type: "file",
+        path: app,
+        x: pos[appName]?.[0] ?? Math.round(width * 0.25),
+        y: pos[appName]?.[1] ?? y,
+      },
+      {
+        type: "link",
+        path: "/Applications",
+        name: "Applications",
+        x: pos.Applications?.[0] ?? Math.round(width * 0.75),
+        y: pos.Applications?.[1] ?? y,
+      },
+    ],
+  };
+}
+
 export const packageTool = defineTool({
   name: "package",
   title: "Package an app as .zip, .dmg or .pkg (optionally signed)",
   description:
-    "action=zip: `ditto -c -k --sequesterRsrc --keepParent` (the zip format notarization accepts; plain `zip` breaks framework symlinks). action=dmg: compressed UDZO disk image with an /Applications shortcut, optionally codesigned with Developer ID (recommended before notarizing). action=pkg: productbuild installer that installs into /Applications, signed with Developer ID Installer (direct distribution) or Mac Installer Distribution (Mac App Store upload, target=mac-app-store). action=sign_pkg: productsign an existing pkg. Writing a new file runs directly; overwriting or signing needs confirmation.",
+    "action=zip: `ditto -c -k --sequesterRsrc --keepParent` (the zip format notarization accepts; plain `zip` breaks framework symlinks). action=dmg: compressed UDZO disk image with an /Applications shortcut, optionally codesigned with Developer ID (recommended before notarizing). With background / window_size / icon_size / icon_positions it builds a styled DMG with `dmgbuild` (pipx install dmgbuild), which writes the window layout directly instead of scripting Finder, so it needs no Automation permission and works headless/on CI. action=pkg: productbuild installer that installs into /Applications, signed with Developer ID Installer (direct distribution) or Mac Installer Distribution (Mac App Store upload, target=mac-app-store). action=sign_pkg: productsign an existing pkg. Writing a new file runs directly; overwriting or signing needs confirmation.",
   mutating: true,
   input: {
     action: z.enum(["zip", "dmg", "pkg", "sign_pkg"]),
@@ -57,6 +102,27 @@ export const packageTool = defineTool({
         "dmg: Developer ID Application identity to sign the DMG ('auto' or omit to skip). pkg/sign_pkg: installer identity name, 'auto' (default) or 'none'.",
       ),
     volume_name: z.string().optional().describe("dmg: volume name (default app name)."),
+    background: z
+      .string()
+      .optional()
+      .describe("dmg (styled): background image (.png; a name@2x.png next to it is used on Retina)."),
+    window_size: z
+      .object({ width: z.number().int().min(200).max(4000), height: z.number().int().min(150).max(4000) })
+      .optional()
+      .describe("dmg (styled): Finder window size in points; match the background image (default 640x400)."),
+    icon_size: z
+      .number()
+      .int()
+      .min(16)
+      .max(512)
+      .optional()
+      .describe("dmg (styled): icon size (default 128)."),
+    icon_positions: z
+      .record(z.string(), z.tuple([z.number(), z.number()]))
+      .optional()
+      .describe(
+        'dmg (styled): icon centres in window points, keyed by "<App>.app" and "Applications", e.g. {"MyApp.app":[160,180],"Applications":[480,180]}. Default: side by side.',
+      ),
     install_location: z.string().optional().describe("pkg: default /Applications."),
   },
   async handler(args, ctx, extra) {
@@ -82,6 +148,53 @@ export const packageTool = defineTool({
       run = async () => {
         const r = await ctx.runner.run("ditto", cmd, { timeoutMs: 1800000 });
         return { ok: ok(r), detail: output(r) };
+      };
+    } else if (
+      args.action === "dmg" &&
+      (args.background || args.window_size || args.icon_size || args.icon_positions)
+    ) {
+      const vol = args.volume_name ?? name;
+      const background = args.background ? await resolveUserPath(ctx, args.background) : undefined;
+      const settingsJson = dmgbuildSettings(src, vol, {
+        background,
+        windowSize: args.window_size,
+        iconSize: args.icon_size,
+        iconPositions: args.icon_positions as Record<string, [number, number]> | undefined,
+      });
+      const probe = await ctx.runner.run("dmgbuild", ["--help"], { timeoutMs: 30000 });
+      if (probe.spawnError)
+        throw new ToolError(
+          "A styled DMG needs dmgbuild, which isn't installed (or isn't on the server's PATH).",
+          {
+            hint: "Install it with `pipx install dmgbuild` (or `pip3 install --user dmgbuild`), then restart the MCP server so it sees the new PATH. Or drop the style options for a plain DMG.",
+          },
+        );
+      const settings = join(await scratchDir("dmg"), "dmgbuild-settings.json");
+      const create = ["-s", settings, "--", vol, out];
+      const identity =
+        args.identity && args.identity !== "none"
+          ? args.identity === "auto"
+            ? await autoDevId(ctx)
+            : args.identity
+          : undefined;
+      const sign = identity ? ["--force", "--sign", identity, "--timestamp", out] : undefined;
+      signing = !!sign;
+      steps.push(
+        { description: `Write the dmgbuild layout to ${settings}` },
+        cmdStep("Build the styled disk image (writes .DS_Store directly; no Finder)", "dmgbuild", create),
+        ...(sign ? [cmdStep("Sign the DMG with Developer ID", "codesign", sign)] : []),
+      );
+      run = async () => {
+        await writeFile(settings, JSON.stringify(settingsJson, null, 2));
+        await rm(out, { force: true });
+        const r = await ctx.runner.run("dmgbuild", create, { timeoutMs: 1800000, logName: "dmgbuild" });
+        await rm(dirname(settings), { recursive: true, force: true }).catch(() => {});
+        if (!ok(r)) return { ok: false, detail: output(r) };
+        if (sign) {
+          const s = await ctx.runner.run("codesign", sign, { timeoutMs: 300000 });
+          if (!ok(s)) return { ok: false, detail: output(s) };
+        }
+        return { ok: true, detail: "" };
       };
     } else if (args.action === "dmg") {
       const staging = join(await scratchDir("dmg"), args.volume_name ?? name);

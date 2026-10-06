@@ -12,7 +12,8 @@ export type ErrorSource =
   | "runtime"
   | "xcodebuild"
   | "upload"
-  | "keychain";
+  | "keychain"
+  | "packaging";
 
 export interface KnownError {
   id: string;
@@ -191,6 +192,22 @@ export const ERROR_CATALOG: KnownError[] = [
     fix: ["Create a replacement certificate and remove the expired one from the keychain"],
     tool: "asc_certificates",
   },
+  // ---------------- packaging ----------------
+  {
+    id: "dmg-finder-automation",
+    source: "packaging",
+    pattern:
+      /Not authorized to send Apple events to Finder|errAEEventNotPermitted|execution error:.*\(-1743\)/,
+    title: "DMG styling needs Automation permission for Finder",
+    explanation:
+      "create-dmg, appdmg and similar tools lay out the DMG window by scripting Finder with AppleScript. macOS blocks that until the calling app (Terminal, iTerm, the IDE or the agent's host) is allowed to control Finder; on CI, over SSH or in a headless session nobody can grant it, so the step hangs or fails. The DMG itself is fine to notarize without the layout.",
+    fix: [
+      "Local: System Settings → Privacy & Security → Automation → allow the terminal to control Finder, then rerun",
+      "Headless/CI: build the styled DMG without Finder: package action=dmg background=<png> icon_positions={...} (uses dmgbuild, which writes .DS_Store directly)",
+      "Or ship a plain DMG: package action=dmg, or create-dmg --skip-jenkins",
+    ],
+    tool: "package dmg",
+  },
   // ---------------- notarization ----------------
   {
     id: "notary-not-developer-id",
@@ -199,7 +216,10 @@ export const ERROR_CATALOG: KnownError[] = [
     title: "Not signed with Developer ID",
     explanation:
       "Notarization requires a Developer ID Application certificate. Apple Development/Distribution or ad-hoc signatures are rejected.",
-    fix: ["Sign with 'Developer ID Application: <Name> (<TEAMID>)' (sign tool with target=mac-developer-id)"],
+    fix: [
+      "Sign with 'Developer ID Application: <Name> (<TEAMID>)' (sign tool with target=mac-developer-id)",
+      "An identity of '-' means ad-hoc: check build scripts and fastlane lanes that default CODESIGN_IDENTITY to '-' and pass the Developer ID identity for releases",
+    ],
     tool: "sign",
   },
   {
@@ -348,7 +368,10 @@ export const ERROR_CATALOG: KnownError[] = [
     pattern: /source=no usable signature|no usable signature/,
     title: "No usable signature",
     explanation: "The item is unsigned, ad-hoc signed, or the signature is broken.",
-    fix: ["inspect_code_signature to see why", "Sign with Developer ID (sign)"],
+    fix: [
+      "inspect_code_signature to see why",
+      "Sign with Developer ID (sign). If a build script signed it, check that it wasn't given '-' (ad-hoc) as the identity",
+    ],
     tool: "inspect_code_signature",
   },
   {

@@ -77,6 +77,7 @@ describe("knowledge base consistency", () => {
       ],
       ["App.app: resource fork, Finder information, or similar detritus not allowed", "detritus"],
       ["The binary is not signed with a valid Developer ID certificate.", "notary-not-developer-id"],
+      ["execution error: Not authorized to send Apple events to Finder. (-1743)", "dmg-finder-automation"],
       [
         'CloudKit query for App.app (2/abc) failed due to "Record not found".\nThe staple and validate action failed! Error 65.',
         "staple-error-65",

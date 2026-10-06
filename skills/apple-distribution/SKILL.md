@@ -167,6 +167,7 @@ More detail: [references/gatekeeper-debugging.md](references/gatekeeper-debuggin
 - **Flutter**: `ios/Runner.xcworkspace` / `macos/Runner.xcworkspace` with the `xcode` tool, or `flutter build ipa --export-options-plist` → [references/frameworks/flutter.md](references/frameworks/flutter.md)
 - **React Native / Expo**: `pod install` + `xcode` tool. Expo managed apps build either locally (`npx expo prebuild -p ios`, then the `xcode` tool) or with EAS (`eas credentials`, `eas submit` with the same API key); ask the user which → [references/frameworks/react-native-expo.md](references/frameworks/react-native-expo.md)
 - **Prebuilt artifacts / CLI tools**: [references/prebuilt-artifacts.md](references/prebuilt-artifacts.md)
+- **fastlane** (any of the above, driven by a Fastfile): keep the lanes and use the tools around them: the API key through fastlane's own API key action, `--keychain-profile` for raw notarytool, headless DMG styling, checks after the lane → [references/fastlane.md](references/fastlane.md)
 - **CI**: [references/ci.md](references/ci.md)
 
 ## 9. Communicating with the user

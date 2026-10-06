@@ -56,7 +56,7 @@ Start here. Checks macOS and Xcode / Command Line Tools versions against App Sto
 
 **Detect app/project type and current signing setup** — read-only
 
-Identify what lives at a path: Xcode project/workspace, SwiftPM package, Electron (electron-builder/forge), Tauri, Flutter, React Native, Expo (managed/bare), or a prebuilt .app/.xcarchive/.ipa/.dmg/.pkg/.zip. Reports platforms, bundle IDs, team IDs, current signing configuration, problems found, suggested distribution targets, build commands, and framework-specific config snippets / environment variables to enable signing + notarization (apply them with your editor). Read-only.
+Identify what lives at a path: Xcode project/workspace, SwiftPM package, Electron (electron-builder/forge), Tauri, Flutter, React Native, Expo (managed/bare), or a prebuilt .app/.xcarchive/.ipa/.dmg/.pkg/.zip, plus any fastlane setup (Appfile app_identifier/team_id cross-checked against the project, Fastfile lanes). Reports platforms, bundle IDs, team IDs, current signing configuration, problems found, suggested distribution targets, build commands, and framework-specific config snippets / environment variables to enable signing + notarization (apply them with your editor). Read-only.
 
 | Argument | Type | Required | Description |
 |---|---|---|---|
@@ -291,7 +291,7 @@ Re-signs a prebuilt artifact you have rights to distribute (no source needed): c
 
 **Package an app as .zip, .dmg or .pkg (optionally signed)** — mutating (preview → confirm_token)
 
-action=zip: `ditto -c -k --sequesterRsrc --keepParent` (the zip format notarization accepts; plain `zip` breaks framework symlinks). action=dmg: compressed UDZO disk image with an /Applications shortcut, optionally codesigned with Developer ID (recommended before notarizing). action=pkg: productbuild installer that installs into /Applications, signed with Developer ID Installer (direct distribution) or Mac Installer Distribution (Mac App Store upload, target=mac-app-store). action=sign_pkg: productsign an existing pkg. Writing a new file runs directly; overwriting or signing needs confirmation.
+action=zip: `ditto -c -k --sequesterRsrc --keepParent` (the zip format notarization accepts; plain `zip` breaks framework symlinks). action=dmg: compressed UDZO disk image with an /Applications shortcut, optionally codesigned with Developer ID (recommended before notarizing). With background / window_size / icon_size / icon_positions it builds a styled DMG with `dmgbuild` (pipx install dmgbuild), which writes the window layout directly instead of scripting Finder, so it needs no Automation permission and works headless/on CI. action=pkg: productbuild installer that installs into /Applications, signed with Developer ID Installer (direct distribution) or Mac Installer Distribution (Mac App Store upload, target=mac-app-store). action=sign_pkg: productsign an existing pkg. Writing a new file runs directly; overwriting or signing needs confirmation.
 
 | Argument | Type | Required | Description |
 |---|---|---|---|
@@ -301,6 +301,10 @@ action=zip: `ditto -c -k --sequesterRsrc --keepParent` (the zip format notarizat
 | `target` | `mac-developer-id` \| `mac-app-store` \| `testflight-mac` \| `ios-app-store` \| `testflight-ios` \| `ios-ad-hoc` \| `ios-development` \| `mac-development` \| `enterprise` |  | pkg: mac-developer-id (default) or mac-app-store. |
 | `identity` | string |  | dmg: Developer ID Application identity to sign the DMG ('auto' or omit to skip). pkg/sign_pkg: installer identity name, 'auto' (default) or 'none'. |
 | `volume_name` | string |  | dmg: volume name (default app name). |
+| `background` | string |  | dmg (styled): background image (.png; a name@2x.png next to it is used on Retina). |
+| `window_size` | object |  | dmg (styled): Finder window size in points; match the background image (default 640x400). |
+| `icon_size` | integer |  | dmg (styled): icon size (default 128). |
+| `icon_positions` | object |  | dmg (styled): icon centres in window points, keyed by "<App>.app" and "Applications", e.g. {"MyApp.app":[160,180],"Applications":[480,180]}. Default: side by side. |
 | `install_location` | string |  | pkg: default /Applications. |
 
 ## notary
@@ -574,15 +578,16 @@ action=versions: App Store versions and their states. action=create_version (con
 
 **Generate a CI workflow for signing + notarization / upload** — mutating (preview → confirm_token)
 
-Generates a GitHub Actions workflow for a target (mac-developer-id, testflight-ios, ios-app-store, mac-app-store, testflight-mac) and framework (xcode, electron, tauri, flutter, react-native, expo, swiftpm, prebuilt): temporary keychain + set-key-partition-list (avoids errSecInternalComponent), API key from secrets, archive/export with automatic signing via the API key (or the framework's own signing), notarytool --wait + staple, artifact upload, and keychain cleanup. Returns the YAML and the list of repository secrets to create. Writing to output_path needs confirmation only when overwriting.
+Generates a GitHub Actions workflow for a target (mac-developer-id, testflight-ios, ios-app-store, mac-app-store, testflight-mac) and framework (xcode, electron, tauri, flutter, react-native, expo, swiftpm, prebuilt, custom): temporary keychain + set-key-partition-list (avoids errSecInternalComponent), API key from secrets, archive/export with automatic signing via the API key (or the framework's own signing), notarytool --wait + staple, artifact upload, and keychain cleanup. framework=custom runs your own release command (a fastlane lane, Makefile or script) after setting up the keychain and API key, storing a notarytool keychain profile, and exporting CODESIGN_IDENTITY / NOTARY_PROFILE / NOTARY_KEYCHAIN / ASC_*. Returns the YAML and the list of repository secrets to create. Writing to output_path needs confirmation only when overwriting.
 
 | Argument | Type | Required | Description |
 |---|---|---|---|
 | `target` | `mac-developer-id` \| `testflight-ios` \| `ios-app-store` \| `mac-app-store` \| `testflight-mac` | yes |  |
-| `framework` | `xcode` \| `electron` \| `tauri` \| `flutter` \| `react-native` \| `expo` \| `swiftpm` \| `prebuilt` | yes |  |
+| `framework` | `xcode` \| `electron` \| `tauri` \| `flutter` \| `react-native` \| `expo` \| `swiftpm` \| `prebuilt` \| `custom` | yes |  |
 | `app_name` | string | yes | Product / scheme name (used for paths). |
 | `scheme` | string |  |  |
 | `workspace` | string |  | Relative .xcworkspace path (xcode). |
-| `app_path` | string |  | Built .app path expression (prebuilt / custom layouts). |
+| `app_path` | string |  | Built .app path expression (prebuilt / custom layouts). framework=custom: file or glob of the release artifact to upload, e.g. build/*.dmg. |
+| `build_command` | string |  | framework=custom (required): the shell command(s) that build, sign and notarize, e.g. "bundle exec fastlane mac release version:${{ github.ref_name }}". It runs after the certificate and API key are set up, with CODESIGN_IDENTITY, NOTARY_PROFILE, NOTARY_KEYCHAIN, ASC_KEY_ID, ASC_ISSUER_ID and ASC_KEY_PATH exported. |
 | `runner` | string |  | GitHub runner label (default macos-15). |
 | `output_path` | string |  | e.g. .github/workflows/release.yml |

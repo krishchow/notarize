@@ -300,6 +300,57 @@ describe("ci_config", () => {
     expect(ex.secrets.map((s) => s.name)).toEqual(["EXPO_TOKEN"]);
   });
 
+  it("custom mode hands credentials to the user's own release command (e.g. a fastlane lane)", async () => {
+    const { yaml, secrets } = generateWorkflow({
+      target: "mac-developer-id",
+      framework: "custom",
+      appName: "Darkroom",
+      appPath: "build/*.dmg",
+      runner: "macos-15",
+      buildCommand: `bundle exec fastlane mac release version:\${{ github.ref_name }}`,
+    });
+    expect(yaml).toContain("security set-key-partition-list");
+    expect(yaml).toContain("ruby/setup-ruby@v1");
+    expect(yaml).toContain(
+      'xcrun notarytool store-credentials ci-notary \\\n            --key "$ASC_KEY_PATH" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID" --keychain "$KEYCHAIN"',
+    );
+    expect(yaml).toContain(`sed -nE 's/.*"(Developer ID Application: [^"]+)".*/\\1/p'`);
+    expect(yaml).toContain('echo "NOTARY_PROFILE=ci-notary"');
+    expect(yaml).toContain(
+      `        run: |\n          bundle exec fastlane mac release version:\${{ github.ref_name }}\n`,
+    );
+    expect(yaml).toContain("path: build/*.dmg");
+    expect(yaml).not.toContain("xcrun notarytool submit");
+    expect(yaml).toContain("security delete-keychain");
+    expect(secrets.map((s) => s.name)).toEqual([
+      "ASC_KEY_ID",
+      "ASC_ISSUER_ID",
+      "ASC_PRIVATE_KEY",
+      "SIGNING_CERTIFICATE_P12_BASE64",
+      "SIGNING_CERTIFICATE_PASSWORD",
+    ]);
+    const store = generateWorkflow({
+      target: "mac-app-store",
+      framework: "custom",
+      appName: "X",
+      runner: "macos-15",
+      buildCommand: "make release",
+    });
+    expect(store.yaml).not.toContain("setup-ruby");
+    expect(store.yaml).toContain("(Apple Distribution|3rd Party Mac Developer Application): ");
+  });
+
+  it("custom mode requires build_command", async () => {
+    const { ctx } = await makeCtx({ isMac: false });
+    const r = await call(await connect(ctx), "ci_config", {
+      target: "mac-developer-id",
+      framework: "custom",
+      app_name: "X",
+    });
+    expect(r.isError).toBe(true);
+    expect(r.text).toMatch(/needs build_command/);
+  });
+
   it("writes the workflow file without confirmation when new", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ci-"));
     const { ctx } = await makeCtx({ isMac: false });

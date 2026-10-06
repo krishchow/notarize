@@ -146,6 +146,20 @@ The signing certificate has expired. Builds signed with a timestamp before expir
 - Tool: `asc_certificates`
 
 
+## packaging
+
+### DMG styling needs Automation permission for Finder
+
+Matches: `Not authorized to send Apple events to Finder|errAEEventNotPermitted|execution error:.*\(-1743\)`
+
+create-dmg, appdmg and similar tools lay out the DMG window by scripting Finder with AppleScript. macOS blocks that until the calling app (Terminal, iTerm, the IDE or the agent's host) is allowed to control Finder; on CI, over SSH or in a headless session nobody can grant it, so the step hangs or fails. The DMG itself is fine to notarize without the layout.
+
+- Local: System Settings → Privacy & Security → Automation → allow the terminal to control Finder, then rerun
+- Headless/CI: build the styled DMG without Finder: package action=dmg background=<png> icon_positions={...} (uses dmgbuild, which writes .DS_Store directly)
+- Or ship a plain DMG: package action=dmg, or create-dmg --skip-jenkins
+- Tool: `package dmg`
+
+
 ## notarization
 
 ### Not signed with Developer ID
@@ -155,6 +169,7 @@ Matches: `not signed with a valid Developer ID certificate`
 Notarization requires a Developer ID Application certificate. Apple Development/Distribution or ad-hoc signatures are rejected.
 
 - Sign with 'Developer ID Application: <Name> (<TEAMID>)' (sign tool with target=mac-developer-id)
+- An identity of '-' means ad-hoc: check build scripts and fastlane lanes that default CODESIGN_IDENTITY to '-' and pass the Developer ID identity for releases
 - Tool: `sign`
 
 ### Missing secure timestamp
@@ -293,7 +308,7 @@ Matches: `source=no usable signature|no usable signature`
 The item is unsigned, ad-hoc signed, or the signature is broken.
 
 - inspect_code_signature to see why
-- Sign with Developer ID (sign)
+- Sign with Developer ID (sign). If a build script signed it, check that it wasn't given '-' (ad-hoc) as the identity
 - Tool: `inspect_code_signature`
 
 ### Wrong spctl assessment type
