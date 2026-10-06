@@ -1,5 +1,21 @@
 # notarize-mcp
 
+## 1.1.0
+
+### Minor Changes
+
+- [#15](https://github.com/krishchow/notarize/pull/15) [`66fbf4a`](https://github.com/krishchow/notarize/commit/66fbf4a389c0578fac1086061ffa67254ce2c9aa) Thanks [@krishchow](https://github.com/krishchow)! - `ci_config framework=custom build_command=…` runs your own release command (such as a fastlane lane) after setting up the keychain, API key and a notarytool profile.
+
+- [#15](https://github.com/krishchow/notarize/pull/15) [`66fbf4a`](https://github.com/krishchow/notarize/commit/66fbf4a389c0578fac1086061ffa67254ce2c9aa) Thanks [@krishchow](https://github.com/krishchow)! - `detect_project` reports fastlane setups: Appfile `app_identifier`/`team_id`, checked against the project, plus the Fastfile lanes.
+
+- [#15](https://github.com/krishchow/notarize/pull/15) [`66fbf4a`](https://github.com/krishchow/notarize/commit/66fbf4a389c0578fac1086061ffa67254ce2c9aa) Thanks [@krishchow](https://github.com/krishchow)! - `package action=dmg` can build a styled DMG (background, window size, icon size and positions) with `dmgbuild`, without scripting Finder, so it works on CI and headless Macs.
+
+### Patch Changes
+
+- [#15](https://github.com/krishchow/notarize/pull/15) [`66fbf4a`](https://github.com/krishchow/notarize/commit/66fbf4a389c0578fac1086061ffa67254ce2c9aa) Thanks [@krishchow](https://github.com/krishchow)! - Add a fastlane guide to the apple-distribution skill, and an error catalog entry for DMG tools blocked from scripting Finder (-1743).
+
+- [#15](https://github.com/krishchow/notarize/pull/15) [`66fbf4a`](https://github.com/krishchow/notarize/commit/66fbf4a389c0578fac1086061ffa67254ce2c9aa) Thanks [@krishchow](https://github.com/krishchow)! - Setup now offers to store a notarytool keychain profile for scripts, fastlane and CI, and `check --online` verifies the profile still works (for example after an API key rotation).
+
 ## 1.0.0
 
 ### Major Changes
