@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "notarize": {
+      "command": "npx",
+      "args": ["-y", "notarize-mcp@1.1.0"],
+      "env_vars": [
+        "ASC_KEY_ID",
+        "ASC_ISSUER_ID",
+        "ASC_PRIVATE_KEY",
+        "ASC_PRIVATE_KEY_PATH",
+        "ASC_PROFILE",
+        "NOTARY_KEYCHAIN_PROFILE",
+        "NOTARIZE_MCP_CONFIG_DIR",
+        "NOTARIZE_MCP_LOG_DIR",
+        "NOTARIZE_MCP_STATE_DIR",
+        "NOTARIZE_MCP_AUTO_CONFIRM"
+      ],
+      "startup_timeout_sec": 60,
+      "tool_timeout_sec": 300
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "notarize",
+  "interface": {
+    "displayName": "notarize"
+  },
+  "plugins": [
+    {
+      "name": "notarize",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools",
+      "interface": {
+        "displayName": "notarize — Apple signing, notarization & App Store Connect"
+      }
+    }
+  ]
+}

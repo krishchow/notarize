@@ -1,0 +1,46 @@
+# DeepSeek Harness (DSH) bundle layer for notarize-mcp.
+#
+# `dsh.bundle.patch` in package.json points here, so installing this package as a
+# DSH bundle (`plugin_manager` action=install_bundle, or the Web sidebar's Plugins
+# page) composes these two rows into the profile, after every shipped bundle layer:
+#
+#   notarize-mcp    the stdio MCP server, bridged by @deepseek-ai/dsh-mcp-client,
+#                   whose tools then reach the agent as `mcp__notarize__<tool>`.
+#   notarize-skills a second @deepseek-ai/dsh-skill-filesystem provider that scans
+#                   only this package's skills/ directory, so `apple-distribution`
+#                   and `setup` join the session skill catalog.
+#
+# Notes for maintainers:
+#   * `bundledSkillDir` (not `customSkillDirs`) is deliberate. A bundled root is
+#     read host-side, while a custom root is read through the fs service, which is
+#     sandboxed to the session workspace — and this package is installed in the
+#     profile, outside it. `includeDefaultRoots: false` keeps this provider from
+#     re-scanning the project and user roots that the profile's own preset rows
+#     already own, and the non-default `providerName` keeps it from colliding with
+#     them.
+#   * config values stay literal in a patch, so the skills root resolves at
+#     activation through the Loader `!!js` expression below. `baseUrl` is the
+#     profile directory, which is where this package is installed, so the lookup
+#     works for both a registry install and a local-path install.
+#   * the server pin is the same `notarize-mcp@<version>` the Claude Code plugin
+#     uses, and scripts/bump-version.mjs moves both together. It is never edited
+#     by hand.
+- insert:
+    - id: notarize-mcp
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: notarize
+        transport: stdio
+        command: npx
+        args:
+          - '-y'
+          - 'notarize-mcp@1.1.0'
+        failOnStartupError: true
+
+    - id: notarize-skills
+      name: '@deepseek-ai/dsh-skill-filesystem'
+      config:
+        providerName: notarize
+        includeDefaultRoots: false
+        watch: false
+        bundledSkillDir: !!js process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:module').createRequire(new URL('resolve.mjs', baseUrl)).resolve('notarize-mcp/package.json')), 'skills')

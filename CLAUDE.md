@@ -1,6 +1,6 @@
 # notarize — working on this repo
 
-A stdio MCP server (TypeScript) plus a Claude Code skill for Apple code signing, notarization, provisioning and App Store Connect. Users run it **on a Mac**; development and unit tests run anywhere (macOS commands are faked).
+A stdio MCP server (TypeScript) plus skills for Apple code signing, notarization, provisioning and App Store Connect, packaged as a Claude Code plugin, a Codex plugin and a DeepSeek Harness bundle. Users run it **on a Mac**; development and unit tests run anywhere (macOS commands are faked).
 
 ## Commands
 ```bash
@@ -30,6 +30,8 @@ GitHub Actions are **manual only** (`workflow_dispatch`) — the account has no 
 | `src/docs/tool-docs.ts` | generators for docs/tools.md and the settings example |
 | `skills/setup/` | `/notarize:setup` skill; `scripts/setup.mjs` is a zero-dep Node script (JSON out) that checks/installs ASC credentials. Its resolution must match `ConfigStore.resolveAsc` (parity test in `test/setup-script.test.ts`) |
 | `skills/apple-distribution/` | the skill (SKILL.md + references/) — also served as `notarize://guides/*` |
+| `cordis.patch.yml` | the DeepSeek Harness bundle layer (see `docs/dsh.md`): inserts the `@deepseek-ai/dsh-mcp-client` server row and a package-scoped `@deepseek-ai/dsh-skill-filesystem` skills row. Carries the `notarize-mcp@<version>` server pin, nothing else |
+| `.codex-plugin/plugin.json`, `codex.mcp.json`, `.agents/plugins/marketplace.json` | the Codex plugin (see `docs/codex.md`): manifest, stdio server config (carries the server pin), and the repo marketplace that makes it installable. Not published to npm |
 | `.claude/skills/changesets/` | repo-only skill (not shipped): changesets, versions and releases |
 | `test/` | vitest; `helpers.ts` has `makeCtx`, `connect`, `call`, `callConfirmed`, `fakeAsc`, `ascEnv` |
 
@@ -45,17 +47,17 @@ GitHub Actions are **manual only** (`workflow_dispatch`) — the account has no 
 6. **Results are `ToolOutput`**: a short `summary` first, structured `data`, and `next_steps` naming exact tool calls.
 7. **Commit generated docs, not the bundle.** After changing tools or the catalog, run `UPDATE_DOCS=1 …` and commit the docs. `dist/` is build output; it is gitignored and only published to npm.
 8. **Keep the knowledge base dated.** When Apple changes requirements, update `src/knowledge/*`, including `SDK_REQUIREMENTS_LAST_REVIEWED`.
-9. **Two artifacts, one version.** The npm package is the server. The plugin (`.claude-plugin/plugin.json` + `skills/`) runs `npx -y notarize-mcp@<version>`. Versions come from changesets (`pnpm changeset`); never hand-edit them. Never let the plugin on `main` pin a version that isn't on npm yet: the Version Packages PR bumps only `package.json`, and `release.yml`'s sync-plugin job runs `scripts/bump-version.mjs` after the publish.
+9. **One package, four surfaces, one version.** The npm package is the server, and it is also the Claude Code plugin (`.claude-plugin/plugin.json` + `skills/`), the Codex plugin (`.codex-plugin/plugin.json` + `codex.mcp.json` + `skills/`) and the DeepSeek Harness bundle (`dsh.bundle.patch` → `cordis.patch.yml`). Every plugin surface runs `npx -y notarize-mcp@<version>`. Versions come from changesets (`pnpm changeset`); never hand-edit them. Never let `main` pin a version that isn't on npm yet: the Version Packages PR bumps only `package.json`, and `release.yml`'s sync-plugin job runs `scripts/bump-version.mjs` after the publish. That script moves all five files together — `package.json`, `.claude-plugin/plugin.json` (version + pin), `.codex-plugin/plugin.json` (version only), `codex.mcp.json` (pin only) and `cordis.patch.yml` (pin only) — so never add a version or pin by hand, and keep the `git add` lists and the guard in `release.yml`/`release.sh` covering all five. `test/package.test.ts` runs the release guard's own pin-reading expressions, because a guard that cannot read a pin never short-circuits.
 
 ## Versions & changesets
-- **One package, two artifacts:**
+- **One package, four surfaces:**
   - `package.json` `version` is the MCP server version, published to npm as `notarize-mcp`.
-  - The plugin (`.claude-plugin/plugin.json`) has no version of its own. It mirrors the server version it pins with `npx -y notarize-mcp@X`, and it lags `package.json` briefly after each release.
+  - Three plugin surfaces mirror the version they pin with `npx -y notarize-mcp@X`, and lag `package.json` briefly after each release: the Claude Code plugin, the Codex plugin and the DeepSeek Harness bundle. The Codex manifest declares a `version`; the other two carry the pin alone.
 - **Changesets are the only way versions move:**
   - A PR records its release impact in `.changeset/*.md`.
   - `changeset version` (the Version Packages PR) bumps `package.json`.
-  - After the npm publish, the release workflow's `sync-plugin` job moves the plugin pin.
-- **Add a changeset in the same PR** whenever a change reaches users: `src/`, `skills/`, plugin behaviour. Skip it for tests, docs, CI or tooling.
+  - After the npm publish, the release workflow's `sync-plugin` job moves every plugin surface.
+- **Add a changeset in the same PR** whenever a change reaches users: `src/`, `skills/`, `cordis.patch.yml`, the Codex plugin files, plugin behaviour. Skip it for tests, docs, CI or tooling.
 - **Use the `changesets` skill** (`.claude/skills/changesets/`) before any of these:
   - writing a changeset or choosing patch/minor/major;
   - touching any `version` field, `CHANGELOG.md`, `.changeset/`, `bump-version.mjs`, `release.sh` or `release.yml`;
@@ -74,5 +76,8 @@ GitHub Actions are **manual only** (`workflow_dispatch`) — the account has no 
 ## Docs
 - `README.md`: users.
 - `docs/agent-integration.md`: confirm and auto-confirm contract, jobs/Monitor, permissions, network.
+- `docs/codex.md`: the Codex plugin — install, what it declares, the environment allowlist and timeouts, and why its MCP config is not `.mcp.json`.
+- `docs/dsh.md`: the DeepSeek Harness bundle — install paths, the rows it composes, path resolution, and the credential-env caveat.
 - `docs/tools.md` (generated).
 - `docs/testing.md`.
+- `docs/releasing.md`: the changeset flow and what each release publishes.

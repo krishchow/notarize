@@ -5,8 +5,9 @@ name: Release
 #   2. When they land on main, this workflow opens or updates the "Version Packages" PR. That PR bumps
 #      package.json and CHANGELOG.md. It leaves the plugin pin alone.
 #   3. Merging that PR publishes notarize-mcp to npm, then tags vX and creates the GitHub Release.
-#   4. sync-plugin then pins .claude-plugin/plugin.json to notarize-mcp@X and pushes that to main.
-#      The marketplace reads main, so the plugin never pins a version npm doesn't have yet.
+#   4. sync-plugin then pins .claude-plugin/plugin.json and cordis.patch.yml (the DeepSeek Harness
+#      bundle layer) to notarize-mcp@X and pushes that to main. Both surfaces read main, so neither
+#      pins a version npm doesn't have yet.
 #
 # Runs only when a push to main touches .changeset/ or package.json (Actions minutes are scarce),
 # or when started by hand from Actions → Release. A manual re-run also finishes a sync-plugin that failed.
@@ -125,6 +126,7 @@ jobs:
             echo
             echo 'MCP server (any client): `npx -y notarize-mcp`'
             echo 'Claude Code plugin: `/plugin marketplace add krishchow/notarize` then `/plugin install notarize@notarize`'
+            echo 'DeepSeek Harness bundle: install `notarize-mcp` from the Web sidebar Plugins page'
           } >> "$GITHUB_STEP_SUMMARY"
 
   # Pins the Claude Code plugin to the package.json version once npm has it. Runs on every Release run,
@@ -151,8 +153,16 @@ jobs:
           set -euo pipefail
           version=$(node -p 'require("./package.json").version')
           plugin=$(node -p 'require("./.claude-plugin/plugin.json").version')
-          if [[ "$version" == "$plugin" ]]; then echo "Plugin already pins $PACKAGE@$version."; exit 0; fi
-          if [[ "$version" == *-* ]]; then echo "$version is a prerelease; plugin stays on $plugin."; exit 0; fi
+          codex=$(node -p 'require("./.codex-plugin/plugin.json").version')
+          # These two carry the same server pin but no version of their own: the Codex MCP config
+          # and the DeepSeek Harness bundle layer. Match the real pin, never a doc placeholder like
+          # `notarize-mcp@<version>`, so the guard below can short-circuit on an already-pinned tree.
+          codexmcp=$(node -p 'JSON.parse(require("fs").readFileSync("codex.mcp.json","utf8")).mcpServers.notarize.args[1].split("@")[1]')
+          dsh=$(node -p 'require("fs").readFileSync("cordis.patch.yml","utf8").match(/- .notarize-mcp@([0-9][0-9A-Za-z.+-]*)/)[1]')
+          if [[ "$version" == "$plugin" && "$version" == "$codex" && "$version" == "$codexmcp" && "$version" == "$dsh" ]]; then
+            echo "Every plugin surface already pins $PACKAGE@$version."; exit 0
+          fi
+          if [[ "$version" == *-* ]]; then echo "$version is a prerelease; the plugin surfaces stay on $plugin."; exit 0; fi
           # npm can take a minute or two to list a version it just accepted. When this run published,
           # wait for it, and fail if it never shows up; otherwise the plugin silently stays behind.
           # When publish didn't run, an unpublished version just means there's nothing to pin yet.
@@ -173,10 +183,10 @@ jobs:
           node scripts/bump-version.mjs "$version"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json .claude-plugin/plugin.json
-          git commit -m "Pin the Claude Code plugin to $PACKAGE@$version"
+          git add package.json .claude-plugin/plugin.json .codex-plugin/plugin.json cordis.patch.yml codex.mcp.json
+          git commit -m "Pin the plugin surfaces to $PACKAGE@$version"
           for attempt in 1 2 3; do
-            if git push origin HEAD:main; then echo "Plugin now pins $PACKAGE@$version."; exit 0; fi
+            if git push origin HEAD:main; then echo "Every plugin surface now pins $PACKAGE@$version."; exit 0; fi
             git pull --rebase origin main
           done
           echo "::error::$PACKAGE@$version is on npm, but main could not be updated (is it protected?). Re-run this workflow, or run 'node scripts/bump-version.mjs $version' and push to main."

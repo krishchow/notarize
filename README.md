@@ -10,11 +10,13 @@ A local **stdio MCP server** plus a **core skill** that take any macOS or iOS ap
 - **Skill** (`skills/apple-distribution`) teaches the agent the mental model, the zero-context workflow, golden rules and a debugging playbook, with references per topic and per framework.
 
 ## Install
-This repo ships two artifacts from each release. Both need Node ≥ 20 on your Mac.
+Each release ships one npm package carrying three plugin surfaces plus the server itself. All need Node ≥ 20 on your Mac.
 
-| Artifact | What it is | For |
+| Surface | What it is | For |
 |---|---|---|
 | npm package [`notarize-mcp`](https://www.npmjs.com/package/notarize-mcp) | The MCP server, run with `npx -y notarize-mcp` | Any MCP client |
+| …the same package as a **DeepSeek Harness bundle** | Mounts the server through `@deepseek-ai/dsh-mcp-client` and both skills through a bundled skill root | DeepSeek Harness |
+| …the same repository as a **Codex plugin** | Declares the server and both skills together, with `setup` as the onboarding skill | Codex |
 | Claude Code plugin (this repo's marketplace) | The `setup` and `apple-distribution` skills, plus the same server pinned to the matching version | Claude Code |
 
 ### Claude Code: the plugin (skill + MCP server)
@@ -23,6 +25,18 @@ This repo ships two artifacts from each release. Both need Node ≥ 20 on your M
 /plugin install notarize@notarize
 ```
 The plugin starts the server with `npx -y notarize-mcp@<plugin version>`, so the skill and the server always match.
+
+### Codex: the plugin (skill + MCP server)
+```bash
+codex plugin marketplace add krishchow/notarize
+codex plugin add notarize@notarize
+```
+[`.codex-plugin/plugin.json`](.codex-plugin/plugin.json) points at the skills directory and at [`codex.mcp.json`](codex.mcp.json), which starts the same pinned server over stdio. Because the plugin marks `skills/setup` as its onboarding skill, Codex offers to run setup straight after installing. See [docs/codex.md](docs/codex.md).
+
+### DeepSeek Harness: the bundle (skill + MCP server)
+Install the package as a profile bundle — in the sidebar's **Plugins** page, by asking the agent to call `plugin_manager` with `action: install_bundle` and `target: notarize-mcp`, or from a checkout with the repo's absolute path as `target`. `dsh plugin --profile … add notarize-mcp` is *not* the same thing: it passes straight through to `pnpm add`, which installs the package as a plain dependency without selecting it as a bundle, so its patch never applies.
+
+Its [`cordis.patch.yml`](cordis.patch.yml) composes two rows into the profile: the stdio server (so the tools arrive as `mcp__notarize__doctor`, `mcp__notarize__notarize_and_staple`, …) and a skill provider that scans the package's own `skills/` directory (so `apple-distribution` and `setup` join the session catalog). See [docs/dsh.md](docs/dsh.md) for what the bundle does, how it resolves its paths, and its one credential caveat.
 
 ### Any MCP client: just the server
 Claude Code without the plugin:
@@ -126,6 +140,8 @@ Layout: `src/core` (argv-only command runner, confirm tokens, jobs, config, reda
 
 ## Documentation
 - [docs/agent-integration.md](docs/agent-integration.md): confirm and auto-confirm contract, jobs and Monitor, restarts, permissions, network allowlist.
+- [docs/codex.md](docs/codex.md): the Codex plugin — install, what it declares, the environment allowlist and timeouts.
+- [docs/dsh.md](docs/dsh.md): the DeepSeek Harness bundle — install paths, the rows it composes, and its credential caveat.
 - [docs/tools.md](docs/tools.md): every tool, action and argument (generated).
 - [docs/testing.md](docs/testing.md): unit tests, recorded macOS output, smoke test, live Apple tests.
 - [CLAUDE.md](CLAUDE.md): architecture and invariants for contributors and coding agents.
