@@ -1,5 +1,13 @@
 # notarize-mcp
 
+## 1.2.0
+
+### Minor Changes
+
+- [#17](https://github.com/krishchow/notarize/pull/17) [`3d470f6`](https://github.com/krishchow/notarize/commit/3d470f69ad1c9cb7ca924d31c1995f25a7c954fc) Thanks [@krishchow](https://github.com/krishchow)! - The repository is now a Codex plugin: `codex plugin marketplace add krishchow/notarize` then `codex plugin add notarize@notarize` installs the MCP server and both skills, with `setup` as the onboarding skill. The server's credential variables are listed so Codex forwards them to the child process.
+
+- [#17](https://github.com/krishchow/notarize/pull/17) [`3d470f6`](https://github.com/krishchow/notarize/commit/3d470f69ad1c9cb7ca924d31c1995f25a7c954fc) Thanks [@krishchow](https://github.com/krishchow)! - The package is now a DeepSeek Harness bundle: installing it into a DSH profile (`plugin_manager` `install_bundle`, or the sidebar's Plugins page) mounts the MCP server as `mcp__notarize__*` tools and adds both skills, `apple-distribution` and `setup`, to the session catalog.
+
 ## 1.1.0
 
 ### Minor Changes
