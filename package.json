@@ -10,10 +10,18 @@
   "files": [
     "dist",
     "skills",
+    "cordis.patch.yml",
     "README.md"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=20",
+    "dsh": ">=0.2.0-rc.2"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
   },
   "packageManager": "pnpm@12.8.1",
   "scripts": {
