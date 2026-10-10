@@ -2,7 +2,7 @@
   "mcpServers": {
     "notarize": {
       "command": "npx",
-      "args": ["-y", "notarize-mcp@1.1.0"],
+      "args": ["-y", "notarize-mcp@1.2.0"],
       "env_vars": [
         "ASC_KEY_ID",
         "ASC_ISSUER_ID",
