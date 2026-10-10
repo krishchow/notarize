@@ -15,6 +15,32 @@ const codexManifest = () => JSON.parse(readFileSync(join(ROOT, ".codex-plugin", 
 const codexMcp = () => JSON.parse(readFileSync(join(ROOT, "codex.mcp.json"), "utf8"));
 const packageJson = () => JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
 
+// One package, four surfaces, one version — but not always at the same instant. `changeset version`
+// (the Version Packages PR) bumps package.json alone, and release.yml's sync-plugin job moves the
+// four plugin surfaces onto it only once npm has the version, because main must never pin a version
+// npm cannot serve. Between those two steps package.json is legitimately *ahead* of the surfaces, so
+// the invariant to enforce here is that no surface is ever ahead of package.json (which would point
+// every plugin at a missing npm version) and that the surfaces never disagree with each other.
+const core = (v: string) => v.split("-")[0].split(".").map(Number);
+const compareVersions = (a: string, b: string) => {
+  const [x, y] = [core(a), core(b)];
+  return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
+};
+
+// The version each shipped surface pins, read the way release.yml's sync-plugin guard reads it.
+const surfaceVersions = (): Record<string, string> => {
+  const plugin = JSON.parse(readFileSync(join(ROOT, ".claude-plugin", "plugin.json"), "utf8"));
+  const manifest = codexManifest();
+  return {
+    ".claude-plugin/plugin.json": plugin.version,
+    ".codex-plugin/plugin.json": manifest.version,
+    "codex.mcp.json": codexMcp().mcpServers[manifest.name].args[1].split("@")[1],
+    "cordis.patch.yml": readFileSync(join(ROOT, "cordis.patch.yml"), "utf8").match(
+      /notarize-mcp@([0-9][0-9A-Za-z.+-]*)/,
+    )?.[1] as string,
+  };
+};
+
 describe("package", () => {
   it("pins the plugin to its own version, never ahead of package.json", async () => {
     const pkg = JSON.parse(await readFile(join(ROOT, "package.json"), "utf8"));
@@ -22,10 +48,7 @@ describe("package", () => {
     expect(plugin.mcpServers.notarize.args).toEqual(["-y", `notarize-mcp@${plugin.version}`]);
     // Between merging the Version Packages PR and the release workflow's sync-plugin job,
     // package.json is ahead of the plugin; the plugin is never ahead.
-    const core = (v: string) => v.split("-")[0].split(".").map(Number);
-    const [a, b] = [core(plugin.version), core(pkg.version)];
-    const cmp = a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
-    expect(cmp).toBeLessThanOrEqual(0);
+    expect(compareVersions(plugin.version, pkg.version)).toBeLessThanOrEqual(0);
   });
 
   it("publishes a self-contained tarball (bundle + skill, no runtime dependencies)", () => {
@@ -102,12 +125,12 @@ describe("package", () => {
     }
   });
 
-  it("keeps the DSH server pin equal to package.json, unlike the plugin which may lag", () => {
-    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+  it("keeps exactly one DSH server pin, in step with the other surfaces", () => {
     const patch = readFileSync(join(ROOT, "cordis.patch.yml"), "utf8");
     const pins = [...patch.matchAll(/notarize-mcp@([0-9A-Za-z.+-]+)/g)].map((m) => m[1]);
-    // The bundle layer has no version of its own, so its single pin is the only thing to keep in step.
-    expect(pins).toEqual([pkg.version]);
+    // The bundle layer has no version of its own, so its single pin is the only thing to keep in
+    // step — with the other surfaces, which bump-version.mjs moves together (see the test below).
+    expect(pins).toEqual([surfaceVersions()["cordis.patch.yml"]]);
   });
 
   it("ships skills that satisfy DeepSeek Harness discovery (kebab-case name, description)", () => {
@@ -130,7 +153,6 @@ describe("package", () => {
   });
 
   it("declares a Codex plugin whose manifest, MCP server and marketplace entry all agree", () => {
-    const pkg = packageJson();
     const manifest = codexManifest();
     const mcp = codexMcp();
     const market = JSON.parse(readFileSync(join(ROOT, ".agents", "plugins", "marketplace.json"), "utf8"));
@@ -138,7 +160,10 @@ describe("package", () => {
     // Codex rejects an install when the manifest name and the marketplace entry disagree, and
     // requires a name of ASCII alphanumerics, hyphens and underscores.
     expect(manifest.name).toMatch(/^[A-Za-z0-9_-]+$/);
-    expect(manifest.version).toBe(pkg.version);
+    // The manifest carries the version every surface pins, not package.json directly: package.json
+    // runs ahead between the Version Packages merge and sync-plugin (see "keeps every shipped
+    // surface on one version" below).
+    expect(manifest.version).toBe(surfaceVersions()[".codex-plugin/plugin.json"]);
     const entry = market.plugins.find((p: { name: string }) => p.name === manifest.name);
     expect(entry, "the marketplace must list the plugin under the manifest's name").toBeDefined();
     // The docs require all three on every entry; a missing policy is an install-time surprise.
@@ -186,21 +211,35 @@ describe("package", () => {
     for (const prompt of prompts) expect(prompt.length).toBeLessThanOrEqual(128);
   });
 
-  it("keeps every shipped surface on one version, and the release guard able to see that", () => {
+  it("keeps every shipped surface on one version, none ahead of package.json", () => {
     const pkg = packageJson();
+    const surfaces = surfaceVersions();
+    const versions = [...new Set(Object.values(surfaces))];
+    // One package, four surfaces: scripts/bump-version.mjs moves all of them together, so a
+    // disagreement means the release missed one.
+    expect(versions, JSON.stringify(surfaces)).toHaveLength(1);
+    expect(versions[0]).toMatch(/^\d+\.\d+\.\d+/);
+    // Never ahead of package.json — that would advertise an npm version that does not exist.
+    // Behind is the Version Packages merge → release.yml sync-plugin window, which is expected:
+    // prepublishOnly runs `pnpm run check` on exactly that tree.
+    expect(compareVersions(versions[0], pkg.version)).toBeLessThanOrEqual(0);
+  });
+
+  it("keeps the release guard able to read every version and pin it compares", () => {
     // Read the pins exactly as .github/workflows/release.yml does. A guard that cannot read a pin
     // never short-circuits, so sync-plugin re-runs bump-version and then fails to commit.
+    const surfaces = surfaceVersions();
     const probes: Record<string, string> = {
-      ".claude-plugin/plugin.json version": "require('./.claude-plugin/plugin.json').version",
-      ".codex-plugin/plugin.json version": "require('./.codex-plugin/plugin.json').version",
-      "codex.mcp.json pin":
+      ".claude-plugin/plugin.json": "require('./.claude-plugin/plugin.json').version",
+      ".codex-plugin/plugin.json": "require('./.codex-plugin/plugin.json').version",
+      "codex.mcp.json":
         "JSON.parse(require('fs').readFileSync('codex.mcp.json','utf8')).mcpServers.notarize.args[1].split('@')[1]",
-      "cordis.patch.yml pin":
+      "cordis.patch.yml":
         "require('fs').readFileSync('cordis.patch.yml','utf8').match(/- .notarize-mcp@([0-9][0-9A-Za-z.+-]*)/)[1]",
     };
     for (const [label, expr] of Object.entries(probes)) {
       const value = execFileSync("node", ["-p", expr], { cwd: ROOT }).toString().trim();
-      expect(value, `${label} must resolve to the package version`).toBe(pkg.version);
+      expect(value, `${label} must be readable by the release guard`).toBe(surfaces[label]);
     }
   });
 
