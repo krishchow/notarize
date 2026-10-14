@@ -25,6 +25,30 @@ a bundle):
 Installing changes the profile, so it affects every session in it and survives restarts. Remove it
 with `plugin_manager` `action: remove_bundle`.
 
+### A git-URL install has to build itself
+
+`dist/` is build output — gitignored, published only to npm — so a package installed from a **git
+URL** (a `github:owner/repo` spec, or an install that resolves this checkout to its origin) arrives
+with no server binary. Two things then have to line up:
+
+- **The package builds itself on install.** `prepare` in `package.json` runs `tsup`; that is the
+  lifecycle npm and pnpm actually run for a git dependency (`prepublishOnly` never fires there).
+- **The installer is allowed to run it.** pnpm — what DSH's plugin manager uses — refuses a git
+  dependency's build scripts until the package is allowlisted, and says exactly that:
+  `ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED ... is not in the "allowBuilds" allowlist`. DSH turns that
+  into a pending build to approve (`plugin_manager` `approvedBuilds`).
+
+Without both, the install can finish with no `dist/notarize-mcp.js`, and the resulting failure looks
+nothing like its cause. The server row runs `npx` with the working directory set to *this profile*,
+so `npx` finds the local, dist-less `notarize-mcp` in the profile's `node_modules` instead of
+downloading the pinned release, tries to execute a binary that does not exist, and the MCP client
+reports only `SdkError: Connection closed` — "initial connection or tool synchronization failed".
+
+Already there? Reinstall the bundle from the npm registry (`plugin_manager` `action: install_bundle`,
+`target: notarize-mcp`): the tarball contains `dist/`, so the `npx` row resolves a runnable copy.
+Installing from npm or from a built checkout avoids the question entirely — nothing to build,
+nothing to approve.
+
 ## What the bundle composes
 
 [`cordis.patch.yml`](../cordis.patch.yml) at the package root is the bundle's patch layer. It adds
