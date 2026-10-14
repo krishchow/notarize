@@ -1,5 +1,11 @@
 # notarize-mcp
 
+## 1.2.1
+
+### Patch Changes
+
+- [#19](https://github.com/krishchow/notarize/pull/19) [`a179fbe`](https://github.com/krishchow/notarize/commit/a179fbed5a8342aef726b1ee783d061989fc7f39) Thanks [@krishchow](https://github.com/krishchow)! - Build `dist` during install (`prepare`), so installing the package from a git URL — including the DeepSeek Harness bundle's `github:` install — produces a runnable server instead of one whose `npx` row resolves a dist-less local copy and fails to start with `SdkError: Connection closed`.
+
 ## 1.2.0
 
 ### Minor Changes
