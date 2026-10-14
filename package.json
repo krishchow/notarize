@@ -38,6 +38,7 @@
     "test:live": "vitest run --config vitest.live.config.ts",
     "changeset": "changeset",
     "version-packages": "changeset version",
+    "prepare": "tsup",
     "prepublishOnly": "pnpm run check"
   },
   "keywords": [

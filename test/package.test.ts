@@ -125,6 +125,24 @@ describe("package", () => {
     }
   });
 
+  it("builds dist on install, so a git-URL install of the bundle is runnable", () => {
+    const pkg = packageJson();
+    // `dist/` is build output and is never committed, so a package installed from a git URL (a
+    // `github:` spec, or an install that resolves this checkout to its origin) has no server binary
+    // unless the package builds itself. `prepare` is the lifecycle npm and pnpm run for a git
+    // dependency; `prepublishOnly` never fires there. pnpm additionally refuses it until the consumer
+    // allowlists the build (ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED), which DSH surfaces as a pending
+    // build to approve — a detectable failure rather than a silently dist-less install, where the
+    // bundle's `npx` row resolves the broken local copy and the MCP client reports only
+    // "Connection closed" (see docs/dsh.md).
+    expect(readFileSync(join(ROOT, ".gitignore"), "utf8")).toMatch(/^dist\/$/m);
+    expect(pkg.files).toContain("dist");
+    // Direct `tsup`, not `pnpm run build`: npm and pnpm both run this script, and a pnpm-only
+    // installer has no npm to fall back on. Keeping the two strings equal makes a future change to
+    // the build command fail here rather than leave `prepare` behind.
+    expect(pkg.scripts.prepare).toBe(pkg.scripts.build);
+  });
+
   it("keeps exactly one DSH server pin, in step with the other surfaces", () => {
     const patch = readFileSync(join(ROOT, "cordis.patch.yml"), "utf8");
     const pins = [...patch.matchAll(/notarize-mcp@([0-9A-Za-z.+-]+)/g)].map((m) => m[1]);
