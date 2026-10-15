@@ -1,5 +1,11 @@
 # notarize-mcp
 
+## 1.3.0
+
+### Minor Changes
+
+- [#21](https://github.com/krishchow/notarize/pull/21) [`6881566`](https://github.com/krishchow/notarize/commit/6881566a688fe2ccb2da947bc94af26bc4ba1b88) Thanks [@krishchow](https://github.com/krishchow)! - Improve TestFlight setup with explicit invitation sending and accurate tester states, surface upload-processing failures before builds become visible, fix capability listing and resource-bundle signature false positives, and document App Group assignment and manual-signing recovery before archiving.
+
 ## 1.2.1
 
 ### Patch Changes
