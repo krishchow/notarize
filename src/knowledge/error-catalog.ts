@@ -29,6 +29,36 @@ export interface KnownError {
 }
 
 export const ERROR_CATALOG: KnownError[] = [
+  {
+    id: "tf-no-installable-build",
+    source: "upload",
+    pattern:
+      /STATE_ERROR\.TESTER_INVITE\.NO_INSTALLABLE_BUILDS|[Tt]ester has no installable build|this tester has no installable builds/,
+    title: "TestFlight tester has no installable build",
+    explanation:
+      "Group membership does not guarantee an invitation. Apple sends TestFlight invitations only when the tester can install a build.",
+    fix: [
+      "Upload a build and wait for VALID with asc_builds wait_processing",
+      "Answer export compliance and attach the build with testflight add_build_to_group; external groups also need beta app review",
+      "Check testflight testers invitation state before send_invites: attaching the build may invite automatically",
+    ],
+    tool: "testflight",
+  },
+  {
+    id: "xc-api-auth",
+    source: "xcodebuild",
+    pattern: /Authentication failed: Make sure a bearer token was provided/,
+    title: "Xcode automatic-signing API authentication failed",
+    explanation:
+      "Xcode could not authenticate its provisioning request. This can happen even when the same API key works with the App Store Connect API; missing profiles are a consequence, not a reason to repeat the same archive.",
+    fix: [
+      "Validate the key with asc_auth action=test",
+      "If the API key works, create/install IOS_APP_STORE profiles with asc_profiles for every app and extension; validate their entitlements",
+      "Configure each app/extension Release target's manual signing settings in the project (not on Pods), then xcode archive signing_style=manual allow_provisioning_updates=false",
+    ],
+    tool: "asc_auth / asc_profiles / xcode",
+    supersedes: ["xc-no-profile"],
+  },
   // ---------------- keychain / codesign ----------------
   {
     id: "keychain-prompt-timeout",

@@ -19,11 +19,20 @@
 ## Upload → processing
 1. `xcode action=export target=testflight-ios destination=upload` (Xcode projects) or `upload_build path=App.ipa|App.pkg`.
 2. `asc_builds action=wait_processing app=<bundle id> build_number=<N>` — 5–30 min; returns a Monitor command when it runs long. States: PROCESSING → VALID (or FAILED/INVALID; App Store Connect emails the ITMS reasons).
+   - Before a `builds` record appears, the tool checks `apps/<id>/buildUploads` for the same build number (and `version` when supplied), reports upload progress, and stops on upload validation failure. `PROCESSING` here means Apple has the upload even if the build list is empty. Do not upload it again. If the key/API cannot read upload records, monitoring falls back to the build list.
+
+## App Groups and extensions
+- Each app extension needs a bundle ID and signing profile of its own. It ships inside the containing app's archive; it does not need a separate App Store Connect app record.
+- Enabling `APP_GROUPS` via the API is only the capability toggle. Register the exact `group.…` identifier via **Apple Developer → Certificates, Identifiers & Profiles → Identifiers → + → App Groups**, then assign it through **App Groups → Configure** on each app and extension App ID. If you're on an **App / App Clip** screen, go back to the first identifier-type screen. Use the correct Developer team/account; App Store Connect tester access does not establish Developer portal access.
+- The public API cannot register/assign containers. Refresh profiles after the portal assignment and validate **both** the app and extension entitlements. A profile with `com.apple.security.application-groups=[]` cannot sign a target requesting the shared container.
+- If Xcode automatic signing fails with bearer-token authentication but `asc_auth action=test` succeeds, use the manual distribution-signing route above. Do not repeatedly retry the same automatic archive or rotate a working key. Configure identity/profile settings per app/extension Release target, not globally on Pods.
 
 ## TestFlight
 - **Internal** group: App Store Connect users (up to 100), builds available right after processing, no review.
 - **External** group: up to 10,000 testers by email or public link; the first build of each version needs **beta app review** (`testflight submit_beta_review`) — set the beta review contact info once in App Store Connect → TestFlight → Test Information.
-- `testflight create_group` → `add_testers` → `add_build_to_group` → `set_what_to_test`.
+- `testflight create_group` → `add_testers` sets up group membership. Until an installable build exists, tester state may remain `NOT_INVITED`; adding membership is not confirmation that Apple sent an email.
+- Upload → `asc_builds wait_processing` → answer export compliance → `testflight add_build_to_group` → `testflight testers group_id=<id>` / `testflight status build_id=<id>`. Attaching a build may automatically send the invitation (`INVITED`); don't send a duplicate. If a send/resend is still needed, use `testflight send_invites app=<app> testers=[{email: <email>}]` through confirmation. Apple refuses invitations with "Tester has no installable build" until the tester has access to a testable build. External groups also need beta review.
+- Add `set_what_to_test` notes as needed. Report upload success, processing success, group assignment and invitation state as separate outcomes.
 - Mac TestFlight additionally requires a provisioning profile in every executable bundle (helpers too) — ITMS-90886/90889.
 - Builds expire after 90 days.
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AscResource } from "../asc/client";
+import { AscApiError, type AscResource } from "../asc/client";
 import { FOREGROUND_SECONDS } from "../core/jobs";
 import { ToolError } from "../core/result";
 import { resolveAppId, slimResource, table } from "./asc-common";
@@ -64,14 +64,14 @@ export const ascBuildsTool = defineTool({
   name: "asc_builds",
   title: "Uploaded builds and processing status",
   description:
-    "action=list: recent builds for an app (version, build number, processing state, expiry). action=get. action=wait_processing: after an upload, poll until the build appears and reaches VALID (usable for TestFlight / review) or FAILED/INVALID — typically 5–30 min; continues as a background job with a Monitor command. action=set_encryption_compliance (confirm): answer the export-compliance question (usesNonExemptEncryption) so the build becomes testable — or add ITSAppUsesNonExemptEncryption to Info.plist to skip this forever. action=expire (confirm).",
+    "action=list: recent builds for an app (version, build number, processing state, expiry). action=get. action=wait_processing: after an upload, poll until the build reaches VALID or FAILED/INVALID; before the build becomes visible, inspect its buildUploads record for upload progress and validation errors. Normally takes 5–30 min; continues as a background job with a Monitor command. action=set_encryption_compliance (confirm): answer the export-compliance question (usesNonExemptEncryption) so the build becomes testable — or add ITSAppUsesNonExemptEncryption to Info.plist to skip this forever. action=expire (confirm).",
   mutating: true,
   input: {
     action: z.enum(["list", "get", "wait_processing", "set_encryption_compliance", "expire"]),
     app: z.string().optional().describe("App id or bundle ID."),
     build_id: z.string().optional(),
     build_number: z.string().optional().describe("CFBundleVersion (wait_processing / list filter)."),
-    version: z.string().optional().describe("CFBundleShortVersionString (list filter)."),
+    version: z.string().optional().describe("CFBundleShortVersionString (list / wait_processing filter)."),
     uses_non_exempt_encryption: z
       .boolean()
       .optional()
@@ -132,7 +132,7 @@ export const ascBuildsTool = defineTool({
       return {
         summary: rows.length
           ? table(rows, ["marketingVersion", "buildNumber", "processingState", "uploadedDate", "id"])
-          : "No builds uploaded yet.",
+          : "No build records are visible yet. If an upload succeeded, use wait_processing; uploads may still be processing before a build appears.",
         data: { builds: rows, latestBuildNumber: rows[0]?.buildNumber },
       };
     }
@@ -148,19 +148,58 @@ export const ascBuildsTool = defineTool({
           const deadline = Date.now() + (args.wait_minutes ?? 60) * 60000;
           let state = "NOT_VISIBLE_YET";
           let build: Record<string, unknown> | undefined;
+          let upload: AscResource | undefined;
+          let uploadStatusUnavailable: string | undefined;
           while (Date.now() < deadline && !j.signal.aborted) {
-            const rows = rowsOf(await listBuilds(appId, args.build_number, undefined, 5));
+            const rows = rowsOf(await listBuilds(appId, args.build_number, args.version, 5));
             build = rows[0];
             state = String(build?.processingState ?? "NOT_VISIBLE_YET");
-            j.progress(`Build ${args.build_number}: ${state}`);
+            if (!build && !uploadStatusUnavailable) {
+              try {
+                const uploads = await client.list(`apps/${appId}/buildUploads`, { limit: undefined }, 200);
+                upload = uploads.data
+                  .filter(
+                    (u) =>
+                      u.attributes?.cfBundleVersion === args.build_number &&
+                      (!args.version || u.attributes?.cfBundleShortVersionString === args.version),
+                  )
+                  .sort(
+                    (a, b) =>
+                      Date.parse(b.attributes?.uploadedDate ?? b.attributes?.createdDate ?? "") -
+                      Date.parse(a.attributes?.uploadedDate ?? a.attributes?.createdDate ?? ""),
+                  )[0];
+                if (upload) {
+                  j.setMeta("uploadId", upload.id);
+                  const uploadState = upload.attributes?.state?.state;
+                  if (uploadState === "FAILED") state = "FAILED";
+                  j.progress(
+                    `Upload ${args.build_number}: ${uploadState ?? "UNKNOWN"} (build not visible yet)`,
+                  );
+                } else j.progress(`Build ${args.build_number}: ${state}`);
+              } catch (e) {
+                // Older APIs / restricted keys may not expose buildUploads. Keep watching builds.
+                if (!(e instanceof AscApiError) || ![403, 404].includes(e.status)) throw e;
+                uploadStatusUnavailable = e.message;
+                j.progress(`Build ${args.build_number}: ${state} (upload status unavailable)`);
+              }
+            } else j.progress(`Build ${args.build_number}: ${state}`);
             if (build) j.setMeta("buildId", build.id);
             if (TERMINAL.has(state)) break;
             await new Promise((r) => setTimeout(r, 30000));
           }
           const ok = state === "VALID";
+          const uploadErrors = (upload?.attributes?.state?.errors ?? []) as Record<string, unknown>[];
+          const details = uploadErrors
+            .map((e) => String(e.description ?? e.message ?? e.detail ?? e.code ?? "Upload validation error"))
+            .join("; ");
           return {
-            summary: `Build ${args.build_number}: ${state}.${ok ? "" : state === "NOT_VISIBLE_YET" || state === "PROCESSING" ? " Still processing — check again later." : " Processing failed — check the email from App Store Connect for ITMS errors."}`,
-            data: { build, state },
+            summary: `Build ${args.build_number}: ${state}.${!build && upload ? ` Upload ${upload.id}: ${upload.attributes?.state?.state}.` : ""}${ok ? "" : state === "NOT_VISIBLE_YET" || state === "PROCESSING" ? " Still processing — check again later; do not re-upload." : ` Processing failed${details ? `: ${details}` : " — check the email from App Store Connect for ITMS errors"}.`}`,
+            data: {
+              build,
+              state,
+              ...(!build && upload ? { upload: slimResource(upload) } : {}),
+              ...(uploadStatusUnavailable ? { uploadStatusUnavailable } : {}),
+            },
             next_steps: ok
               ? [
                   build?.usesNonExemptEncryption === undefined || build?.usesNonExemptEncryption === null

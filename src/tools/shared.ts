@@ -314,7 +314,7 @@ export async function inspectSignature(
     const nested = (await discoverNestedCode(path)).filter((n) => n.relativePath !== ".");
     report.nestedTruncated = nested.length > MAX_NESTED;
     for (const n of nested.slice(0, MAX_NESTED)) {
-      report.nested.push(await inspectComponent(ctx, n, display.teamIdentifier, report.signer));
+      report.nested.push(await inspectComponent(ctx, n, display.teamIdentifier, report.signer, opts.target));
     }
   }
 
@@ -327,20 +327,26 @@ async function inspectComponent(
   n: NestedCode,
   rootTeam?: string,
   rootSigner?: SignerKind,
+  target?: TargetId,
 ): Promise<ComponentSignature> {
   const r = await ctx.runner.run("codesign", ["-dvvv", n.path], { timeoutMs: 30000 });
   const info = parseCodesignDisplay(output(r));
   const signed = ok(r) && info.isSigned;
   const signer = signed ? signerKind(info) : "unsigned";
   const issues: string[] = [];
+  const developerId = target === "mac-developer-id" || (!target && rootSigner === "developer-id");
   if (!signed) issues.push("unsigned");
   else {
     if (signer === "adhoc") issues.push("ad-hoc signature");
-    if (!info.hardenedRuntime && ["executable", "app", "xpc", "appex", "systemextension"].includes(n.kind))
+    if (
+      developerId &&
+      !info.hardenedRuntime &&
+      ["executable", "app", "xpc", "appex", "systemextension"].includes(n.kind)
+    )
       issues.push("hardened runtime not enabled");
-    if (rootSigner === "developer-id" && ["apple-development", "apple-distribution"].includes(signer))
+    if (developerId && ["apple-development", "apple-distribution"].includes(signer))
       issues.push(`signed with ${info.authorities[0]} instead of Developer ID`);
-    if (!info.hasSecureTimestamp && signer !== "apple") issues.push("no secure timestamp");
+    if (developerId && !info.hasSecureTimestamp && signer !== "apple") issues.push("no secure timestamp");
     if (rootTeam && info.teamIdentifier && info.teamIdentifier !== rootTeam && signer !== "apple")
       issues.push(`different Team ID (${info.teamIdentifier} vs ${rootTeam})`);
   }

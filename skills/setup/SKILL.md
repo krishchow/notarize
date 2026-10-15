@@ -38,7 +38,7 @@ Output fields:
 Exit codes: `0` means ready, or the plan was computed; `1` means not ready; `2` means bad input or a refused action. A refused action, such as overwriting a different key, comes back as an `error` field.
 
 ### Flow
-1. Run `check`. If `ready` is true and there are no warnings you care about, say so in one line and move on.
+1. Run `check`. If `ready` is true and there are no warnings you care about, say so in one line and run `check --online` before Apple account changes. A sandbox DNS/keychain-access failure is not evidence of a revoked key or stale keychain profile: validate with the required host permissions before replacing credentials.
 2. If `resolved.discoveredKeys` is present, a key is **already installed**: the Key ID is in its filename. Confirm with the user that it is the key to use (if there are several, ask which), ask only for the **Issuer ID** and **Team ID** (with where to find them), and go to step 4 with `--key-id <ID>` and no `--p8`. Don't search other folders (like `~/Downloads`) yourself: the script already looks in every folder the tools read keys from (listed under "Resolution order" below), and asking the user for the path is more reliable than guessing.
 3. Otherwise, if `asc_key_id` or `p8_path` fails, the user must create a key. That step is manual:
    1. Open App Store Connect → Users and Access → Integrations → App Store Connect API → **Team Keys** → **+**.
@@ -68,7 +68,7 @@ Exit codes: `0` means ready, or the plan was computed; `1` means not ready; `2` 
 
 ## Part 1b: register a device (optional, ask once)
 
-After the credentials are ready, ask once: **"Will you install development builds on a physical iPhone or iPad?"** Before they answer, explain who needs this:
+After the credentials are ready, reuse any device/testing intent the user already stated. Otherwise ask once: **"Will you install development builds on a physical iPhone or iPad?"** First use `asc_devices action=list platform=IOS`; if the intended device is already enabled, reuse its registration. Before they answer, explain who needs this:
 - **Yes, they will:** development (and Ad Hoc) profiles only run on registered devices.
 - **TestFlight / App Store only, with automatic signing (the `xcode` tool's default):** they still need **one** registered device. An iOS archive with automatic signing is built with a development profile first, and Apple won't make one for a team with no devices ("Your team has no devices…").
 - **TestFlight / App Store only, signing manually** (an `IOS_APP_STORE` profile + `xcode archive signing_style=manual`) or **building with EAS:** they can skip this.
@@ -96,19 +96,24 @@ The keychain copy doesn't follow key rotation: after revoking or replacing the A
 
 Do this when the user names a project, or before the first build, upload or notarization of one. The goal is a confirmed set of values: **bundle ID, Team ID, app name, version + build number, and target(s)**.
 
+Do independent read-only checks and prepare related previews before stopping for confirmation. Ask for metadata, missing values and approval of the concrete previews together where possible. Reuse answers already given; a finished check is not a new approval gate. Keep each mutation behind its confirm token, and do not change auto-confirm settings to avoid asking.
+
 1. Run **`detect_project path=<repo>`**. It reads the values from the framework's real source of truth (table below) and flags missing or inconsistent ones, such as different bundle IDs per configuration, no `DEVELOPMENT_TEAM`, or an Expo app without `ios.bundleIdentifier`.
 2. **Confirm with the user.** Show what was found, for example: "Bundle ID `com.acme.notes`, team `ABCDE12345`, version 1.4.0 (build 12). Is that right?"
    - If no bundle ID is set, propose one in reverse-DNS form based on a domain they own. Explain that it is **permanent** once an app ships to the App Store or TestFlight. A Developer ID–only Mac app can rename later, but users lose their preferences and TCC grants.
-   - If there are several targets (app plus extensions or widgets), each needs its own ID under the app's ID, e.g. `com.acme.notes.widget`.
+   - If there are several targets (app plus extensions or widgets), each needs its own ID under the app's ID, e.g. `com.acme.notes.widget`. The extension is embedded in the app and ships in the same upload/installation; create one App Store Connect app record for the containing app, not another for each widget.
 3. **Write the confirmed values into the project's own files** with your editor. Never keep them in a side file, because the project files are what the build reads. Show the diff.
 4. **Register with Apple** (these go through the confirm flow):
    - Look up the ID with `asc_bundle_ids action=list bundle_id=<id>`. If it is missing, run `asc_bundle_ids action=create bundle_id=<id> name=<App Name> platform=IOS|MAC_OS|UNIVERSAL`.
    - Enable the capabilities the entitlements need with `asc_bundle_ids action=enable_capability`.
+   - **App Groups have a second, manual step.** Enabling `APP_GROUPS` does not register or assign `group.…` containers. The public App Store Connect API cannot do those operations. Before creating profiles/archiving, open [Apple Developer → Certificates, Identifiers & Profiles → Identifiers](https://developer.apple.com/account/resources/identifiers/list), click **+**, choose **App Groups** on the first identifier-type screen, then enter a description and the exact group identifier from the entitlements. If the screen offers **App / App Clip**, go back one screen. For **each app and extension App ID**, use **App Groups → Configure → select the group → Continue → Assign → Done/Save**. Use the correct team; if the option is absent, verify Developer portal access with the Account Holder—App Store Connect tester/admin access alone does not establish portal access. [Apple's registration guide](https://developer.apple.com/help/account/identifiers/register-an-app-group) and [assignment guide](https://developer.apple.com/help/account/identifiers/enable-app-capabilities).
+   - After assignment, refresh every affected profile and run `entitlements action=validate path=<target entitlements> profile=<installed profile> target=<target>`. An enabled capability with a profile containing `com.apple.security.application-groups=[]` is **not ready**. Check the app and every extension before building.
    - For App Store or TestFlight targets, run `asc_apps action=find_by_bundle_id bundle_id=<id>`. If no record exists, `asc_apps action=create_instructions` gives the manual click path. The API can't create app records, so the user will also choose a **SKU** and **primary language** there.
 5. **TestFlight group** (TestFlight/App Store targets, once the app record exists). Like the app record, this is a one-time step per app, not per build:
-   - Ask "Who should get builds?" Start with the user themselves.
+   - Ask "Who should get builds?" Start with the user themselves; reuse their stated email if already provided.
    - `testflight action=create_group app=<bundle id> group_name="<App> Internal" internal=true`, then `testflight action=add_testers group_id=<id> testers=[{email: <their Apple ID email>}]`. Internal testers must already be users on the App Store Connect team, so an Account Holder or Admin can add themselves; internal groups need no review.
-   - Say what happens per upload: each processed build is attached with `testflight action=add_build_to_group`, and testers get it in the TestFlight app.
+   - `add_testers` adds membership; it does **not** prove Apple sent an invitation. Before any build is attached, Apple may report `NOT_INVITED` and refuse `send_invites` with "Tester has no installable build". Explain this without promising an email.
+   - Per upload: wait for `VALID`, answer export compliance if needed, then attach with `testflight action=add_build_to_group`. Read `testflight action=testers group_id=<id>` and `testflight action=status build_id=<id>` afterwards. Attaching the first installable build may automatically change the tester to `INVITED`; do not send a duplicate invitation. Use `testflight action=send_invites app=<bundle id> testers=[{email: <email>}]` only when a send/resend is still needed, through its confirm flow.
    - External testers (anyone by email or public link) go in a separate external group, and the first build of each version needs beta app review (`submit_beta_review`). Only set that up if they ask.
 6. If the Team ID was missing from the credentials profile, save it with `setup.mjs apply --team-id <ID>`.
 7. Hand off to `apple-distribution`. Its next step is `distribution_checklist path=<repo> target=<target>`.

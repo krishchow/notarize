@@ -75,6 +75,9 @@ export function explainAscError(status: number, errors: AscErrorEntry[]): string
   }
   if (status === 404) return "Resource not found — check the ID, or that it belongs to this team.";
   if (status === 409) {
+    if (text.includes("no_installable_builds") || text.includes("no installable build")) {
+      return "TestFlight cannot send this invitation yet. Upload a build, wait for VALID (asc_builds wait_processing), answer export compliance, then attach it to the tester's group (testflight add_build_to_group). External groups also require beta app review. Check tester state before resending: attaching a build may invite them automatically.";
+    }
     if (text.includes("already exists") || text.includes("duplicate")) {
       return "The resource already exists (identifiers must be unique across ALL Apple teams). List existing resources or pick a different identifier.";
     }

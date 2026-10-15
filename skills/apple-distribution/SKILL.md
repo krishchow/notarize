@@ -49,6 +49,7 @@ Details: [references/targets.md](references/targets.md).
 3. **Ask the user which target(s) they want**, unless it's obvious. Explain the trade-off in one or two sentences, e.g. "Website download → Developer ID + notarization; App Store → review + sandbox".
 4. **`distribution_checklist path=… target=…`**: the ordered list of what is missing. Each item names the exact tool call or manual step that fixes it.
 5. Work through the blocking items **in order**, re-running the checklist after a few fixes.
+   - For App Groups, register/assign the actual shared container to **every app and extension App ID** in the Developer portal, then refresh profiles and validate each target's entitlements. The `APP_GROUPS` capability toggle alone does not grant `group.…`; the public API cannot register/assign those containers. See the setup skill's project step before attempting an archive.
 6. **Build and sign.**
    - Xcode-based (incl. Flutter/RN): `xcode action=archive`, then `xcode action=export`. Automatic signing plus the API key lets Xcode create certificates and profiles itself.
    - Electron/Tauri: use the framework's signing config, using the snippets from `detect_project`.
@@ -56,10 +57,11 @@ Details: [references/targets.md](references/targets.md).
 7. **Verify** with `inspect_code_signature path=… target=…`. Fix every ✗ before continuing.
 8. **Ship.**
    - Developer ID: optionally `package action=dmg identity=auto`, then `notarize_and_staple`, then `gatekeeper action=simulate_download`.
-   - Store/TestFlight: `upload_build` (or export with `destination=upload`), then `asc_builds action=wait_processing`, then `testflight …` or `app_store …`.
+   - Store/TestFlight: `upload_build` (or export with `destination=upload`), then `asc_builds action=wait_processing`, then `testflight …` or `app_store …`. A successful upload is not yet an installable build. For TestFlight, attach the processed/compliant build to the group, then inspect tester state. Membership alone does not mean an invitation was sent; `INVITED` after attachment may be automatic. Use `testflight action=send_invites` only if still needed.
 9. Offer **`ci_config`** to automate it.
 
 ### Things only the human can do (give them exact click paths)
+- **Register/assign App Groups.** Apple Developer → Certificates, Identifiers & Profiles → Identifiers → **+ → App Groups**, then each app/extension App ID → App Groups → Configure → select group → Continue → Assign. Use the Account Holder/correct Developer team if the option is missing. Refresh profiles and validate entitlements afterwards; public API capability enablement alone is insufficient.
 - **Enroll** in the Apple Developer Program at developer.apple.com/programs/enroll. Organizations need a D-U-N-S number, and approval can take days.
 - **Accept agreements.** The Account Holder accepts updated agreements at developer.apple.com/account and in App Store Connect → Business. A 403 mentioning "agreement" means this step is pending.
 - **Create an App Store Connect API key.** Go to App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → "+" and pick the **Admin** role (App Manager works for most store and TestFlight tasks). The **.p8 can be downloaded only once**. Then store it per [Where the API key lives](#where-the-api-key-lives) and run `asc_auth action=configure` (or set the env vars).
@@ -120,6 +122,7 @@ Monitor({ command: <monitor.command>, description: <monitor.description>, timeou
 
 Every tool that changes something returns a **PREVIEW** first and changes nothing. This covers signing, keychain imports, notarization uploads, App Store Connect writes and file overwrites. The preview shows exact commands and API calls, any warnings, and a `confirm_token`.
 1. Show the user the preview in plain words: what will happen and anything irreversible. **Name the tool** ("`upload_build` will upload Radarr.ipa to App Store Connect"). The commands in a preview are what the tool runs for you, so present them as "under the hood". Never present them as a command for the user (or you) to type, or the user can't tell a vetted tool call from an improvised shell command.
+   - Prepare independent read-only checks and related previews before asking; present those previews together where possible. Reuse user-supplied target, team, device and tester information. Avoid approval questions about checks or work already covered by an approved preview; changed actions still need their own preview and approval. Never weaken token checks or set auto-confirm on the user's behalf.
 2. Only after they agree, call the **same tool with identical arguments** plus `confirm_token`. If arguments change you get a new preview, which is intended.
 3. `destructive: true` previews need explicit approval: revoking certificates, deleting profiles or bundle IDs, uploads, submitting for review, releasing. **Revoking a Developer ID certificate breaks already-shipped apps for new users**, so only do it if the key leaked.
 4. Never fabricate a token. Tokens expire after 10 minutes.

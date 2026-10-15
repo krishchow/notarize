@@ -10,7 +10,7 @@ export const testflightTool = defineTool({
   name: "testflight",
   title: "TestFlight: groups, testers, builds, beta review",
   description:
-    "action=groups / testers / status (internal + external beta state of a build). action=create_group (confirm): internal (App Store Connect users, no review) or external (anyone by email or public link; first build of each version needs beta app review). action=add_testers / remove_testers (confirm): invite by email to a group. action=add_build_to_group (confirm). action=set_what_to_test (confirm): 'What to Test' notes for a build. action=submit_beta_review (confirm): submit a build for external testing review (requires beta review contact info set once in App Store Connect → TestFlight → Test Information). Builds must be VALID and have export compliance answered (asc_builds).",
+    "action=groups / testers / status (internal + external beta state of a build). testers accepts group_id without app and displays invitation state. action=create_group (confirm): internal (App Store Connect users, no review) or external (anyone by email or public link; first build of each version needs beta app review). action=add_testers / remove_testers (confirm): manage group membership by email; adding a tester does not guarantee an invitation was sent. action=send_invites (confirm): send/resend TestFlight invitations for existing testers of an app; requires an installable build. action=add_build_to_group (confirm). action=set_what_to_test (confirm): 'What to Test' notes for a build. action=submit_beta_review (confirm): submit a build for external testing review (requires beta review contact info set once in App Store Connect → TestFlight → Test Information). Builds must be VALID and have export compliance answered (asc_builds).",
   mutating: true,
   input: {
     action: z.enum([
@@ -19,6 +19,7 @@ export const testflightTool = defineTool({
       "status",
       "create_group",
       "add_testers",
+      "send_invites",
       "remove_testers",
       "add_build_to_group",
       "set_what_to_test",
@@ -36,7 +37,8 @@ export const testflightTool = defineTool({
       .array(
         z.object({ email: z.string(), first_name: z.string().optional(), last_name: z.string().optional() }),
       )
-      .optional(),
+      .optional()
+      .describe("add_testers / remove_testers / send_invites: tester email addresses."),
     build_id: z.string().optional(),
     what_to_test: z.string().optional(),
     locale: z.string().optional().describe("set_what_to_test: default en-US."),
@@ -72,7 +74,11 @@ export const testflightTool = defineTool({
           return {
             summary: "Build added to group.",
             data: { ok: true },
-            next_steps: ["testflight action=submit_beta_review (external groups)"],
+            next_steps: [
+              `testflight action=testers group_id=${args.group_id} (INVITED confirms an invitation; do not resend if already invited)`,
+              "testflight action=send_invites app=<app> testers=[{email: <email>}] only if still NOT_INVITED and a build is installable",
+              "testflight action=submit_beta_review (external groups only)",
+            ],
           };
         },
       );
@@ -174,22 +180,29 @@ export const testflightTool = defineTool({
         extra,
         args,
         () => ({
-          title: `Invite ${args.testers!.length} tester(s) to group ${args.group_id}`,
-          steps: args.testers!.map((t) => ({ description: `Invite ${t.email}` })),
-          notes: ["Testers receive an email invitation from TestFlight."],
+          title: `Add ${args.testers!.length} tester(s) to group ${args.group_id}`,
+          steps: args.testers!.map((t) => ({ description: `Add ${t.email}` })),
+          notes: [
+            "This adds group membership. Apple may send invitations automatically once an installable build is attached; membership alone does not mean an email was sent.",
+          ],
         }),
         async () => {
-          const results: { email: string; status: string }[] = [];
+          const results: { email: string; status: string; id?: string; invitationState?: string }[] = [];
           for (const t of args.testers!) {
             try {
-              await client.post("betaTesters", {
+              const created = await client.post("betaTesters", {
                 data: {
                   type: "betaTesters",
                   attributes: { email: t.email, firstName: t.first_name, lastName: t.last_name },
                   relationships: { betaGroups: relMany("betaGroups", [args.group_id!]) },
                 },
               });
-              results.push({ email: t.email, status: "invited" });
+              results.push({
+                email: t.email,
+                status: "added to group",
+                id: created.data.id,
+                invitationState: created.data.attributes?.state,
+              });
             } catch (e) {
               if ((e as { status?: number }).status === 409) {
                 const found = await client.list("betaTesters", { "filter[email]": t.email }, 5);
@@ -198,20 +211,106 @@ export const testflightTool = defineTool({
                     `betaGroups/${args.group_id}/relationships/betaTesters`,
                     relMany("betaTesters", [found.data[0].id]),
                   );
-                  results.push({ email: t.email, status: "existing tester added to group" });
+                  results.push({
+                    email: t.email,
+                    status: "existing tester added to group",
+                    id: found.data[0].id,
+                    invitationState: found.data[0].attributes?.state,
+                  });
                   continue;
                 }
               }
               results.push({ email: t.email, status: `failed: ${(e as Error).message}` });
             }
           }
-          return { summary: results.map((r) => `• ${r.email}: ${r.status}`).join("\n"), data: { results } };
+          return {
+            summary: results
+              .map((r) => `• ${r.email}: ${r.status}${r.invitationState ? ` (${r.invitationState})` : ""}`)
+              .join("\n"),
+            data: { results },
+            next_steps: [
+              "Upload a distribution build, wait for VALID and answer export compliance (asc_builds), then testflight action=add_build_to_group",
+              `testflight action=testers group_id=${args.group_id} to check invitation state; send_invites only if still needed`,
+            ],
+          };
         },
       );
     }
 
+    if (args.action === "testers") {
+      if (!args.group_id && !args.app) throw new ToolError("app or group_id is required.");
+      const appId = args.group_id ? undefined : (await resolveAppId(client, args.app!)).id;
+      const res = args.group_id
+        ? await client.list(`betaGroups/${args.group_id}/betaTesters`, {}, 500)
+        : await client.list("betaTesters", { "filter[apps]": appId }, 500);
+      const rows = res.data.map(slimResource);
+      return {
+        summary: rows.length
+          ? table(rows, ["email", "firstName", "lastName", "state", "inviteType", "id"])
+          : "No testers.",
+        data: { testers: rows },
+      };
+    }
     if (!args.app) throw new ToolError("app is required.");
     const { id: appId } = await resolveAppId(client, args.app);
+    if (args.action === "send_invites") {
+      if (!args.testers?.length) throw new ToolError("testers are required.");
+      return withConfirmation(
+        ctx,
+        extra,
+        args,
+        () => ({
+          title: `Send ${args.testers!.length} TestFlight invitation(s) for ${args.app}`,
+          destructive: true,
+          steps: args.testers!.map((t) => ({
+            description: `Send or resend an email invitation to ${t.email}`,
+          })),
+          notes: [
+            "Existing testers must have an installable build: upload → wait for VALID → answer export compliance → attach to the group (and beta review for external groups).",
+          ],
+        }),
+        async () => {
+          const results: { email: string; status: string; error?: string }[] = [];
+          for (const tester of args.testers!) {
+            try {
+              const found = await client.list(
+                "betaTesters",
+                { "filter[email]": tester.email, "filter[apps]": appId },
+                2,
+              );
+              if (!found.data.length)
+                throw new ToolError(
+                  "Tester is not assigned to this app; add them to its TestFlight group first.",
+                );
+              await client.post("betaTesterInvitations", {
+                data: {
+                  type: "betaTesterInvitations",
+                  relationships: {
+                    app: rel("apps", appId),
+                    betaTester: rel("betaTesters", found.data[0].id),
+                  },
+                },
+              });
+              results.push({ email: tester.email, status: "invitation sent" });
+            } catch (e) {
+              const hint = e instanceof ToolError ? e.details.hint : undefined;
+              results.push({
+                email: tester.email,
+                status: "failed",
+                error: `${(e as Error).message}${hint ? ` ${hint}` : ""}`,
+              });
+            }
+          }
+          return {
+            summary: results
+              .map((r) => `• ${r.email}: ${r.status}${r.error ? ` — ${r.error}` : ""}`)
+              .join("\n"),
+            data: { results },
+            isError: results.some((r) => r.status === "failed"),
+          };
+        },
+      );
+    }
     if (args.action === "groups") {
       const res = await client.list(`apps/${appId}/betaGroups`, {}, 100);
       const rows = res.data.map(slimResource);
@@ -220,18 +319,6 @@ export const testflightTool = defineTool({
           ? table(rows, ["name", "isInternalGroup", "publicLinkEnabled", "publicLink", "id"])
           : "No beta groups.",
         data: { groups: rows },
-      };
-    }
-    if (args.action === "testers") {
-      const res = args.group_id
-        ? await client.list(`betaGroups/${args.group_id}/betaTesters`, {}, 500)
-        : await client.list("betaTesters", { "filter[apps]": appId }, 500);
-      const rows = res.data.map(slimResource);
-      return {
-        summary: rows.length
-          ? table(rows, ["email", "firstName", "lastName", "inviteType", "id"])
-          : "No testers.",
-        data: { testers: rows },
       };
     }
     // create_group

@@ -41,6 +41,16 @@ async function readEntitlementsFiles(component: DetectedComponent | undefined): 
   if (s.mac?.entitlements) files.push(s.mac.entitlements);
   if (s.macOS?.entitlements) files.push(s.macOS.entitlements);
   const out: PlistDict = {};
+  if (component.kind === "expo" && !s.appConfigDynamic) {
+    try {
+      const config = JSON.parse(await readFile(join(base, "app.json"), "utf8"));
+      const entitlements = (config.expo ?? config).ios?.entitlements;
+      if (entitlements && typeof entitlements === "object" && !Array.isArray(entitlements))
+        Object.assign(out, entitlements);
+    } catch {
+      // Dynamic configs must be evaluated by Expo; do not execute project code here.
+    }
+  }
   for (const f of files) {
     for (const candidate of [isAbsolute(f) ? f : join(base, f), join(base, "..", f)]) {
       try {
@@ -324,9 +334,9 @@ export async function buildChecklist(
             },
       );
       if (bundleRes && restricted.length) {
-        const caps = (await client.list(`bundleIds/${bundleRes.id}/bundleIdCapabilities`, {}, 100)).data.map(
-          (c) => String(c.attributes?.capabilityType),
-        );
+        const caps = (
+          await client.list(`bundleIds/${bundleRes.id}/bundleIdCapabilities`, { limit: undefined }, 100)
+        ).data.map((c) => String(c.attributes?.capabilityType));
         const needed = [
           ...new Set(
             restricted.map((k) => entitlementInfo(k)?.ascCapability).filter((x): x is string => !!x),
@@ -378,7 +388,7 @@ export async function buildChecklist(
       let local: Awaited<ReturnType<typeof listInstalledProfiles>> = [];
       if (ctx.platform.isMac) local = await listInstalledProfiles(ctx).catch(() => []);
       const kindMatch = (k: string) => k.startsWith(t.profile!.ascType);
-      const matching = local.filter(
+      let matching = local.filter(
         (p) =>
           (p.bundleId === bundleId ||
             p.bundleId === "*" ||
@@ -386,6 +396,27 @@ export async function buildChecklist(
           !p.expired &&
           kindMatch(p.kind),
       );
+      const requestedGroups = artifactEntitlements["com.apple.security.application-groups"];
+      if (Array.isArray(requestedGroups) && requestedGroups.length) {
+        const granted = matching.filter((p) => {
+          const groups = p.entitlements["com.apple.security.application-groups"];
+          return Array.isArray(groups) && requestedGroups.every((g) => groups.includes(g));
+        });
+        add({
+          id: "app-groups",
+          title: "Shared App Group assignment",
+          status: granted.length ? "ok" : matching.length ? "missing" : "manual",
+          detail: granted.length
+            ? `Installed profile grants ${requestedGroups.join(", ")}.`
+            : `Required: ${requestedGroups.join(", ")}. Enabling APP_GROUPS alone does not assign a container${matching.length ? "; installed profiles do not grant the requested groups" : "; no installed matching profile proves the assignment"}.`,
+          ...(granted.length
+            ? {}
+            : {
+                fix: "Apple Developer → Certificates, Identifiers & Profiles → Identifiers → + → App Groups: register the group, then each app/extension App ID → App Groups → Configure → select it → Continue → Assign. The public API cannot register/assign containers. Refresh profiles afterwards and validate entitlements before archiving.",
+              }),
+        });
+        if (granted.length) matching = granted;
+      }
       if (matching.length)
         add({
           id: "profile",

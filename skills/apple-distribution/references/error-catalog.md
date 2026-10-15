@@ -4,6 +4,242 @@
 
 Tool results run every failure through this catalog automatically; this page is for reading ahead.
 
+## upload
+
+### TestFlight tester has no installable build
+
+Matches: `STATE_ERROR\.TESTER_INVITE\.NO_INSTALLABLE_BUILDS|[Tt]ester has no installable build|this tester has no installable builds`
+
+Group membership does not guarantee an invitation. Apple sends TestFlight invitations only when the tester can install a build.
+
+- Upload a build and wait for VALID with asc_builds wait_processing
+- Answer export compliance and attach the build with testflight add_build_to_group; external groups also need beta app review
+- Check testflight testers invitation state before send_invites: attaching the build may invite automatically
+- Tool: `testflight`
+
+### Build number already used
+
+Matches: `ITMS-90189|Redundant Binary Upload|bundle version .* has already been used`
+
+CFBundleVersion must be unique (and increasing) per version train.
+
+- Bump CURRENT_PROJECT_VERSION / CFBundleVersion (asc_builds list shows the latest)
+- Tool: `asc_builds list`
+
+### Version must be higher
+
+Matches: `ITMS-90062|ITMS-90186|must contain a higher version than that of the previously approved version|train .* is closed`
+
+CFBundleShortVersionString must be greater than the last approved/released version.
+
+- Increase MARKETING_VERSION / CFBundleShortVersionString
+
+### Missing privacy usage description
+
+Matches: `ITMS-90683|Missing purpose string in Info\.plist`
+
+The binary references a protected API but Info.plist lacks the matching NS*UsageDescription.
+
+- Add the key named in the email/error with a user-facing explanation (privacy audit lists candidates)
+- Tool: `privacy audit`
+
+### Privacy manifest missing a required-reason API
+
+Matches: `ITMS-91053|Missing API declaration`
+
+The app (or an SDK) uses a required-reason API not declared in PrivacyInfo.xcprivacy.
+
+- Add NSPrivacyAccessedAPITypes entries with the reason codes (privacy audit lists detected categories)
+- Tool: `privacy audit`
+
+### Third-party SDK missing its privacy manifest
+
+Matches: `ITMS-91061|Missing privacy manifest`
+
+A commonly-used SDK in the app lacks PrivacyInfo.xcprivacy or a valid signature.
+
+- Update the SDK to a version that ships a privacy manifest
+
+### Mac App Store build not sandboxed
+
+Matches: `ITMS-90296|App sandbox not enabled`
+
+Every executable in a Mac App Store app must have com.apple.security.app-sandbox.
+
+- Add the sandbox entitlement to the app and all helpers (helpers: app-sandbox + inherit)
+- Tool: `entitlements generate`
+
+### Invalid provisioning profile
+
+Matches: `ITMS-90161|Invalid Provisioning Profile`
+
+The embedded profile is not an App Store distribution profile or doesn't match the bundle ID/team.
+
+- Export with method app-store-connect; inspect the embedded profile (provisioning_profiles inspect)
+- Tool: `provisioning_profiles inspect`
+
+### Entitlements not allowed by the profile
+
+Matches: `ITMS-90046|Invalid Code Signing Entitlements`
+
+Signed entitlements contain keys/values the distribution profile does not grant.
+
+- entitlements validate against the profile; enable the capability and regenerate the profile
+- Tool: `entitlements validate`
+
+### Not signed with a distribution certificate
+
+Matches: `ITMS-90034|Missing or invalid signature`
+
+App Store uploads must be signed with Apple Distribution (or legacy iOS/Mac distribution).
+
+- Export with method app-store-connect, or re-sign with Apple Distribution
+
+### Mac upload .pkg not signed correctly
+
+Matches: `ITMS-90237|product archive package's signature is invalid`
+
+The .pkg must be signed with the Mac Installer Distribution (3rd Party Mac Developer Installer) certificate.
+
+- package action=pkg with the Mac Installer Distribution identity
+- Tool: `package pkg`
+
+### Mac TestFlight: helper missing profile / app identifier
+
+Matches: `ITMS-90886|ITMS-90889|missing a provisioning profile|missing an application identifier`
+
+For Mac TestFlight every executable bundle needs an embedded profile and the com.apple.application-identifier + team-identifier entitlements.
+
+- Embed MAC_APP_STORE profiles in each helper/extension and include the identity entitlements
+- Tool: `provisioning_profiles embed`
+
+### Simulator architectures in the upload
+
+Matches: `ITMS-90087|Unsupported Architectures`
+
+An embedded framework contains simulator slices (x86_64/arm64-simulator).
+
+- Use XCFrameworks, or strip simulator slices with lipo before signing
+- Tool: `inspect_binary`
+
+### Built with an SDK that is too old
+
+Matches: `ITMS-90725|ITMS-90111|SDK version issue|built with .* SDK .* (older|unsupported)`
+
+App Store Connect requires uploads to be built with a recent Xcode/SDK.
+
+- Update Xcode (doctor shows the current minimum)
+- Tool: `doctor`
+
+### App icon has transparency
+
+Matches: `ITMS-90717|Invalid App Store Icon`
+
+The App Store icon must not have an alpha channel.
+
+- Export the 1024×1024 icon without transparency
+
+### Non-public API usage
+
+Matches: `ITMS-90338|Non-public API usage`
+
+The binary references private Apple APIs (often via a third-party SDK).
+
+- Find the symbol named in the email; update/remove the SDK
+
+
+## xcodebuild
+
+### Xcode automatic-signing API authentication failed
+
+Matches: `Authentication failed: Make sure a bearer token was provided`
+
+Xcode could not authenticate its provisioning request. This can happen even when the same API key works with the App Store Connect API; missing profiles are a consequence, not a reason to repeat the same archive.
+
+- Validate the key with asc_auth action=test
+- If the API key works, create/install IOS_APP_STORE profiles with asc_profiles for every app and extension; validate their entitlements
+- Configure each app/extension Release target's manual signing settings in the project (not on Pods), then xcode archive signing_style=manual allow_provisioning_updates=false
+- Tool: `asc_auth / asc_profiles / xcode`
+
+### Xcode cannot find a signing certificate
+
+Matches: `No signing certificate "([^"]+)" found|No certificate for team .* matching`
+
+No certificate of the required type with its private key is in the keychain.
+
+- Let Xcode create it: xcode archive with allow_provisioning_updates=true and an API key
+- Or create/import manually (keychain create_csr → asc_certificates create)
+- Tool: `signing_identities`
+
+### No matching provisioning profile
+
+Matches: `No profiles for '([^']+)' were found|requires a provisioning profile|No provisioning profiles? (with|matching)`
+
+Automatic signing could not fetch/create a profile, or manual signing points to one that isn't installed.
+
+- Archive with -allowProvisioningUpdates and API key auth (xcode archive)
+- Or create + install one: asc_profiles create / download_install
+- Tool: `asc_profiles`
+
+### Profile does not contain your certificate
+
+Matches: `Provisioning profile "[^"]+" doesn't include signing certificate`
+
+The profile was generated for a different/older certificate.
+
+- asc_profiles regenerate including the current certificate
+- Or sign with the certificate the profile lists
+- Tool: `asc_profiles regenerate`
+
+### Profile lacks a capability/entitlement
+
+Matches: `Provisioning profile "[^"]+" doesn't (support|include) the .* (capability|entitlement)`
+
+The app's entitlements request a capability not enabled on the App ID or not present in the profile.
+
+- asc_bundle_ids enable_capability, then asc_profiles regenerate
+- Or remove the entitlement
+- Tool: `asc_bundle_ids`
+
+### No development team set
+
+Matches: `requires a development team`
+
+DEVELOPMENT_TEAM is empty for the target.
+
+- Pass DEVELOPMENT_TEAM=<TEAMID> (xcode archive team_id=…) or set it in the target's Signing & Capabilities
+- Tool: `xcode signing_settings`
+
+### Automatic vs manual signing conflict
+
+Matches: `has conflicting provisioning settings|is automatically signed, but provisioning profile .* has been manually specified|is automatically signed for development, but a conflicting code signing identity`
+
+The target uses automatic signing but a specific identity/profile is forced (or vice-versa).
+
+- For automatic: clear PROVISIONING_PROFILE_SPECIFIER and set CODE_SIGN_IDENTITY to 'Apple Development'
+- For manual: CODE_SIGN_STYLE=Manual with an explicit profile
+- Tool: `xcode signing_settings`
+
+### No registered devices
+
+Matches: `Your team has no devices from which to generate a provisioning profile`
+
+Development/Ad Hoc profiles need at least one registered device. An iOS archive with automatic signing builds with an Apple Development profile first (distribution signing happens at export), so even App Store/TestFlight archives hit this on a team with no devices. -allowProvisioningUpdates does not help.
+
+- Register any one device you own: devices (UDIDs of connected iPhones/iPads) → asc_devices register, then archive again
+- Or skip development signing: asc_profiles create profile_type=IOS_APP_STORE → download_install, set the app target's manual signing in the project (CODE_SIGN_STYLE/CODE_SIGN_IDENTITY/PROVISIONING_PROFILE_SPECIFIER), then xcode archive signing_style=manual signing_certificate='Apple Distribution' provisioning_profiles={<bundle id>: <profile name>}
+- Tool: `asc_devices`
+
+### xcodebuild has no account to manage signing
+
+Matches: `authenticationKey|Failed to authenticate|No Accounts|There are no accounts registered with Xcode`
+
+Automatic signing in CI needs either an Xcode-logged-in account or App Store Connect API key flags.
+
+- xcode archive with an API key profile (adds -authenticationKeyPath/ID/IssuerID)
+- Tool: `xcode archive`
+
+
 ## keychain
 
 ### Waiting on a keychain access prompt / locked keychain
@@ -418,217 +654,3 @@ The sandboxed process tried something its entitlements don't allow.
 
 - system_logs preset=sandbox maps each denial to the entitlement that would allow it
 - Tool: `system_logs`
-
-
-## xcodebuild
-
-### Xcode cannot find a signing certificate
-
-Matches: `No signing certificate "([^"]+)" found|No certificate for team .* matching`
-
-No certificate of the required type with its private key is in the keychain.
-
-- Let Xcode create it: xcode archive with allow_provisioning_updates=true and an API key
-- Or create/import manually (keychain create_csr → asc_certificates create)
-- Tool: `signing_identities`
-
-### No matching provisioning profile
-
-Matches: `No profiles for '([^']+)' were found|requires a provisioning profile|No provisioning profiles? (with|matching)`
-
-Automatic signing could not fetch/create a profile, or manual signing points to one that isn't installed.
-
-- Archive with -allowProvisioningUpdates and API key auth (xcode archive)
-- Or create + install one: asc_profiles create / download_install
-- Tool: `asc_profiles`
-
-### Profile does not contain your certificate
-
-Matches: `Provisioning profile "[^"]+" doesn't include signing certificate`
-
-The profile was generated for a different/older certificate.
-
-- asc_profiles regenerate including the current certificate
-- Or sign with the certificate the profile lists
-- Tool: `asc_profiles regenerate`
-
-### Profile lacks a capability/entitlement
-
-Matches: `Provisioning profile "[^"]+" doesn't (support|include) the .* (capability|entitlement)`
-
-The app's entitlements request a capability not enabled on the App ID or not present in the profile.
-
-- asc_bundle_ids enable_capability, then asc_profiles regenerate
-- Or remove the entitlement
-- Tool: `asc_bundle_ids`
-
-### No development team set
-
-Matches: `requires a development team`
-
-DEVELOPMENT_TEAM is empty for the target.
-
-- Pass DEVELOPMENT_TEAM=<TEAMID> (xcode archive team_id=…) or set it in the target's Signing & Capabilities
-- Tool: `xcode signing_settings`
-
-### Automatic vs manual signing conflict
-
-Matches: `has conflicting provisioning settings|is automatically signed, but provisioning profile .* has been manually specified|is automatically signed for development, but a conflicting code signing identity`
-
-The target uses automatic signing but a specific identity/profile is forced (or vice-versa).
-
-- For automatic: clear PROVISIONING_PROFILE_SPECIFIER and set CODE_SIGN_IDENTITY to 'Apple Development'
-- For manual: CODE_SIGN_STYLE=Manual with an explicit profile
-- Tool: `xcode signing_settings`
-
-### No registered devices
-
-Matches: `Your team has no devices from which to generate a provisioning profile`
-
-Development/Ad Hoc profiles need at least one registered device. An iOS archive with automatic signing builds with an Apple Development profile first (distribution signing happens at export), so even App Store/TestFlight archives hit this on a team with no devices. -allowProvisioningUpdates does not help.
-
-- Register any one device you own: devices (UDIDs of connected iPhones/iPads) → asc_devices register, then archive again
-- Or skip development signing: asc_profiles create profile_type=IOS_APP_STORE → download_install, set the app target's manual signing in the project (CODE_SIGN_STYLE/CODE_SIGN_IDENTITY/PROVISIONING_PROFILE_SPECIFIER), then xcode archive signing_style=manual signing_certificate='Apple Distribution' provisioning_profiles={<bundle id>: <profile name>}
-- Tool: `asc_devices`
-
-### xcodebuild has no account to manage signing
-
-Matches: `authenticationKey|Failed to authenticate|No Accounts|There are no accounts registered with Xcode`
-
-Automatic signing in CI needs either an Xcode-logged-in account or App Store Connect API key flags.
-
-- xcode archive with an API key profile (adds -authenticationKeyPath/ID/IssuerID)
-- Tool: `xcode archive`
-
-
-## upload
-
-### Build number already used
-
-Matches: `ITMS-90189|Redundant Binary Upload|bundle version .* has already been used`
-
-CFBundleVersion must be unique (and increasing) per version train.
-
-- Bump CURRENT_PROJECT_VERSION / CFBundleVersion (asc_builds list shows the latest)
-- Tool: `asc_builds list`
-
-### Version must be higher
-
-Matches: `ITMS-90062|ITMS-90186|must contain a higher version than that of the previously approved version|train .* is closed`
-
-CFBundleShortVersionString must be greater than the last approved/released version.
-
-- Increase MARKETING_VERSION / CFBundleShortVersionString
-
-### Missing privacy usage description
-
-Matches: `ITMS-90683|Missing purpose string in Info\.plist`
-
-The binary references a protected API but Info.plist lacks the matching NS*UsageDescription.
-
-- Add the key named in the email/error with a user-facing explanation (privacy audit lists candidates)
-- Tool: `privacy audit`
-
-### Privacy manifest missing a required-reason API
-
-Matches: `ITMS-91053|Missing API declaration`
-
-The app (or an SDK) uses a required-reason API not declared in PrivacyInfo.xcprivacy.
-
-- Add NSPrivacyAccessedAPITypes entries with the reason codes (privacy audit lists detected categories)
-- Tool: `privacy audit`
-
-### Third-party SDK missing its privacy manifest
-
-Matches: `ITMS-91061|Missing privacy manifest`
-
-A commonly-used SDK in the app lacks PrivacyInfo.xcprivacy or a valid signature.
-
-- Update the SDK to a version that ships a privacy manifest
-
-### Mac App Store build not sandboxed
-
-Matches: `ITMS-90296|App sandbox not enabled`
-
-Every executable in a Mac App Store app must have com.apple.security.app-sandbox.
-
-- Add the sandbox entitlement to the app and all helpers (helpers: app-sandbox + inherit)
-- Tool: `entitlements generate`
-
-### Invalid provisioning profile
-
-Matches: `ITMS-90161|Invalid Provisioning Profile`
-
-The embedded profile is not an App Store distribution profile or doesn't match the bundle ID/team.
-
-- Export with method app-store-connect; inspect the embedded profile (provisioning_profiles inspect)
-- Tool: `provisioning_profiles inspect`
-
-### Entitlements not allowed by the profile
-
-Matches: `ITMS-90046|Invalid Code Signing Entitlements`
-
-Signed entitlements contain keys/values the distribution profile does not grant.
-
-- entitlements validate against the profile; enable the capability and regenerate the profile
-- Tool: `entitlements validate`
-
-### Not signed with a distribution certificate
-
-Matches: `ITMS-90034|Missing or invalid signature`
-
-App Store uploads must be signed with Apple Distribution (or legacy iOS/Mac distribution).
-
-- Export with method app-store-connect, or re-sign with Apple Distribution
-
-### Mac upload .pkg not signed correctly
-
-Matches: `ITMS-90237|product archive package's signature is invalid`
-
-The .pkg must be signed with the Mac Installer Distribution (3rd Party Mac Developer Installer) certificate.
-
-- package action=pkg with the Mac Installer Distribution identity
-- Tool: `package pkg`
-
-### Mac TestFlight: helper missing profile / app identifier
-
-Matches: `ITMS-90886|ITMS-90889|missing a provisioning profile|missing an application identifier`
-
-For Mac TestFlight every executable bundle needs an embedded profile and the com.apple.application-identifier + team-identifier entitlements.
-
-- Embed MAC_APP_STORE profiles in each helper/extension and include the identity entitlements
-- Tool: `provisioning_profiles embed`
-
-### Simulator architectures in the upload
-
-Matches: `ITMS-90087|Unsupported Architectures`
-
-An embedded framework contains simulator slices (x86_64/arm64-simulator).
-
-- Use XCFrameworks, or strip simulator slices with lipo before signing
-- Tool: `inspect_binary`
-
-### Built with an SDK that is too old
-
-Matches: `ITMS-90725|ITMS-90111|SDK version issue|built with .* SDK .* (older|unsupported)`
-
-App Store Connect requires uploads to be built with a recent Xcode/SDK.
-
-- Update Xcode (doctor shows the current minimum)
-- Tool: `doctor`
-
-### App icon has transparency
-
-Matches: `ITMS-90717|Invalid App Store Icon`
-
-The App Store icon must not have an alpha channel.
-
-- Export the 1024×1024 icon without transparency
-
-### Non-public API usage
-
-Matches: `ITMS-90338|Non-public API usage`
-
-The binary references private Apple APIs (often via a third-party SDK).
-
-- Find the symbol named in the email; update/remove the SDK
