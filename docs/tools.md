@@ -457,7 +457,7 @@ action=list / get / find_by_bundle_id: app records (name, bundle ID, SKU, primar
 
 **Uploaded builds and processing status** — mutating (preview → confirm_token)
 
-action=list: recent builds for an app (version, build number, processing state, expiry). action=get. action=wait_processing: after an upload, poll until the build appears and reaches VALID (usable for TestFlight / review) or FAILED/INVALID — typically 5–30 min; continues as a background job with a Monitor command. action=set_encryption_compliance (confirm): answer the export-compliance question (usesNonExemptEncryption) so the build becomes testable — or add ITSAppUsesNonExemptEncryption to Info.plist to skip this forever. action=expire (confirm).
+action=list: recent builds for an app (version, build number, processing state, expiry). action=get. action=wait_processing: after an upload, poll until the build reaches VALID or FAILED/INVALID; before the build becomes visible, inspect its buildUploads record for upload progress and validation errors. Normally takes 5–30 min; continues as a background job with a Monitor command. action=set_encryption_compliance (confirm): answer the export-compliance question (usesNonExemptEncryption) so the build becomes testable — or add ITSAppUsesNonExemptEncryption to Info.plist to skip this forever. action=expire (confirm).
 
 | Argument | Type | Required | Description |
 |---|---|---|---|
@@ -465,7 +465,7 @@ action=list: recent builds for an app (version, build number, processing state, 
 | `app` | string |  | App id or bundle ID. |
 | `build_id` | string |  |  |
 | `build_number` | string |  | CFBundleVersion (wait_processing / list filter). |
-| `version` | string |  | CFBundleShortVersionString (list filter). |
+| `version` | string |  | CFBundleShortVersionString (list / wait_processing filter). |
 | `uses_non_exempt_encryption` | boolean |  | set_encryption_compliance: true only if you use non-exempt encryption (HTTPS/standard OS crypto is exempt). |
 | `limit` | integer |  |  |
 | `wait_minutes` | integer |  | wait_processing: overall wait (default 60). |
@@ -534,17 +534,17 @@ Uploads a distribution-signed .ipa (iOS/tvOS/visionOS) or Mac App Store .pkg to 
 
 **TestFlight: groups, testers, builds, beta review** — mutating (preview → confirm_token)
 
-action=groups / testers / status (internal + external beta state of a build). action=create_group (confirm): internal (App Store Connect users, no review) or external (anyone by email or public link; first build of each version needs beta app review). action=add_testers / remove_testers (confirm): invite by email to a group. action=add_build_to_group (confirm). action=set_what_to_test (confirm): 'What to Test' notes for a build. action=submit_beta_review (confirm): submit a build for external testing review (requires beta review contact info set once in App Store Connect → TestFlight → Test Information). Builds must be VALID and have export compliance answered (asc_builds).
+action=groups / testers / status (internal + external beta state of a build). testers accepts group_id without app and displays invitation state. action=create_group (confirm): internal (App Store Connect users, no review) or external (anyone by email or public link; first build of each version needs beta app review). action=add_testers / remove_testers (confirm): manage group membership by email; adding a tester does not guarantee an invitation was sent. action=send_invites (confirm): send/resend TestFlight invitations for existing testers of an app; requires an installable build. action=add_build_to_group (confirm). action=set_what_to_test (confirm): 'What to Test' notes for a build. action=submit_beta_review (confirm): submit a build for external testing review (requires beta review contact info set once in App Store Connect → TestFlight → Test Information). Builds must be VALID and have export compliance answered (asc_builds).
 
 | Argument | Type | Required | Description |
 |---|---|---|---|
-| `action` | `groups` \| `testers` \| `status` \| `create_group` \| `add_testers` \| `remove_testers` \| `add_build_to_group` \| `set_what_to_test` \| `submit_beta_review` | yes |  |
+| `action` | `groups` \| `testers` \| `status` \| `create_group` \| `add_testers` \| `send_invites` \| `remove_testers` \| `add_build_to_group` \| `set_what_to_test` \| `submit_beta_review` | yes |  |
 | `app` | string |  | App id or bundle ID. |
 | `group_id` | string |  |  |
 | `group_name` | string |  | create_group: name. |
 | `internal` | boolean |  | create_group: internal group (default false = external). |
 | `public_link` | boolean |  | create_group: enable a public TestFlight link (external groups). |
-| `testers` | object[] |  |  |
+| `testers` | object[] |  | add_testers / remove_testers / send_invites: tester email addresses. |
 | `build_id` | string |  |  |
 | `what_to_test` | string |  |  |
 | `locale` | string |  | set_what_to_test: default en-US. |

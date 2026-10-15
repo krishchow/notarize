@@ -88,6 +88,12 @@ export async function discoverNestedCode(root: string): Promise<NestedCode[]> {
       if (e.isDirectory()) {
         const kind = BUNDLE_EXTS[extname(e.name).toLowerCase()];
         if (kind) {
+          // CocoaPods privacy/resource bundles are sealed resources, not executable code.
+          // Keep walking them: a Mach-O hidden among resources must still be inspected.
+          if (kind === "bundle" && !(await hasBundleExecutable(full))) {
+            await walk(full, depth, bundleRoot);
+            continue;
+          }
           // For frameworks sign the versioned bundle (Versions/A) when present.
           const target = kind === "framework" ? await frameworkSignTarget(full) : full;
           await walk(full, depth + 1, full);
@@ -125,7 +131,8 @@ export async function discoverNestedCode(root: string): Promise<NestedCode[]> {
 
   await walk(root, 0, root);
   results.sort((a, b) => b.depth - a.depth);
-  if (rootKind) results.push({ path: root, relativePath: ".", kind: rootKind, depth: 0 });
+  if (rootKind && (rootKind !== "bundle" || (await hasBundleExecutable(root))))
+    results.push({ path: root, relativePath: ".", kind: rootKind, depth: 0 });
   else if (await isMachO(root))
     results.push({ path: root, relativePath: basename(root), kind: "executable", depth: 0 });
   return results;
@@ -153,11 +160,20 @@ async function isMainExecutable(file: string, bundleRoot: string): Promise<boole
   if (candidates.includes(file)) return true;
   // Bundles whose executable name differs from the folder name: CFBundleExecutable.
   const rel = relative(bundleRoot, file);
-  if (/^Contents\/MacOS\/[^/]+$/.test(rel) || /^Versions\/[^/]+\/[^/]+$/.test(rel)) {
+  if (/^(?:Contents\/MacOS\/|Versions\/[^/]+\/)?[^/]+$/.test(rel)) {
     const exe = await readBundleExecutable(bundleRoot);
     if (exe && basename(file) === exe) return true;
   }
   return false;
+}
+
+async function hasBundleExecutable(bundleRoot: string): Promise<boolean> {
+  // A declaration also keeps malformed code bundles visible to signature validation.
+  if (await readBundleExecutable(bundleRoot)) return true;
+  const name = basename(bundleRoot).replace(/\.[^.]+$/, "");
+  return (
+    (await isMachO(join(bundleRoot, name))) || (await isMachO(join(bundleRoot, "Contents", "MacOS", name)))
+  );
 }
 
 async function readBundleExecutable(bundleRoot: string): Promise<string | undefined> {

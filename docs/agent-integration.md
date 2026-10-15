@@ -40,6 +40,8 @@ Every tool that changes something — files, keychain, Apple account, uploads �
 
 Tokens are HMACs held in the server process's memory, so they die when the server restarts.
 
+Prepare independent read-only checks and related previews before asking for approval, and present the concrete plans together where possible. Reuse metadata/testing preferences the user already supplied. Check completion from Apple rather than inferring it from a mutation's name: `add_testers` adds membership, a successful upload still needs processing, and `APP_GROUPS` enablement does not assign containers. No workflow shortcut should bypass `withConfirmation` or change the user's auto-confirm policy.
+
 ## Preflight: `skills/setup/scripts/setup.mjs`
 
 A zero-dependency Node (≥20) script that skills and CI can run before any notarize work. `check`, the default, is read-only. It prints a single JSON object `{schema: 1, ready, resolved, checks[], next_steps[]}` and exits 0 when ready, 1 when not ready, or 2 on bad input. Each check has a stable `id` (`asc_key_id`, `asc_issuer_id`, `p8_path`, `p8_readable`, `p8_mode`, `team_id`, `persisted_shell`, `persisted_profile`, …), a `status` of `ok`/`warn`/`fail`, and a `fix`. `--online` adds one authenticated `GET /v1/apps`. `plan` / `apply` mirror the confirm contract: `plan` lists `actions[]` and changes nothing, and `apply` with the same arguments performs them. The actions install the `.p8` at mode 600, write a marked `~/.zshrc` block and save a profile. The script resolves credentials in exactly the server's order, and never reads key material from arguments or prints it.

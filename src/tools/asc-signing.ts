@@ -214,7 +214,8 @@ export const ascBundleIdsTool = defineTool({
         data: { bundleId: slimResource(b!) },
       };
     if (args.action === "capabilities") {
-      const caps = await client.list(`bundleIds/${b!.id}/bundleIdCapabilities`, {}, 100);
+      // Apple rejects `limit` on this relationship; still follow any links.next.
+      const caps = await client.list(`bundleIds/${b!.id}/bundleIdCapabilities`, { limit: undefined }, 100);
       const rows = caps.data.map((c) => ({
         id: c.id,
         capabilityType: c.attributes?.capabilityType,
@@ -246,6 +247,11 @@ export const ascBundleIdsTool = defineTool({
           steps: [{ description: "POST /v1/bundleIdCapabilities" }],
           notes: [
             "Existing provisioning profiles become invalid for this capability — regenerate them (asc_profiles regenerate).",
+            ...(args.capability_type === "APP_GROUPS"
+              ? [
+                  "Enabling APP_GROUPS does not assign a shared container. Register the group in Apple Developer → Certificates, Identifiers & Profiles → Identifiers → + → App Groups, then configure this App ID to use it. The public API cannot register or assign App Groups. Validate each app/extension profile includes the requested group before archiving.",
+                ]
+              : []),
           ],
         }),
         async () => {
@@ -253,7 +259,14 @@ export const ascBundleIdsTool = defineTool({
           return {
             summary: `Enabled ${args.capability_type} (id ${r.data.id}).`,
             data: { capability: slimResource(r.data) },
-            next_steps: ["asc_profiles action=regenerate for affected profiles"],
+            next_steps: [
+              ...(args.capability_type === "APP_GROUPS"
+                ? [
+                    "Apple Developer portal: assign the same App Group identifier to every app/extension App ID that shares it; capability enabled alone is insufficient",
+                  ]
+                : []),
+              "asc_profiles action=regenerate for affected profiles",
+            ],
           };
         },
       );

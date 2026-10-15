@@ -72,6 +72,14 @@ describe("knowledge base consistency", () => {
     const cases: [string, string][] = [
       ["/x/App.app: errSecInternalComponent", "errSecInternalComponent"],
       [
+        "The request cannot be completed because this tester has no installable builds.: Tester has no installable build.",
+        "tf-no-installable-build",
+      ],
+      [
+        "Authentication failed: Make sure a bearer token was provided, it is properly configured and signed, and it has not expired.",
+        "xc-api-auth",
+      ],
+      [
         'App.app: ambiguous (matches "Developer ID Application: X" and "Developer ID Application: X")',
         "ambiguous-identity",
       ],
