@@ -1,5 +1,15 @@
 # notarize-mcp
 
+## 1.4.0
+
+### Minor Changes
+
+- [#23](https://github.com/krishchow/notarize/pull/23) [`296d266`](https://github.com/krishchow/notarize/commit/296d2662f056ea876c24bb12e5bfff6817329d37) Thanks [@krishchow](https://github.com/krishchow)! - Add target-aware app debugging sessions for Mac, iPhone/iPad, and simulator apps with bounded evidence capture, optional normal-user live device logging and Homebrew setup, Apple-native snapshots, explicit access gaps, Console imports, and a dedicated debugging skill.
+
+### Patch Changes
+
+- [#23](https://github.com/krishchow/notarize/pull/23) [`296d266`](https://github.com/krishchow/notarize/commit/296d2662f056ea876c24bb12e5bfff6817329d37) Thanks [@krishchow](https://github.com/krishchow)! - Honor explicit advance approval for actions within the user's agreed scope while preserving previews, confirmation tokens and renewed approval for expanded scope or material new risks.
+
 ## 1.3.0
 
 ### Minor Changes
