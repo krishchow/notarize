@@ -55,6 +55,28 @@ describe("skill + docs", () => {
     expect(skill).toContain("setup.mjs check");
   });
 
+  it("ships the debugging skill, routes before setup, and serves its guide", async () => {
+    const distribution = readFileSync(join(skillDir, "SKILL.md"), "utf8");
+    const debug = readFileSync(join(skillDir, "..", "app-debugging", "SKILL.md"), "utf8");
+    expect(debug).toMatch(/^---\nname: app-debugging\ndescription: .{100,}\n---/);
+    expect(distribution.indexOf("Runtime debugging comes first")).toBeLessThan(
+      distribution.indexOf("**Prerequisite:"),
+    );
+    expect(debug).toContain("Local debugging requires no Apple account");
+    const { ctx } = await makeCtx();
+    const client = await connect(ctx);
+    try {
+      const resource = await client.readResource({ uri: "notarize://guides/app-debugging" });
+      expect((resource.contents[0] as { text: string }).text).toBe(debug);
+      const prompt = await client.getPrompt({ name: "debug-app", arguments: { symptom: "keeps loading" } });
+      expect((prompt.messages[0].content as { text: string }).text).toMatch(
+        /explicit target|explicit runtime|exact app\/runtime/,
+      );
+    } finally {
+      await client.close();
+    }
+  });
+
   it("documents the Monitor workflow for long notarizations", () => {
     const skill = readFileSync(join(skillDir, "SKILL.md"), "utf8");
     expect(skill).toMatch(/Long-running operations/);
@@ -90,16 +112,18 @@ describe("skill + docs", () => {
     const { resources } = await client.listResources();
     const uris = resources.map((r) => r.uri);
     expect(uris).toContain("notarize://guides/overview");
+    expect(uris).toContain("notarize://guides/app-debugging");
     expect(uris).toContain("notarize://guides/notarization");
     expect(uris).toContain("notarize://guides/frameworks-electron");
     expect(uris).toContain("notarize://catalog/errors");
-    expect(uris.length).toBe(guideTopics(skillDir).length + 6);
+    expect(uris.length).toBe(guideTopics(skillDir).length + 7);
     const r = await client.readResource({ uri: "notarize://catalog/targets" });
     expect(JSON.parse((r.contents[0] as { text: string }).text)["mac-developer-id"].exportMethod).toBe(
       "developer-id",
     );
     const { prompts } = await client.listPrompts();
     expect(prompts.map((p) => p.name).sort()).toEqual([
+      "debug-app",
       "debug-gatekeeper",
       "debug-notarization",
       "debug-sandbox",

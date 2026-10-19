@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { StringDecoder } from "node:string_decoder";
 import { type LogWriter, NullLogWriter } from "./logs";
 import { formatCommand, redact } from "./redact";
 
@@ -14,9 +15,11 @@ export interface RunOptions {
   secrets?: string[];
   signal?: AbortSignal;
   /** Streamed output callback (stdout+stderr interleaved), used by jobs. */
-  onOutput?: (chunk: string) => void;
+  onOutput?: (chunk: string, stream?: "stdout" | "stderr") => void;
   /** Return stdout as raw bytes as well (for binary plists, DER, etc.). */
   binary?: boolean;
+  /** Disable buffered stdout/stderr for bounded streaming consumers. */
+  retainOutput?: boolean;
 }
 
 export interface RunResult {
@@ -74,6 +77,8 @@ export class SpawnRunner implements CommandRunner {
     let stderr = "";
     let timedOut = false;
     let killed = false;
+    let closed = false;
+    let killTimer: NodeJS.Timeout | undefined;
 
     const child = spawn(cmd, args, {
       cwd: opts.cwd,
@@ -83,10 +88,14 @@ export class SpawnRunner implements CommandRunner {
     });
 
     const kill = (sig: NodeJS.Signals = "SIGTERM") => {
-      if (killed) return;
+      if (closed || (killed && sig !== "SIGKILL")) return;
       killed = true;
       try {
         child.kill(sig);
+        if (sig === "SIGTERM" && !killTimer) {
+          killTimer = setTimeout(() => kill("SIGKILL"), 5000);
+          killTimer.unref();
+        }
       } catch {
         /* already exited */
       }
@@ -96,24 +105,26 @@ export class SpawnRunner implements CommandRunner {
       ? setTimeout(() => {
           timedOut = true;
           kill("SIGTERM");
-          setTimeout(() => kill("SIGKILL"), 5000).unref();
         }, opts.timeoutMs)
       : undefined;
     timer?.unref?.();
 
     const onAbort = () => kill("SIGTERM");
     opts.signal?.addEventListener("abort", onAbort, { once: true });
+    if (opts.signal?.aborted) onAbort();
 
+    const stdoutDecoder = new StringDecoder("utf8");
+    const stderrDecoder = new StringDecoder("utf8");
     child.stdout?.on("data", (d: Buffer) => {
-      if (stdoutLen < MAX_CAPTURE) {
+      if (opts.retainOutput !== false && stdoutLen < MAX_CAPTURE) {
         stdoutChunks.push(d);
         stdoutLen += d.length;
       }
-      opts.onOutput?.(d.toString("utf8"));
+      opts.onOutput?.(stdoutDecoder.write(d), "stdout");
     });
     child.stderr?.on("data", (d: Buffer) => {
-      if (stderr.length < MAX_CAPTURE) stderr += d.toString("utf8");
-      opts.onOutput?.(d.toString("utf8"));
+      if (opts.retainOutput !== false && stderr.length < MAX_CAPTURE) stderr += d.toString("utf8");
+      opts.onOutput?.(stderrDecoder.write(d), "stderr");
     });
 
     if (opts.stdin !== undefined) {
@@ -128,6 +139,12 @@ export class SpawnRunner implements CommandRunner {
         spawnError = err.code === "ENOENT" ? `command not found: ${cmd}` : err.message;
       });
       child.on("close", async (code, signal) => {
+        const stdoutTail = stdoutDecoder.end();
+        const stderrTail = stderrDecoder.end();
+        if (stdoutTail) opts.onOutput?.(stdoutTail, "stdout");
+        if (stderrTail) opts.onOutput?.(stderrTail, "stderr");
+        closed = true;
+        if (killTimer) clearTimeout(killTimer);
         if (timer) clearTimeout(timer);
         opts.signal?.removeEventListener("abort", onAbort);
         const buf = Buffer.concat(stdoutChunks);

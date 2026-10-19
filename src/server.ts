@@ -12,9 +12,9 @@ export const SERVER_VERSION: string = pkg.version;
 
 export const SERVER_INSTRUCTIONS = `Apple code signing, notarization, certificates, provisioning, entitlements, Gatekeeper/sandbox/TCC debugging, TestFlight and App Store Connect.
 
-Start with: doctor (machine readiness) → detect_project (what the app is) → distribution_checklist (what is missing for the chosen target). Each result lists next_steps naming the tool to call.
+For installed-app failures, read notarize://guides/app-debugging and use app_debugging action=probe with an explicit runtime target before capture. Local debugging needs no Apple account; never substitute host logs for an iPhone or simulator.\n\nStart distribution with: doctor (machine readiness) → detect_project (what the app is) → distribution_checklist (what is missing for the chosen target). Each result lists next_steps naming the tool to call.
 
-Mutating tools (signing, keychain, notarization submits, uploads, App Store Connect changes) use plan + confirm: the first call returns a PREVIEW and a confirm_token and changes nothing. Show the preview to the user; only after they approve, call again with identical arguments plus confirm_token. Never invent tokens.
+Mutating tools (signing, keychain, notarization submits, uploads, App Store Connect changes) use plan + confirm: the first call returns a PREVIEW and a confirm_token and changes nothing. Show the preview to the user, then call again with identical arguments plus confirm_token once authorized. Explicit advance approval counts when its scope covers the preview; ask again only for expanded scope, unclear authorization or a material new risk. Never invent tokens or change auto-confirm policy on the user's behalf.
 
 Read notarize://guides/* resources (or the apple-distribution skill) for background on any topic.`;
 

@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CERTIFICATE_TYPES } from "../knowledge/certificate-types";
@@ -10,11 +10,15 @@ import { SDK_REQUIREMENTS } from "../knowledge/sdk-requirements";
 import { TARGETS } from "../knowledge/targets";
 
 /** Locate skills/apple-distribution both from src/ (tests) and dist/ (bundle / plugin). */
-export function findSkillDir(): string | undefined {
+export function findSkillDir(name = "apple-distribution"): string | undefined {
   const candidates = [
-    process.env.NOTARIZE_MCP_SKILL_DIR,
-    fileURLToPath(new URL("../skills/apple-distribution", import.meta.url)),
-    fileURLToPath(new URL("../../skills/apple-distribution", import.meta.url)),
+    process.env.NOTARIZE_MCP_SKILL_DIR
+      ? name === "apple-distribution"
+        ? process.env.NOTARIZE_MCP_SKILL_DIR
+        : join(dirname(process.env.NOTARIZE_MCP_SKILL_DIR), name)
+      : undefined,
+    fileURLToPath(new URL(`../skills/${name}`, import.meta.url)),
+    fileURLToPath(new URL(`../../skills/${name}`, import.meta.url)),
   ].filter((x): x is string => !!x);
   return candidates.find((c) => existsSync(join(c, "SKILL.md")));
 }
@@ -107,6 +111,20 @@ export function registerResources(server: McpServer): void {
         }),
       );
     }
+  }
+  const debugSkill = findSkillDir("app-debugging");
+  if (debugSkill) {
+    const uri = "notarize://guides/app-debugging";
+    server.registerResource(
+      "app-debugging",
+      uri,
+      { title: "App debugging", mimeType: "text/markdown" },
+      async () => ({
+        contents: [
+          { uri, mimeType: "text/markdown", text: readFileSync(join(debugSkill, "SKILL.md"), "utf8") },
+        ],
+      }),
+    );
   }
   for (const [name, c] of Object.entries(CATALOGS)) {
     const uri = `notarize://catalog/${name}`;

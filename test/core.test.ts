@@ -214,6 +214,51 @@ describe("misc", () => {
     expect((await fr.run("spctl", [])).spawnError).toMatch(/no rule/);
   });
 
+  it("escalates cancellation when a child ignores SIGTERM and keeps streaming unbuffered", async () => {
+    const controller = new AbortController();
+    const chunks: string[] = [];
+    const runner = new SpawnRunner();
+    const result = await runner.run(
+      process.execPath,
+      ["-e", "process.on('SIGTERM',()=>{}); process.stdout.write('ready'); setInterval(()=>{},1000)"],
+      {
+        signal: controller.signal,
+        retainOutput: false,
+        onOutput(chunk) {
+          chunks.push(chunk);
+          controller.abort();
+        },
+      },
+    );
+    expect(chunks.join("")).toBe("ready");
+    expect(result.signal).toBe("SIGKILL");
+    expect(result.stdout).toBe("");
+  });
+
+  it("handles pre-aborted runs and preserves split UTF-8 streamed output", async () => {
+    const runner = new SpawnRunner();
+    const preAborted = new AbortController();
+    preAborted.abort();
+    const aborted = await runner.run(process.execPath, ["-e", "setInterval(()=>{},1000)"], {
+      signal: preAborted.signal,
+    });
+    expect(aborted.signal).toBeTruthy();
+    const chunks: string[] = [];
+    await runner.run(
+      process.execPath,
+      [
+        "-e",
+        "const b=Buffer.from('字'); process.stdout.write(b.subarray(0,1)); setTimeout(()=>process.stdout.write(b.subarray(1)),20)",
+      ],
+      {
+        onOutput(chunk) {
+          chunks.push(chunk);
+        },
+      },
+    );
+    expect(chunks.join("")).toBe("字");
+  });
+
   it("SpawnRunner runs real processes without a shell and reports missing commands", async () => {
     const r = new SpawnRunner();
     const res = await r.run(process.execPath, ["-e", "process.stdout.write('$HOME')"]);

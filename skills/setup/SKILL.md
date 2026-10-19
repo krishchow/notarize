@@ -1,9 +1,19 @@
 ---
 name: setup
-description: One-time setup for Apple signing/notarization work. It checks the App Store Connect API key (ASC_KEY_ID, ASC_ISSUER_ID, the AuthKey .p8 file) and Team ID, and creates them if missing. Optionally it registers a physical iPhone/iPad, reading the UDID itself, and stores a notarytool keychain profile for scripts/fastlane/CI. Then it confirms a project's bundle ID, team and version, and that the bundle ID and app record exist on Apple's side. Use it on first use of notarize, when someone asks to "set up", "configure" or "init" Apple credentials or an API key, when a notarize tool says no API key is configured, or before shipping a project whose bundle ID hasn't been confirmed.
+description: Set up Apple signing/notarization credentials, project metadata, optional device registration, or optional local iPhone/iPad logging. Debugging-only setup needs no Apple credentials. Use on first use, for setup/configuration requests, when a tool reports missing credentials or the optional logging backend, or before shipping a project whose bundle ID is unconfirmed.
 ---
 
 # notarize setup
+
+## Optional local device debugging
+
+For debugging-only requests, use this section and skip account credentials, device registration, and project registration. For signing/distribution setup, offer this optional dependency only when the user wants physical-device live logging; it is not required to ship apps.
+
+Call `app_debugging action=setup` to check for a supported `idevicesyslog`. If missing and the user wants live logging, call `app_debugging action=setup install=true` for a preview of `brew install libimobiledevice` through existing Homebrew. Use the returned confirmation token once authorized; explicit advance approval for this installation counts. The job verifies the installed executable before reporting ready. Do not install Homebrew automatically, change sudo policy, or request Apple credentials for this path. Missing Homebrew or an installation failure leaves Apple snapshots and manual Console import available.
+
+After setup, use the app-debugging skill to select the device/app, probe, preview and capture. A supported executable is not proof of device access: verify the selected-device connection and actual records. Developer Mode assistance is specific to blocked operations; never toggle it automatically.
+
+## Signing and distribution setup
 
 This skill puts a machine, and optionally a project, into the state that the `apple-distribution` skill and the `notarize` MCP tools assume:
 

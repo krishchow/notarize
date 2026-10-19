@@ -1,0 +1,19 @@
+{
+  "recorded_at": "2026-10-18",
+  "xcode": "26.6 (17F113)",
+  "devicectl": "518.33",
+  "device_os": "iOS 26.6",
+  "device_model": "iPhone 14 Pro",
+  "sanitization": "Device identifiers, hostnames and environment omitted. Error text and lock-state fields preserved.",
+  "lock_state": { "passcodeRequired": false, "unlockedSinceBoot": true },
+  "operations": ["device info apps", "device info files --domain-type systemCrashLogs"],
+  "exit_code": 1,
+  "stderr": "ERROR: The operation failed because Developer Mode is disabled. (com.apple.dt.CoreDeviceError error 10005 (0x2715))",
+  "error": {
+    "code": 10005,
+    "domain": "com.apple.dt.CoreDeviceError",
+    "userInfo": {
+      "NSLocalizedDescription": { "string": "The operation failed because Developer Mode is disabled." }
+    }
+  }
+}
