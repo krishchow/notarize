@@ -46,7 +46,7 @@ export const confirmTokenSchema = z
   .string()
   .optional()
   .describe(
-    "Leave empty on the first call to get a preview. After the user approves the preview, repeat the call with identical arguments plus the confirm_token from the preview.",
+    "Leave empty on the first call to get a preview. When the user has approved this action, including explicit advance approval whose scope matches the preview, repeat the call with identical arguments plus the confirm_token. Ask again if the preview exceeds that scope or reveals a material new risk.",
   );
 
 /**
@@ -85,8 +85,8 @@ export async function withConfirmation(
     summary: lines.join("\n"),
     data,
     next_steps: [
-      `Show this plan to the user${plan.destructive ? " and get explicit approval — this action is destructive or affects your Apple account" : ""}.`,
-      `If approved, call ${extra.toolName} again with the same arguments plus ${CONFIRM_TOKEN_ARG}="${token}".`,
+      `Show this plan to the user. ${plan.destructive ? "Explicit approval is required because this action is destructive or affects your Apple account. " : ""}Existing explicit advance approval counts if its scope covers this preview; ask again only for expanded scope or a material new risk.`,
+      `Once authorization is established, call ${extra.toolName} again with the same arguments plus ${CONFIRM_TOKEN_ARG}="${token}".`,
     ],
     isError: check.status === "invalid",
   };

@@ -596,6 +596,34 @@ A quarantined app launched from where it was downloaded runs from a randomized r
 
 ## runtime
 
+### App debugging evidence backend is unavailable
+
+Matches: `Debug evidence unavailable|Developer Mode is disabled|CoreDeviceError error 10005`
+
+Missing tooling, device access, permissions or backend support prevented evidence collection. This is not a successful empty capture.
+
+- Use app_debugging action=probe for the explicit target and follow its capability gaps.
+- For an ordinary phone, use Console on the Mac and import an app-scoped UTF-8 export. Enable Developer Mode only if you choose an operation that actually needs it.
+- Tool: `app_debugging`
+
+### Debugging evidence does not match the selected target
+
+Matches: `Debug target mismatch`
+
+The supplied selector or report identity conflicts with the debugging session. Host logs must not be substituted for phone or simulator evidence.
+
+- Select the exact device and app, then import evidence from that target or start a separate session.
+- Tool: `app_debugging`
+
+### Debugging session request is invalid
+
+Matches: `Debug session invalid`
+
+A required session argument is missing, state is unsupported, or a capture is already running.
+
+- Use app_debugging action=status with the returned session_id. Preserve existing capture limits on resume, or start a new session.
+- Tool: `app_debugging`
+
 ### Library validation blocked a library
 
 Matches: `not valid for use in process|different Team IDs|mapping process and mapped file \(non-platform\) have different Team IDs`

@@ -70,6 +70,18 @@ describe("knowledge base consistency", () => {
 
   it("matches representative real-world error messages", () => {
     const cases: [string, string][] = [
+      [
+        "The operation failed because Developer Mode is disabled. (com.apple.dt.CoreDeviceError error 10005)",
+        "debug-evidence-unavailable",
+      ],
+      [
+        "Debug target mismatch: crash report app identity does not match the selected target.",
+        "debug-target-mismatch",
+      ],
+      [
+        "Debug session invalid: capture is already running; use status/cancel first.",
+        "debug-session-invalid",
+      ],
       ["/x/App.app: errSecInternalComponent", "errSecInternalComponent"],
       [
         "The request cannot be completed because this tester has no installable builds.: Tester has no installable build.",

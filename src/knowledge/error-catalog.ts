@@ -460,6 +460,43 @@ export const ERROR_CATALOG: KnownError[] = [
   },
   // ---------------- runtime (dyld / AMFI / sandbox) ----------------
   {
+    id: "debug-evidence-unavailable",
+    source: "runtime",
+    pattern: /Debug evidence unavailable|Developer Mode is disabled|CoreDeviceError error 10005/,
+    title: "App debugging evidence backend is unavailable",
+    explanation:
+      "Missing tooling, device access, permissions or backend support prevented evidence collection. This is not a successful empty capture.",
+    fix: [
+      "Use app_debugging action=probe for the explicit target and follow its capability gaps.",
+      "For an ordinary phone, use Console on the Mac and import an app-scoped UTF-8 export. Enable Developer Mode only if you choose an operation that actually needs it.",
+    ],
+    tool: "app_debugging",
+  },
+  {
+    id: "debug-target-mismatch",
+    source: "runtime",
+    pattern: /Debug target mismatch/,
+    title: "Debugging evidence does not match the selected target",
+    explanation:
+      "The supplied selector or report identity conflicts with the debugging session. Host logs must not be substituted for phone or simulator evidence.",
+    fix: [
+      "Select the exact device and app, then import evidence from that target or start a separate session.",
+    ],
+    tool: "app_debugging",
+  },
+  {
+    id: "debug-session-invalid",
+    source: "runtime",
+    pattern: /Debug session invalid/,
+    title: "Debugging session request is invalid",
+    explanation:
+      "A required session argument is missing, state is unsupported, or a capture is already running.",
+    fix: [
+      "Use app_debugging action=status with the returned session_id. Preserve existing capture limits on resume, or start a new session.",
+    ],
+    tool: "app_debugging",
+  },
+  {
     id: "rt-library-validation",
     source: "runtime",
     pattern:

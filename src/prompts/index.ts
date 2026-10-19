@@ -65,10 +65,27 @@ export function registerPrompts(server: McpServer): void {
       ),
   );
   server.registerPrompt(
+    "debug-app",
+    {
+      title: "Debug a Mac, iPhone/iPad or simulator app",
+      description:
+        "Select an explicit runtime, collect bounded evidence, correlate source/build identity, and verify a fix.",
+      argsSchema: {
+        symptom: z.string().describe("Observed failure and known reproduction steps"),
+        path: z.string().optional().describe("Project or artifact path"),
+      },
+    },
+    ({ symptom, path }) =>
+      user(
+        `Debug this app failure: ${symptom}. ${path ? `Project/artifact: ${path}.` : ""} Read notarize://guides/app-debugging. Discover and select the exact app/runtime using detect_project and devices; use app_debugging action=probe with an explicit target. Preserve the installed app/state. Preview capture before confirming, wait for ready before reproduction, and use the returned Monitor. Physical-device logs may require Console export/import. Do not use host system_logs/crash_reports for an iPhone or simulator. No Apple-account setup is needed for local evidence. Separate observations from hypotheses and name the runtime/build actually verified.`,
+      ),
+  );
+  server.registerPrompt(
     "debug-sandbox",
     {
-      title: "Fix App Sandbox / privacy permission problems",
-      description: "Find sandbox denials and TCC issues and the entitlements/usage strings that fix them.",
+      title: "Fix macOS App Sandbox / privacy permission problems",
+      description:
+        "macOS host only: find sandbox denials and TCC issues. For iPhone/iPad/simulator apps use debug-app.",
       argsSchema: {
         app_name: z.string().describe("Process/app name"),
         path: z.string().optional().describe("Path to the .app"),
@@ -76,7 +93,7 @@ export function registerPrompts(server: McpServer): void {
     },
     ({ app_name, path }) =>
       user(
-        `A feature fails in ${app_name}. Ask me to reproduce it, then run system_logs preset=sandbox process=${app_name} last=5m and preset=tcc, ${path ? `privacy action=audit path=${path} and entitlements action=read path=${path}, ` : ""}and tell me which entitlements / Info.plist usage strings to add. Preview any file changes and re-sign afterwards.`,
+        `A feature fails in the macOS app ${app_name}. Ask me to reproduce it, then run system_logs preset=sandbox process=${app_name} last=5m and preset=tcc, ${path ? `privacy action=audit path=${path} and entitlements action=read path=${path}, ` : ""}and tell me which entitlements / Info.plist usage strings to add. Preview any file changes and re-sign afterwards.`,
       ),
   );
 }

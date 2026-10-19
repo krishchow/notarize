@@ -7,7 +7,7 @@ How to drive the `notarize` MCP server from an agent (Claude Code or any MCP cli
 | Mode | How | Notes |
 |---|---|---|
 | Claude Code plugin (recommended) | `/plugin marketplace add krishchow/notarize` → `/plugin install notarize@notarize` | Installs the skill and the MCP server. `.claude-plugin/plugin.json` runs `npx -y notarize-mcp@<plugin version>`. |
-| Any MCP client | `{"command": "npx", "args": ["-y", "notarize-mcp"]}`, or `claude mcp add notarize -- npx -y notarize-mcp` | The npm package is the server alone. Skill content is also available as `notarize://guides/*` resources and four MCP prompts. |
+| Any MCP client | `{"command": "npx", "args": ["-y", "notarize-mcp"]}`, or `claude mcp add notarize -- npx -y notarize-mcp` | The npm package is the server alone. Skill content is also available as `notarize://guides/*` resources and MCP prompts. |
 | Developing this repo | `pnpm build`, then `claude mcp add notarize -- node "$PWD/dist/notarize-mcp.js"` | `dist/` is build output and isn't committed. The repo deliberately has **no root `.mcp.json`**. |
 
 Run the server **on the Mac that has the signing identities**. On Linux and cloud agents only App Store Connect and file-inspection tools work. For signing there, generate a CI workflow with `ci_config` and run it on a macOS runner.
@@ -26,7 +26,7 @@ Every tool that changes something — files, keychain, Apple account, uploads �
      "warnings": [], "confirm_token": "lq3k…", "confirm_token_expires_in_seconds": 600 }
    ```
    Nothing has changed yet.
-2. After the user approves, repeat the call with **identical arguments** plus `confirm_token`.
+2. Once the user has authorized the action, repeat the call with **identical arguments** plus `confirm_token`. Explicit advance approval counts when the preview matches its scope. Present the preview as an update and proceed without another approval question. For example, “Upload this build to TestFlight; proceed without asking again” covers that build's upload to the agreed app/account; it does not cover adding testers, review submission or release. Ask again when scope expands, authorization is unclear, or a material new risk appears. Preparing an upload is not authorization to upload.
    - Any changed argument, another tool, or an expired token gives a new preview with `isError: true` and the reason.
    - `destructive: true` marks irreversible or account-affecting actions:
      - revoke, delete, expire;
@@ -36,11 +36,17 @@ Every tool that changes something — files, keychain, Apple account, uploads �
      - profile regeneration;
      - resetting TCC permissions for all apps.
 
-   Always get explicit approval for these.
+   These require explicit approval, which may be given in advance for the specific action. A fresh preview after token expiry or argument changes still needs a scope check, but an unchanged authorization need not be repeated.
 
 Tokens are HMACs held in the server process's memory, so they die when the server restarts.
 
 Prepare independent read-only checks and related previews before asking for approval, and present the concrete plans together where possible. Reuse metadata/testing preferences the user already supplied. Check completion from Apple rather than inferring it from a mutation's name: `add_testers` adds membership, a successful upload still needs processing, and `APP_GROUPS` enablement does not assign containers. No workflow shortcut should bypass `withConfirmation` or change the user's auto-confirm policy.
+
+## Local app debugging
+
+For installed runtime failures, use `app_debugging` and the [app debugging guide](app-debugging.md), also served as `notarize://guides/app-debugging`. Select an explicit Mac, physical iPhone/iPad, or simulator target before probing/capture. This workflow needs no Apple account. Physical devices prefer supported installed libimobiledevice live logging; `action=setup` inspects the optional dependency and `install=true` previews installation through existing Homebrew. Default `log_scope=app-related` includes system records mentioning the bundle ID; `process` scope captures only the known app process. Apple stored-log snapshots remain selectable with `backend=apple`: reproduce first, then collect the recent window; administrator authorization may be required. Console-import remains a manual fallback. Host `system_logs` and `crash_reports` results must never be attributed to a phone or simulator.
+
+Captures, imports, reproduction markers, cancellation, and app relaunch use the existing preview/confirm contract. A bounded capture returns its session ID, job ID and Monitor command. `app_debugging action=status` exposes readiness and durable evidence; `resume` creates a newly authorized capture segment after capability checks. See the guide for limits, provenance, retention and backend verification status.
 
 ## Preflight: `skills/setup/scripts/setup.mjs`
 
@@ -126,4 +132,4 @@ Sandboxed or proxied environments must allow:
 | `www.apple.com/certificateauthority` | `keychain install_intermediates` |
 
 ## Context budget
-The 35 tool definitions are about 17–18k tokens. Prefer clients that defer tool schemas (Claude Code tool search). Results are sent as a short summary plus structured JSON; the summary always comes first.
+Tool definitions have a substantial context cost. Prefer clients that defer tool schemas (Claude Code tool search). Results are sent as a short summary plus structured JSON; the summary always comes first.

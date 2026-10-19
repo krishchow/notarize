@@ -2,7 +2,7 @@
 
 <!-- Generated from src/tools/*.ts by `UPDATE_DOCS=1 pnpm exec vitest run test/docs.test.ts`. Do not edit by hand. -->
 
-35 tools. **Mutating** tools also accept `confirm_token`: the first call returns a preview and changes nothing; repeat the identical call with the token to execute (see [agent-integration.md](agent-integration.md)).
+36 tools. **Mutating** tools also accept `confirm_token`: the first call returns a preview and changes nothing; repeat the identical call with the token to execute (see [agent-integration.md](agent-integration.md)).
 
 | Tool | Kind | Title |
 |---|---|---|
@@ -20,6 +20,7 @@
 | [`crash_reports`](#crash_reports) | read-only | Find and explain recent crash reports |
 | [`privacy`](#privacy) | mutating | Audit privacy permissions (TCC) / reset prompts |
 | [`devices`](#devices) | read-only | List this Mac's UDID, connected devices and simulators |
+| [`app_debugging`](#app_debugging) | mutating | Collect target-aware app debugging evidence |
 | [`jobs`](#jobs) | mutating | Status of long-running background jobs |
 | [`keychain`](#keychain) | mutating | Create CSRs and manage signing identities in the keychain |
 | [`sign`](#sign) | mutating | Code sign an app, bundle, binary or DMG (inside-out) |
@@ -208,11 +209,39 @@ action=audit: for an .app, cross-checks linked frameworks (camera, microphone, l
 
 **List this Mac's UDID, connected devices and simulators** — read-only
 
-Collects device identifiers needed for development / Ad Hoc provisioning: this Mac's provisioning UDID (system_profiler), connected iPhones/iPads/Apple TVs/Vision Pros (`xcrun devicectl list devices`), and available simulators (`xcrun simctl`). Register them with asc_devices action=register. Read-only.
+Collects device identifiers needed for development / Ad Hoc provisioning: this Mac's provisioning UDID (system_profiler), known iPhones/iPads/Apple TVs/Vision Pros (`xcrun devicectl list devices`), and available simulators (`xcrun simctl`). Each phone includes device_id (CoreDevice UUID) for app_debugging, connectionState, and provisioning udid for asc_devices action=register. A paired device may be unavailable. Read-only.
 
 | Argument | Type | Required | Description |
 |---|---|---|---|
 | `include_simulators` | boolean |  | Include simulators (default false). |
+
+## app_debugging
+
+**Collect target-aware app debugging evidence** — mutating (preview → confirm_token)
+
+setup: inspect optional normal-user live device logging; install=true previews libimobiledevice installation through existing Homebrew. probe: check explicit macOS, iPhone/iPad or simulator capabilities without Apple credentials. start: preview bounded app-scoped logs/reports and persist a session. status: inspect readiness, artifacts and gaps. mark: preview a reproduction timestamp. cancel: preview stopping capture, retaining evidence. resume: preview a new segment after reprobe. import: preview local text evidence with provenance. relaunch: separately preview app launch/relaunch. Physical devices prefer installed libimobiledevice live logs; backend=apple uses stored-log snapshots requiring reproduction first and potentially administrator authorization. Console text import is a fallback. No resets, device registration, or automatic Developer Mode changes. Empty evidence is not proof of a healthy app.
+
+| Argument | Type | Required | Description |
+|---|---|---|---|
+| `action` | `setup` \| `probe` \| `start` \| `status` \| `mark` \| `cancel` \| `resume` \| `import` \| `relaunch` | yes |  |
+| `install` | boolean |  | setup only: preview installation of optional libimobiledevice using existing Homebrew. Default false; never installs silently. |
+| `backend` | `auto` \| `apple` \| `libimobiledevice` |  | Physical-device logs: auto prefers a supported installed live backend, otherwise Apple snapshots. No automatic installation. Default auto. |
+| `log_scope` | `app-related` \| `process` |  | Live device logs: app-related matches messages mentioning the bundle ID, including system lifecycle records; process captures the known app process only. Default app-related. |
+| `target` | object |  | Explicit app/runtime target. Required for probe, start, relaunch and an import without session_id. Never infer an iPhone target from host logs. |
+| `session_id` | string |  | Durable debugging session returned by start/import. |
+| `collection` | `logs` \| `reports` \| `both` |  | start/resume: collection type, default both; unsupported components are disclosed. |
+| `seconds` | integer |  | Capture duration limit, default 120 seconds. |
+| `max_bytes` | integer |  | Evidence byte limit, default 10 MiB. |
+| `lookback_seconds` | integer |  | Physical-device log snapshots: collect stored logs from this recent window, default 120 seconds. Reproduce before starting; execution duration is bounded separately by seconds. |
+| `use_sudo` | boolean |  | Physical-device log snapshots only: opt in to sudo -n using administrator authorization already available to this MCP process. No password is accepted by MCP. Default false. |
+| `max_lines` | integer |  | Log line limit, default 20000. |
+| `installation_channel` | `TestFlight` \| `App Store` \| `development` \| `other` \| `unknown` |  | Installation channel when established; default unknown. |
+| `version` | string |  | User-reported installed app version, never inferred from current source. |
+| `build` | string |  | User-reported installed build number. |
+| `label` | string |  | mark: description of the tap/failure. |
+| `timestamp` | string |  | mark: reported event time; default time the marker is recorded. |
+| `path` | string |  | import: absolute local UTF-8 .log/.txt/.ips/.crash file, at most 50 MiB. |
+| `origin` | string |  | import: how and where evidence was obtained, including device/simulator identity. Stored as user-reported provenance. |
 
 ## jobs
 

@@ -386,7 +386,7 @@ export const devicesTool = defineTool({
   name: "devices",
   title: "List this Mac's UDID, connected devices and simulators",
   description:
-    "Collects device identifiers needed for development / Ad Hoc provisioning: this Mac's provisioning UDID (system_profiler), connected iPhones/iPads/Apple TVs/Vision Pros (`xcrun devicectl list devices`), and available simulators (`xcrun simctl`). Register them with asc_devices action=register. Read-only.",
+    "Collects device identifiers needed for development / Ad Hoc provisioning: this Mac's provisioning UDID (system_profiler), known iPhones/iPads/Apple TVs/Vision Pros (`xcrun devicectl list devices`), and available simulators (`xcrun simctl`). Each phone includes device_id (CoreDevice UUID) for app_debugging, connectionState, and provisioning udid for asc_devices action=register. A paired device may be unavailable. Read-only.",
   input: {
     include_simulators: z.boolean().optional().describe("Include simulators (default false)."),
   },
@@ -418,6 +418,8 @@ export const devicesTool = defineTool({
         const j = JSON.parse(await readFile(tmp, "utf8"));
         data.connected = (j.result?.devices ?? []).map((d: any) => ({
           name: d.deviceProperties?.name,
+          device_id: d.identifier,
+          connectionState: d.connectionProperties?.tunnelState,
           udid: d.hardwareProperties?.udid,
           platform: d.hardwareProperties?.platform,
           model: d.hardwareProperties?.marketingName ?? d.hardwareProperties?.productType,

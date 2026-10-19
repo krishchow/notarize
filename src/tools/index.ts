@@ -1,3 +1,4 @@
+import { appDebuggingTool } from "./app-debugging";
 import { ascApiTool, ascAppsTool, ascBuildsTool } from "./asc-apps";
 import {
   ascAuthTool,
@@ -40,6 +41,7 @@ export const allTools: ToolDef<any>[] = [
   crashReportsTool,
   privacyTool,
   devicesTool,
+  appDebuggingTool,
   jobsTool,
   // keychain, signing, packaging, notarization
   keychainTool,
