@@ -37,8 +37,10 @@ export const signingIdentitiesTool = defineTool({
   async handler(args, ctx) {
     const ids = await listIdentities(ctx, args.keychain);
     const orphans = await certificatesWithoutKeys(ctx, ids);
-    const lines = [`${ids.length} code-signing identit${ids.length === 1 ? "y" : "ies"}:`];
-    for (const i of ids) {
+    const lines = [
+      `${ids.filter((i) => i.valid).length} usable of ${ids.length} code-signing identities; ${orphans.length} certificate(s) missing a private key.`,
+    ];
+    for (const i of ids.filter((i) => !i.valid)) {
       const exp = i.certificate
         ? ` expires ${i.certificate.validTo.slice(0, 10)}${i.certificate.expired ? " (EXPIRED)" : ""}`
         : "";
@@ -65,6 +67,7 @@ export const signingIdentitiesTool = defineTool({
           }));
     return {
       summary: lines.join("\n"),
+      structuredOnly: true,
       data: {
         identities: ids.map((i) => ({
           name: i.name,
@@ -79,11 +82,11 @@ export const signingIdentitiesTool = defineTool({
         certificatesWithoutPrivateKey: orphans,
         certificateTypes: reference,
       },
-      next_steps: ids.some((i) => i.type === "developer-id-application" && i.valid)
-        ? ["sign / notarize_and_staple for Developer ID distribution"]
-        : [
-            "Missing a certificate? keychain action=create_csr → asc_certificates action=create (or the portal for Developer ID)",
-          ],
+      next_steps: orphans.length
+        ? ["Import the .p12 from the Mac that created the certificate using keychain action=import_p12."]
+        : ids.some((i) => i.valid)
+          ? []
+          : ["keychain action=create_csr → asc_certificates action=create (or the portal for Developer ID)"],
     };
   },
 });
@@ -105,47 +108,29 @@ export const inspectCodeSignatureTool = defineTool({
     const r = await inspectSignature(ctx, path, { target: args.target, deep: args.deep });
     const d = r.display;
     const head = r.pkg
-      ? `Package ${path}\nStatus: ${r.pkg.status}\nNotarized: ${r.pkg.notarized ? "yes" : "no"}\nChain: ${r.pkg.chain.join(" → ")}`
+      ? `Package signature: ${r.pkg.status}. Notarized: ${r.pkg.notarized ? "yes" : "no"}.`
       : [
-          `${path}`,
-          `Signed: ${r.signed ? `yes (${r.signer})` : "NO"}`,
-          d?.authorities.length ? `Authority: ${d.authorities.join(" → ")}` : undefined,
-          d?.identifier ? `Identifier: ${d.identifier}` : undefined,
-          d?.teamIdentifier ? `Team ID: ${d.teamIdentifier}` : undefined,
+          `Signed: ${r.signed ? `yes (${r.signer})` : "NO"}; signature ${r.verify?.valid ? "valid" : "INVALID"}.`,
+          `Team: ${d?.teamIdentifier ?? "unknown"}; bundle: ${d?.identifier ?? "unknown"}.`,
           r.signed
-            ? `Hardened runtime: ${d?.hardenedRuntime ? "yes" : "no"} · Secure timestamp: ${d?.hasSecureTimestamp ? "yes" : "no"} · Ticket: ${d?.notarizationTicket ?? "unknown"}`
+            ? `Hardened runtime: ${d?.hardenedRuntime ? "yes" : "no"}; secure timestamp: ${d?.hasSecureTimestamp ? "yes" : "no"}; ticket: ${d?.notarizationTicket ?? "unknown"}.`
             : undefined,
-          r.verify ? `Verify (deep, strict): ${r.verify.valid ? "valid" : "INVALID"}` : undefined,
-          r.entitlements ? `Entitlements: ${Object.keys(r.entitlements).join(", ") || "(none)"}` : undefined,
-          r.embeddedProfile
-            ? `Embedded profile: ${r.embeddedProfile.name ?? r.embeddedProfile.path} (${r.embeddedProfile.type ?? "?"})`
-            : undefined,
-          r.nested.length
-            ? `Nested code: ${r.nested.length} item(s), ${r.nested.filter((n) => n.issues.length).length} with issues`
-            : undefined,
+          `Nested code: ${r.nested.length} inspected, ${r.nested.filter((n) => n.issues.length).length} with issues${r.nestedTruncated ? " (inventory truncated)" : args.deep === false ? " (deep inspection disabled)" : ""}.`,
         ]
           .filter(Boolean)
           .join("\n");
     const errors = r.findings.filter((f) => f.severity === "error");
     return {
       summary: `${head}\n\n${r.findings.length ? formatFindings(r.findings) : "No problems found."}`,
-      data: {
-        ...r,
-        display: d ? { ...d, raw: undefined } : undefined,
-        verify: r.verify
-          ? {
-              valid: r.verify.valid,
-              messages: r.verify.messages.slice(0, 30),
-              problemPaths: r.verify.problemPaths,
-            }
-          : undefined,
-      } as unknown as Record<string, unknown>,
+      structuredOnly: true,
+      data: { ...r } as unknown as Record<string, unknown>,
       next_steps: errors.length
         ? ["Fix the errors above (sign tool re-signs inside-out), then inspect again."]
         : args.target === "mac-developer-id" || r.signer === "developer-id"
           ? [
-              "notarize_and_staple path=<artifact>",
-              "gatekeeper action=simulate_download to test as a user would",
+              d?.notarizationTicket === "stapled"
+                ? `gatekeeper action=simulate_download path=${JSON.stringify(args.path)} if not already checked`
+                : `notarize_and_staple path=${JSON.stringify(args.path)}`,
             ]
           : [],
     };
@@ -229,13 +214,8 @@ export const inspectBinaryTool = defineTool({
     if (targets.length > limit)
       findings.push(finding("info", `Inspected ${limit} of ${targets.length} binaries.`));
     return {
-      summary: `${results.length} binar${results.length === 1 ? "y" : "ies"} inspected.\n${results
-        .slice(0, 15)
-        .map(
-          (r) =>
-            `• ${r.path}: ${r.archs.join("+") || "?"} ${r.buildVersions.map((b) => `${b.platform} min ${b.minos} sdk ${b.sdk}`).join(", ")}`,
-        )
-        .join("\n")}${findings.length ? `\n\n${formatFindings(findings)}` : ""}`,
+      summary: `${results.length} binaries inspected${targets.length > limit ? ` of ${targets.length}` : ""}. Architectures: ${[...new Set(results.flatMap((r) => r.archs))].join(", ") || "unknown"}. SDKs: ${[...new Set(results.flatMap((r) => r.buildVersions.map((v) => `${v.platform} ${v.sdk ?? "unknown"}`)))].join(", ") || "unknown"}.${findings.length ? `\n${formatFindings(findings)}` : " No issues found."}`,
+      structuredOnly: true,
       data: { binaries: results, findings },
     };
   },

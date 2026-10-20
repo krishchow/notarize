@@ -81,13 +81,11 @@ export const gatekeeperTool = defineTool({
       const f = explainAssessment(a);
       return {
         summary: `${basename(path)}: ${a.accepted ? "ACCEPTED" : "REJECTED"}${a.source ? ` (source=${a.source})` : ""}${a.origin ? `\norigin=${a.origin}` : ""}\n${formatFindings(f)}`,
+        structuredOnly: true,
         data: { assessment: a, findings: f },
         next_steps: a.accepted
           ? ["gatekeeper action=simulate_download for a full download simulation"]
-          : [
-              "inspect_code_signature path=<same>",
-              "notarize_and_staple if it is signed with Developer ID but not notarized",
-            ],
+          : [`inspect_code_signature path=${JSON.stringify(args.path)}`],
       };
     }
 
@@ -96,7 +94,8 @@ export const gatekeeperTool = defineTool({
       if (!r.available)
         throw new ToolError("syspolicy_check is not available (requires macOS 14 Sonoma or later).");
       return {
-        summary: `syspolicy_check ${args.mode ?? "distribution"}: ${r.passed ? "PASSED" : "issues found"}\n${r.raw.slice(0, 3000)}`,
+        summary: `syspolicy_check ${args.mode ?? "distribution"}: ${r.passed ? "PASSED" : "issues found"}\n${r.passed ? "" : r.raw.slice(0, 3000)}`,
+        structuredOnly: true,
         data: r,
       };
     }
@@ -251,10 +250,9 @@ async function simulate(ctx: ToolContext, path: string, launch: boolean) {
   const rejected = findings.some((f) => f.severity === "error");
   return {
     summary: `Simulated download of ${name}: ${rejected ? "users WILL see a Gatekeeper block/warning" : "Gatekeeper should open it without warnings"}.\n${formatFindings(findings)}`,
+    structuredOnly: true,
     data: { ...results, findings },
-    next_steps: rejected
-      ? ["inspect_code_signature path=<original>", "notarize_and_staple path=<original>"]
-      : [],
+    next_steps: rejected ? [`inspect_code_signature path=${JSON.stringify(path)}`] : [],
   };
 }
 

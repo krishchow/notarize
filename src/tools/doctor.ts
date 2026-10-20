@@ -92,9 +92,10 @@ export const doctorTool = defineTool({
         ),
       );
       return {
-        summary: `doctor (${ctx.platform.os})\n${formatFindings(findings)}`,
+        summary: `doctor (${ctx.platform.os})\n${formatFindings(findings.filter((f) => f.severity !== "info"))}`,
+        structuredOnly: true,
         data: { ...data, findings },
-        next_steps: ascConfigured ? ["asc_auth action=test"] : ["asc_auth action=configure"],
+        next_steps: ascConfigured ? [] : ["asc_auth action=configure"],
       };
     }
 
@@ -311,13 +312,14 @@ export const doctorTool = defineTool({
 
     const errors = findings.filter((f) => f.severity === "error").length;
     const warnings = findings.filter((f) => f.severity === "warning").length;
+    const nextFinding =
+      findings.find((f) => f.severity === "error" && f.fix) ??
+      findings.find((f) => f.severity === "warning" && f.fix);
     return {
-      summary: `doctor: macOS ${macos ?? "?"}, ${xc.xcodeVersion ? `Xcode ${xc.xcodeVersion}` : "no Xcode"} — ${errors} error(s), ${warnings} warning(s)\n${formatFindings(findings)}`,
+      summary: `doctor: macOS ${macos ?? "?"}, ${xc.xcodeVersion ? `Xcode ${xc.xcodeVersion}` : "no Xcode"} — ${errors} error(s), ${warnings} warning(s)\n${formatFindings(findings.filter((f) => f.severity !== "info"))}`,
+      structuredOnly: true,
       data: { ...data, findings },
-      next_steps: [
-        "detect_project path=<your app or project> to see what you are shipping",
-        "distribution_checklist path=<…> target=<mac-developer-id|mac-app-store|testflight-ios|ios-app-store|…>",
-      ],
+      next_steps: nextFinding?.fix ? [nextFinding.fix] : [],
     };
   },
 });

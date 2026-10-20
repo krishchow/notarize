@@ -69,6 +69,13 @@ describe("doctor", () => {
     );
     // the fixture cert's SHA-1 does not match the fake identity hashes → reported as missing a private key
     expect(r.text).toMatch(/have no private key/);
+    expect(r.text).not.toContain('"findings":');
+    expect(r.data.findings.length).toBeGreaterThan(0);
+    expect(r.data.next_steps).toHaveLength(1);
+    const firstError =
+      r.data.findings.find((f: any) => f.severity === "error" && f.fix) ??
+      r.data.findings.find((f: any) => f.severity === "warning" && f.fix);
+    expect(r.data.next_steps[0]).toBe(firstError.fix);
   });
 });
 
@@ -80,6 +87,9 @@ describe("signing_identities", () => {
       .on("security", ["find-certificate"], { stdout: "" });
     const r = await call(await connect(ctx), "signing_identities", { include_reference: false });
     expect(r.data.identities).toHaveLength(4);
+    expect(r.text).toContain("usable of 4");
+    expect(r.text).not.toContain('"identities":');
+    expect(r.text).not.toContain("sign / notarize_and_staple");
     expect(r.data.identities[0]).toMatchObject({
       type: "Developer ID Application",
       teamId: "ABCDE12345",
@@ -129,6 +139,33 @@ describe("signing_identities team IDs", () => {
 });
 
 describe("inspect_code_signature", () => {
+  it.each([true, false])(
+    "keeps passing details structured and chooses one follow-up (ticket=%s)",
+    async (stapled) => {
+      const app = await makeApp({ framework: true });
+      const { ctx, runner } = await makeCtx();
+      const signature = await fx("codesign-devid.txt");
+      runner
+        .on("codesign", ["-dvvv"], {
+          stderr: stapled ? signature : signature.replace("Notarization Ticket=stapled\n", ""),
+        })
+        .on("codesign", ["--verify"], { stderr: "raw verification evidence" })
+        .on("codesign", ["-d", "--entitlements"], { stdout: buildPlist({}) });
+      const r = await call(await connect(ctx), "inspect_code_signature", { path: app });
+      expect(r.text).toContain("signature valid");
+      expect(r.text).toContain("Team:");
+      expect(r.text).toContain("Nested code:");
+      expect(r.text).not.toContain("raw verification evidence");
+      expect(r.text).not.toContain('"nested":');
+      expect(r.data.verify.messages).toContain("raw verification evidence");
+      expect(r.data.display.raw).toContain("Authority=");
+      expect(r.data.nested.length).toBeGreaterThan(0);
+      expect(r.data.next_steps).toHaveLength(1);
+      expect(r.data.next_steps[0]).toContain(stapled ? "simulate_download" : "notarize_and_staple");
+      if (stapled) expect(r.text).not.toContain("notarize_and_staple");
+    },
+  );
+
   it("flags get-task-allow, unsigned nested code and missing ticket for Developer ID", async () => {
     const app = await makeApp({ framework: true });
     const { ctx, runner } = await makeCtx();
@@ -238,6 +275,16 @@ describe("entitlements", () => {
 });
 
 describe("gatekeeper + quarantine", () => {
+  it.each([true, false])("shows raw policy details only on failure (passing=%s)", async (passing) => {
+    const app = await makeApp();
+    const { ctx, runner } = await makeCtx();
+    runner.on("syspolicy_check", [], { code: passing ? 0 : 1, stdout: "policy diagnostic evidence" });
+    const r = await call(await connect(ctx), "gatekeeper", { action: "syspolicy_check", path: app });
+    expect(r.data.raw).toBe("policy diagnostic evidence");
+    expect(r.text.includes("policy diagnostic evidence")).toBe(!passing);
+    expect(r.text).not.toContain('"raw":');
+  });
+
   it("explains an unnotarized rejection", async () => {
     const app = await makeApp();
     const { ctx, runner } = await makeCtx();
@@ -248,6 +295,8 @@ describe("gatekeeper + quarantine", () => {
     const r = await call(await connect(ctx), "gatekeeper", { action: "assess", path: app });
     expect(r.text).toMatch(/REJECTED/);
     expect(r.text).toMatch(/Signed but not notarized/);
+    expect(r.text).not.toContain('"assessment":');
+    expect(r.data.next_steps).toEqual([`inspect_code_signature path=${JSON.stringify(app)}`]);
   });
 
   it("quarantine set runs xattr only after confirmation", async () => {
@@ -270,6 +319,20 @@ describe("gatekeeper + quarantine", () => {
 });
 
 describe("system_logs + privacy", () => {
+  it("finishes a passing privacy audit without generic advice", async () => {
+    const app = await makeApp();
+    const { ctx, runner } = await makeCtx();
+    runner
+      .on("otool", ["-L"], { stdout: "" })
+      .on("codesign", ["-d", "--entitlements"], { stdout: buildPlist({}) });
+    const r = await call(await connect(ctx), "privacy", { action: "audit", path: app });
+    expect(r.text).toContain("0 issue(s)");
+    expect(r.data.next_steps).toEqual([]);
+    expect(r.text).not.toContain("tcc_reset");
+    expect(r.text).not.toContain('"frameworks":');
+    expect(r.data.frameworks).toEqual([]);
+  });
+
   it("parses sandbox violations from log show", async () => {
     const { ctx, runner } = await makeCtx();
     runner.on("log", ["show"], { stdout: await fx("sandbox-log.txt") });
@@ -297,5 +360,21 @@ describe("system_logs + privacy", () => {
       /Camera: entitlement com\.apple\.security\.device\.camera present but no NSCameraUsageDescription/,
     );
     expect(r.text).toMatch(/Location: links CoreLocation/);
+  });
+});
+
+describe("inspect_binary focused output", () => {
+  it("summarizes architectures and SDKs while retaining the binary inventory", async () => {
+    const app = await makeApp({ framework: true });
+    const { ctx, runner } = await makeCtx();
+    runner
+      .on("lipo", ["-archs"], { stdout: "arm64 x86_64" })
+      .on("otool", ["-L"], { stdout: "" })
+      .on("otool", ["-l"], { stdout: "" });
+    const r = await call(await connect(ctx), "inspect_binary", { path: app });
+    expect(r.data.binaries.length).toBeGreaterThan(1);
+    expect(r.text).toContain("arm64, x86_64");
+    expect(r.text).not.toContain("libhelper.dylib");
+    expect(r.text).not.toContain('"binaries":');
   });
 });

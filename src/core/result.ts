@@ -6,6 +6,8 @@ export interface ToolOutput {
   summary: string;
   /** Structured details (also serialised as JSON text for clients without structuredContent). */
   data?: Record<string, unknown>;
+  /** Keep details only in structuredContent instead of duplicating them in visible text. */
+  structuredOnly?: boolean;
   /** Suggested follow-ups, ideally naming the exact tool/action to call next. */
   next_steps?: string[];
   isError?: boolean;
@@ -33,7 +35,7 @@ export function toCallToolResult(out: ToolOutput): CallToolResult {
   const structured = out.data
     ? { ...out.data, ...(out.next_steps ? { next_steps: out.next_steps } : {}) }
     : undefined;
-  if (structured) {
+  if (structured && !out.structuredOnly) {
     let json = JSON.stringify(structured, jsonReplacer, 2);
     if (json.length > MAX_JSON_CHARS) {
       json = `${json.slice(0, MAX_JSON_CHARS)}\n… (truncated; ${json.length - MAX_JSON_CHARS} more chars)`;
