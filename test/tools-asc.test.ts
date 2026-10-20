@@ -298,6 +298,14 @@ describe("distribution_checklist", () => {
     expect(items["app-record"]).toMatchObject({ status: "missing" });
     expect(items["cert-apple-distribution"].detail).toMatch(/exist in the portal but none is usable/);
     expect(r.data.ready).toBe(false);
+    expect(r.text).not.toContain("Steps for this target:");
+    expect(r.text).not.toContain('"items":');
+    expect(r.data.steps.length).toBeGreaterThan(0);
+    expect(r.data.next_steps).toHaveLength(1);
+    expect(r.data.next_steps[0]).toBe(r.data.items.find((i: any) => i.status === "missing").fix);
+    for (const item of r.data.items.filter((i: any) => i.status === "ok")) {
+      expect(r.text).not.toContain(`✓ ${item.title}:`);
+    }
   });
 
   it("compares an Expo string buildNumber and drops the app-record step once the record exists", async () => {

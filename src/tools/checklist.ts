@@ -566,24 +566,15 @@ export const distributionChecklistTool = defineTool({
       profile: args.profile,
     });
     const blocking = items.filter((i) => i.status === "missing");
+    const actionable = items.filter((i) => i.status !== "ok");
     const lines = [
-      `${t.title}`,
-      t.summary,
-      "",
-      ...items.map(
-        (i) =>
-          `${ICON[i.status]} ${i.title}: ${i.detail}${i.fix && i.status !== "ok" ? `\n    → ${i.fix}` : ""}`,
-      ),
-      "",
-      blocking.length
-        ? `${blocking.length} blocking item(s). Fix them in order, then re-run this checklist.`
-        : "Nothing blocking. Proceed with the steps below.",
-      "",
-      "Steps for this target:",
-      ...t.steps.map((s, i) => `${i + 1}. ${s}`),
+      `${t.title}: ${blocking.length} blocking item(s); ${items.filter((i) => i.status === "ok").length}/${items.length} checks passed.`,
+      ...actionable.map((i) => `${ICON[i.status]} ${i.title}: ${i.detail}${i.fix ? `\n    → ${i.fix}` : ""}`),
+      blocking.length ? "Fix blocking items in order, then re-run this checklist." : "No detected blockers.",
     ];
     return {
       summary: lines.join("\n"),
+      structuredOnly: true,
       data: {
         target: args.target,
         bundleId,
@@ -594,7 +585,9 @@ export const distributionChecklistTool = defineTool({
           t.certificates.some((r) => r.alternatives.includes(c.id)),
         ).map((c) => ({ type: c.portalName, createdBy: c.createdBy })),
       },
-      next_steps: blocking.length ? blocking.slice(0, 3).map((b) => b.fix ?? b.title) : t.steps.slice(0, 2),
+      next_steps: actionable.length
+        ? [actionable.find((i) => i.status === "missing")?.fix ?? actionable[0].fix ?? actionable[0].title]
+        : t.steps.slice(0, 1),
     };
   },
 });

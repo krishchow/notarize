@@ -37,8 +37,10 @@ export const signingIdentitiesTool = defineTool({
   async handler(args, ctx) {
     const ids = await listIdentities(ctx, args.keychain);
     const orphans = await certificatesWithoutKeys(ctx, ids);
-    const lines = [`${ids.length} code-signing identit${ids.length === 1 ? "y" : "ies"}:`];
-    for (const i of ids) {
+    const lines = [
+      `${ids.filter((i) => i.valid).length} usable of ${ids.length} code-signing identities; ${orphans.length} certificate(s) missing a private key.`,
+    ];
+    for (const i of ids.filter((i) => !i.valid)) {
       const exp = i.certificate
         ? ` expires ${i.certificate.validTo.slice(0, 10)}${i.certificate.expired ? " (EXPIRED)" : ""}`
         : "";
@@ -65,6 +67,7 @@ export const signingIdentitiesTool = defineTool({
           }));
     return {
       summary: lines.join("\n"),
+      structuredOnly: true,
       data: {
         identities: ids.map((i) => ({
           name: i.name,
@@ -79,11 +82,11 @@ export const signingIdentitiesTool = defineTool({
         certificatesWithoutPrivateKey: orphans,
         certificateTypes: reference,
       },
-      next_steps: ids.some((i) => i.type === "developer-id-application" && i.valid)
-        ? ["sign / notarize_and_staple for Developer ID distribution"]
-        : [
-            "Missing a certificate? keychain action=create_csr → asc_certificates action=create (or the portal for Developer ID)",
-          ],
+      next_steps: orphans.length
+        ? ["Import the .p12 from the Mac that created the certificate using keychain action=import_p12."]
+        : ids.some((i) => i.valid)
+          ? []
+          : ["keychain action=create_csr → asc_certificates action=create (or the portal for Developer ID)"],
     };
   },
 });
@@ -211,13 +214,8 @@ export const inspectBinaryTool = defineTool({
     if (targets.length > limit)
       findings.push(finding("info", `Inspected ${limit} of ${targets.length} binaries.`));
     return {
-      summary: `${results.length} binar${results.length === 1 ? "y" : "ies"} inspected.\n${results
-        .slice(0, 15)
-        .map(
-          (r) =>
-            `• ${r.path}: ${r.archs.join("+") || "?"} ${r.buildVersions.map((b) => `${b.platform} min ${b.minos} sdk ${b.sdk}`).join(", ")}`,
-        )
-        .join("\n")}${findings.length ? `\n\n${formatFindings(findings)}` : ""}`,
+      summary: `${results.length} binaries inspected${targets.length > limit ? ` of ${targets.length}` : ""}. Architectures: ${[...new Set(results.flatMap((r) => r.archs))].join(", ") || "unknown"}. SDKs: ${[...new Set(results.flatMap((r) => r.buildVersions.map((v) => `${v.platform} ${v.sdk ?? "unknown"}`)))].join(", ") || "unknown"}.${findings.length ? `\n${formatFindings(findings)}` : " No issues found."}`,
+      structuredOnly: true,
       data: { binaries: results, findings },
     };
   },

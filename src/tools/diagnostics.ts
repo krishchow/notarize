@@ -363,7 +363,8 @@ export const privacyTool = defineTool({
         findings.push(finding("error", `${k} requires ${e.usageDescriptionKey} in Info.plist.`));
     }
     return {
-      summary: `Privacy audit of ${basename(app)} (${platform}): ${findings.filter((f) => f.severity !== "info").length} issue(s).\n${formatFindings(findings) || "No issues found."}\nNote: screen recording, accessibility and input monitoring have no Info.plist key — users grant them in System Settings → Privacy & Security.`,
+      summary: `Privacy audit of ${basename(app)} (${platform}): ${findings.filter((f) => f.severity !== "info").length} issue(s).\n${formatFindings(findings) || "No issues found."}`,
+      structuredOnly: true,
       data: {
         platform,
         frameworks,
@@ -373,9 +374,9 @@ export const privacyTool = defineTool({
         requiredReasonApisDetected: detected,
         findings,
       },
-      next_steps: [
-        "After fixing, reset prompts with privacy action=tcc_reset and watch system_logs preset=tcc while testing.",
-      ],
+      next_steps: findings.some((f) => f.severity !== "info")
+        ? ["Fix the privacy findings, then re-run privacy action=audit."]
+        : [],
     };
   },
 });
