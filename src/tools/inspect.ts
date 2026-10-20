@@ -105,47 +105,29 @@ export const inspectCodeSignatureTool = defineTool({
     const r = await inspectSignature(ctx, path, { target: args.target, deep: args.deep });
     const d = r.display;
     const head = r.pkg
-      ? `Package ${path}\nStatus: ${r.pkg.status}\nNotarized: ${r.pkg.notarized ? "yes" : "no"}\nChain: ${r.pkg.chain.join(" → ")}`
+      ? `Package signature: ${r.pkg.status}. Notarized: ${r.pkg.notarized ? "yes" : "no"}.`
       : [
-          `${path}`,
-          `Signed: ${r.signed ? `yes (${r.signer})` : "NO"}`,
-          d?.authorities.length ? `Authority: ${d.authorities.join(" → ")}` : undefined,
-          d?.identifier ? `Identifier: ${d.identifier}` : undefined,
-          d?.teamIdentifier ? `Team ID: ${d.teamIdentifier}` : undefined,
+          `Signed: ${r.signed ? `yes (${r.signer})` : "NO"}; signature ${r.verify?.valid ? "valid" : "INVALID"}.`,
+          `Team: ${d?.teamIdentifier ?? "unknown"}; bundle: ${d?.identifier ?? "unknown"}.`,
           r.signed
-            ? `Hardened runtime: ${d?.hardenedRuntime ? "yes" : "no"} · Secure timestamp: ${d?.hasSecureTimestamp ? "yes" : "no"} · Ticket: ${d?.notarizationTicket ?? "unknown"}`
+            ? `Hardened runtime: ${d?.hardenedRuntime ? "yes" : "no"}; secure timestamp: ${d?.hasSecureTimestamp ? "yes" : "no"}; ticket: ${d?.notarizationTicket ?? "unknown"}.`
             : undefined,
-          r.verify ? `Verify (deep, strict): ${r.verify.valid ? "valid" : "INVALID"}` : undefined,
-          r.entitlements ? `Entitlements: ${Object.keys(r.entitlements).join(", ") || "(none)"}` : undefined,
-          r.embeddedProfile
-            ? `Embedded profile: ${r.embeddedProfile.name ?? r.embeddedProfile.path} (${r.embeddedProfile.type ?? "?"})`
-            : undefined,
-          r.nested.length
-            ? `Nested code: ${r.nested.length} item(s), ${r.nested.filter((n) => n.issues.length).length} with issues`
-            : undefined,
+          `Nested code: ${r.nested.length} inspected, ${r.nested.filter((n) => n.issues.length).length} with issues${r.nestedTruncated ? " (inventory truncated)" : args.deep === false ? " (deep inspection disabled)" : ""}.`,
         ]
           .filter(Boolean)
           .join("\n");
     const errors = r.findings.filter((f) => f.severity === "error");
     return {
       summary: `${head}\n\n${r.findings.length ? formatFindings(r.findings) : "No problems found."}`,
-      data: {
-        ...r,
-        display: d ? { ...d, raw: undefined } : undefined,
-        verify: r.verify
-          ? {
-              valid: r.verify.valid,
-              messages: r.verify.messages.slice(0, 30),
-              problemPaths: r.verify.problemPaths,
-            }
-          : undefined,
-      } as unknown as Record<string, unknown>,
+      structuredOnly: true,
+      data: { ...r } as unknown as Record<string, unknown>,
       next_steps: errors.length
         ? ["Fix the errors above (sign tool re-signs inside-out), then inspect again."]
         : args.target === "mac-developer-id" || r.signer === "developer-id"
           ? [
-              "notarize_and_staple path=<artifact>",
-              "gatekeeper action=simulate_download to test as a user would",
+              d?.notarizationTicket === "stapled"
+                ? `gatekeeper action=simulate_download path=${JSON.stringify(args.path)} if not already checked`
+                : `notarize_and_staple path=${JSON.stringify(args.path)}`,
             ]
           : [],
     };

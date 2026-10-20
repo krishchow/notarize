@@ -272,6 +272,17 @@ describe("misc", () => {
 });
 
 describe("toCallToolResult", () => {
+  it("can keep full details exclusively in structured content", () => {
+    const result = toCallToolResult({
+      summary: "Valid.",
+      data: { raw: "full report" },
+      structuredOnly: true,
+    });
+    expect(result.content).toEqual([{ type: "text", text: "Valid." }]);
+    expect(result.structuredContent).toEqual({ summary: "Valid.", raw: "full report" });
+    expect(toCallToolResult({ summary: "Valid.", data: { raw: "full report" } }).content).toHaveLength(2);
+  });
+
   it("carries the summary in structuredContent, for clients that show only that", () => {
     const r = toCallToolResult({
       summary: "1. Open App Store Connect.",
