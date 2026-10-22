@@ -1,5 +1,13 @@
 # notarize-mcp
 
+## 1.4.1
+
+### Patch Changes
+
+- [#25](https://github.com/krishchow/notarize/pull/25) [`a856092`](https://github.com/krishchow/notarize/commit/a85609270e4217fbba54040f2c1152ae817a6bef) Thanks [@krishchow](https://github.com/krishchow)! - Keep signature inspection concise, preserve full evidence in structured results, and avoid recommending notarization for artifacts with a stapled ticket.
+
+- [#25](https://github.com/krishchow/notarize/pull/25) [`dd58424`](https://github.com/krishchow/notarize/commit/dd584241101d63530f72a57fce4fb8896c23fefe) Thanks [@krishchow](https://github.com/krishchow)! - Focus Gatekeeper, doctor, distribution checklist, signing identity, binary inspection, and privacy audit output on verdicts and actionable findings while preserving complete reports in structured content.
+
 ## 1.4.0
 
 ### Minor Changes
