@@ -34,7 +34,7 @@
         command: npx
         args:
           - '-y'
-          - 'notarize-mcp@1.4.1'
+          - 'notarize-mcp@1.5.0'
         failOnStartupError: true
 
     - id: notarize-skills
