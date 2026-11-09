@@ -7,6 +7,23 @@ function user(text: string) {
 
 export function registerPrompts(server: McpServer): void {
   server.registerPrompt(
+    "investigate-apple-feature",
+    {
+      title: "Investigate an Apple device or OS feature",
+      description:
+        "Match current Apple API evidence to this project's toolchain, deployment targets and hardware; preserve a plan, fallback and verification gaps.",
+      argsSchema: {
+        feature: z.string().describe("Requested feature or experience"),
+        path: z.string().optional().describe("Project path"),
+        device: z.string().optional().describe("Intended device; initial curated profile is iPhone 18 Pro"),
+      },
+    },
+    ({ feature, path, device }) =>
+      user(
+        `Investigate ${feature}${device ? ` for ${device}` : ""}${path ? ` in ${path}` : ""}. Read notarize://guides/apple-platform-context. Inspect the selected project/toolchain, discover and fetch exact official Apple symbol references and matching release notes, and explain OS/SDK, hardware, runtime, permissions, targets and fallback requirements. Preserve evidence with apple_feature_context. Implement when the user's request authorizes it. Distinguish documented version checks, successful compilation and actual hardware verification; do not infer support from the device name.`,
+      ),
+  );
+  server.registerPrompt(
     "setup-distribution",
     {
       title: "Set up signing & distribution for an app",

@@ -17,6 +17,20 @@ import { currentSdkRequirement } from "../src/knowledge/sdk-requirements";
 import { certTypesForProfile, TARGET_IDS, TARGETS } from "../src/knowledge/targets";
 
 describe("knowledge base consistency", () => {
+  it("explains a missing Apple documentation cache entry", () => {
+    expect(
+      matchKnownErrors(
+        "Apple platform context: document is not cached; run apple_docs action=fetch with the same URL first.",
+      ).map((e) => e.id),
+    ).toContain("apple-platform-context");
+  });
+  it("explains missing feedback cache state", () => {
+    expect(
+      matchKnownErrors(
+        "TestFlight feedback: report is not cached; sync this app and feedback kind first.",
+      ).map((e) => e.id),
+    ).toContain("tf-feedback-state");
+  });
   it("has unique ids/keys", () => {
     const uniq = (xs: string[]) => new Set(xs).size === xs.length;
     expect(uniq(ERROR_CATALOG.map((e) => e.id))).toBe(true);

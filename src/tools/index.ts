@@ -1,4 +1,7 @@
 import { appDebuggingTool } from "./app-debugging";
+import { appleDocsTool } from "./apple-docs";
+import { appleFeatureContextTool } from "./apple-features";
+import { applePlatformContextTool } from "./apple-platform";
 import { ascApiTool, ascAppsTool, ascBuildsTool } from "./asc-apps";
 import {
   ascAuthTool,
@@ -21,6 +24,7 @@ import { packageTool } from "./package";
 import { provisioningProfilesTool } from "./provisioning";
 import { resignTool, signTool } from "./signing";
 import { appStoreTool, testflightTool } from "./store";
+import { testflightFeedbackTool } from "./testflight-feedback";
 import type { ToolDef } from "./types";
 import { uploadBuildTool } from "./upload";
 import { xcodeTool } from "./xcode";
@@ -28,6 +32,9 @@ import { xcodeTool } from "./xcode";
 export const allTools: ToolDef<any>[] = [
   // discovery & diagnostics
   doctorTool,
+  applePlatformContextTool,
+  appleDocsTool,
+  appleFeatureContextTool,
   detectProjectTool,
   distributionChecklistTool,
   signingIdentitiesTool,
@@ -64,6 +71,7 @@ export const allTools: ToolDef<any>[] = [
   xcodeTool,
   uploadBuildTool,
   testflightTool,
+  testflightFeedbackTool,
   appStoreTool,
   ciConfigTool,
 ];

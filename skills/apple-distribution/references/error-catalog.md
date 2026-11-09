@@ -6,6 +6,16 @@ Tool results run every failure through this catalog automatically; this page is 
 
 ## upload
 
+### TestFlight feedback request or cached state needs attention
+
+Matches: `TestFlight feedback:`
+
+The feedback action needs a cached submission, valid triage evidence, or readable server state.
+
+- Read the specific error, sync the app and feedback kind if missing, and supply the required decision fields.
+- For unreadable state, inspect or restore the named server state directory before retrying; do not silently overwrite triage.
+- Tool: `testflight_feedback`
+
 ### TestFlight tester has no installable build
 
 Matches: `STATE_ERROR\.TESTER_INVITE\.NO_INSTALLABLE_BUILDS|[Tt]ester has no installable build|this tester has no installable builds`
@@ -595,6 +605,16 @@ A quarantined app launched from where it was downloaded runs from a randomized r
 
 
 ## runtime
+
+### Apple platform evidence needs attention
+
+Matches: `Apple platform context:`
+
+Project inspection, official documentation retrieval or cached feature evidence could not be validated.
+
+- Read the specific error; select an explicit project/scheme and check the Mac toolchain when inspecting build settings.
+- Use an official Apple documentation URL, refresh missing sources and project snapshots, and restore unreadable state before retrying.
+- Tool: `apple_platform_context / apple_docs / apple_feature_context`
 
 ### App debugging evidence backend is unavailable
 
