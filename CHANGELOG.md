@@ -1,5 +1,13 @@
 # notarize-mcp
 
+## 1.5.0
+
+### Minor Changes
+
+- [#27](https://github.com/krishchow/notarize/pull/27) [`70ba312`](https://github.com/krishchow/notarize/commit/70ba3122345c7219ac6e46095e7087c4957a4794) Thanks [@krishchow](https://github.com/krishchow)! - Add current Apple platform guidance with project/toolchain inspection, cached official documentation and feature evidence, starting with iPhone 18 Pro buttons and camera capabilities.
+
+- [#27](https://github.com/krishchow/notarize/pull/27) [`70ba312`](https://github.com/krishchow/notarize/commit/70ba3122345c7219ac6e46095e7087c4957a4794) Thanks [@krishchow](https://github.com/krishchow)! - Add TestFlight feedback review with a dedicated skill, durable submission cache, crash evidence retrieval, and local triage and fix verification tracking.
+
 ## 1.4.1
 
 ### Patch Changes
