@@ -133,3 +133,9 @@ Sandboxed or proxied environments must allow:
 
 ## Context budget
 Tool definitions have a substantial context cost. Prefer clients that defer tool schemas (Claude Code tool search). Results are sent as a short summary plus structured JSON; the summary always comes first.
+
+## Current platform feature guidance
+
+Use the `apple-platform-context` skill or `notarize://guides/apple-platform-context` for new OS and hardware integrations. `apple_platform_context inspect` reads toolchain/project facts; `snapshot`, `apple_docs fetch`, and `apple_feature_context record` use the normal confirmation contract to save evidence. Documentation requests go directly to `developer.apple.com` without Apple account credentials; allow this host in restricted networks. Fetch is exact-page retrieval with bounded DocC JSON/Markdown parsing, not an exhaustive search service. Other connected MCP servers remain tools of the host agent.
+
+Private state lives in `<jobs state directory>/apple-platform-context/`, honoring `NOTARIZE_MCP_STATE_DIR`. It holds project snapshots, source documents/revisions, and investigations; it persists until manually removed. Offline reads expose timestamps and hashes. Refresh failure preserves cached evidence. Re-inspect project context after toolchain or build-setting changes; cached fingerprints do not monitor project files. Comparison against documentation availability never certifies compilation, physical-device behavior, or beta release status.

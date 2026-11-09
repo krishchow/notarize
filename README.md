@@ -146,5 +146,16 @@ Layout: `src/core` (argv-only command runner, confirm tokens, jobs, config, reda
 - [docs/testing.md](docs/testing.md): unit tests, recorded macOS output, smoke test, live Apple tests.
 - [CLAUDE.md](CLAUDE.md): architecture and invariants for contributors and coding agents.
 
+### TestFlight feedback
+
+The `testflight-feedback` skill reviews tester submissions and guides triage through fixes and build verification. Use `testflight_feedback` to sync screenshot/crash reports, read the cached inbox, fetch crash evidence, and track priorities, duplicate links, issue URLs, and resolution evidence. Cache and triage persist privately in MCP server state across restarts; refreshes preserve decisions. This is an on-demand workflow, with no webhook receiver or tester reply service.
+
+### Current Apple OS and device guidance
+
+The `apple-platform-context` skill investigates feature adoption against your actual Xcode, build SDK and deployment targets. The first curated use case is iPhone 18 Pro: Action button, Camera Control capture/adjustments and locked launch, variable aperture, and Apple Reference Image detection/viewing. Device hardware, public API availability, runtime support and real-device verification are tracked separately.
+
+Use `apple_platform_context` to inspect/save project facts, `apple_docs` to retrieve and cache exact official documentation, and `apple_feature_context` to discover entry points and save implementation evidence. Source revisions and project fingerprints survive restarts; later reads flag changed or old evidence. The index is a starting point; exact-page retrieval supports other current Apple APIs without a new plugin release. No Apple account is needed. See [the skill](skills/apple-platform-context/SKILL.md).
+
+
 ## License
 MIT

@@ -206,3 +206,7 @@ xcodebuild archive -scheme S -destination 'generic/platform=iOS' -archivePath S.
 xcodebuild -exportArchive -archivePath S.xcarchive -exportPath out -exportOptionsPlist ExportOptions.plist
 xcrun altool --upload-package App.ipa --type ios --apiKey ID --apiIssuer ISSUER
 ```
+
+For tester feedback after distribution, use the `testflight-feedback` skill and `testflight_feedback` tool to sync reports, review cached evidence, and track fixes.
+
+For new device or OS feature adoption, use the `apple-platform-context` skill and `apple_platform_context`, `apple_docs`, and `apple_feature_context` tools. Feature research needs no Apple account and is separate from submission minimum SDK requirements.

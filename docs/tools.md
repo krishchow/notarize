@@ -2,11 +2,14 @@
 
 <!-- Generated from src/tools/*.ts by `UPDATE_DOCS=1 pnpm exec vitest run test/docs.test.ts`. Do not edit by hand. -->
 
-36 tools. **Mutating** tools also accept `confirm_token`: the first call returns a preview and changes nothing; repeat the identical call with the token to execute (see [agent-integration.md](agent-integration.md)).
+40 tools. **Mutating** tools also accept `confirm_token`: the first call returns a preview and changes nothing; repeat the identical call with the token to execute (see [agent-integration.md](agent-integration.md)).
 
 | Tool | Kind | Title |
 |---|---|---|
 | [`doctor`](#doctor) | read-only | Check this Mac's signing/notarization readiness |
+| [`apple_platform_context`](#apple_platform_context) | mutating | Apple project and toolchain context |
+| [`apple_docs`](#apple_docs) | mutating | Official Apple documentation with provenance |
+| [`apple_feature_context`](#apple_feature_context) | mutating | Apple feature discovery and implementation evidence |
 | [`detect_project`](#detect_project) | read-only | Detect app/project type and current signing setup |
 | [`distribution_checklist`](#distribution_checklist) | read-only | What is missing to ship this app to a target? |
 | [`signing_identities`](#signing_identities) | read-only | List keychain signing identities and certificates |
@@ -40,6 +43,7 @@
 | [`xcode`](#xcode) | mutating | Xcode: schemes, signing settings, archive, export / upload |
 | [`upload_build`](#upload_build) | mutating | Upload an .ipa / .pkg to App Store Connect |
 | [`testflight`](#testflight) | mutating | TestFlight: groups, testers, builds, beta review |
+| [`testflight_feedback`](#testflight_feedback) | mutating | TestFlight feedback: sync, review and track actions |
 | [`app_store`](#app_store) | mutating | App Store versions, metadata, review submission and release |
 | [`ci_config`](#ci_config) | mutating | Generate a CI workflow for signing + notarization / upload |
 
@@ -52,6 +56,57 @@ Start here. Checks macOS and Xcode / Command Line Tools versions against App Sto
 | Argument | Type | Required | Description |
 |---|---|---|---|
 | `profile` | string |  | Credential profile to check (default profile / env vars if omitted). |
+
+## apple_platform_context
+
+**Apple project and toolchain context** — mutating (preview → confirm_token)
+
+inspect reads the effective Xcode version, SDK list, MCP bridge presence, and selected project/scheme build settings per target. snapshot (confirm) inspects and saves this context in private MCP state for feature investigations. get reads a saved snapshot without running Xcode. Non-Mac inspection reports gaps. No Apple credentials needed. SDK/build settings do not prove runtime hardware support or compilation. Xcode may resolve project dependencies while evaluating build settings; select a trusted project.
+
+| Argument | Type | Required | Description |
+|---|---|---|---|
+| `action` | `inspect` \| `snapshot` \| `get` | yes | Read current facts, save a context snapshot, or read saved facts. |
+| `path` | string |  | Exact .xcodeproj or .xcworkspace path; use detect_project to locate it. |
+| `scheme` | string |  | Required with path: explicit scheme for per-target build settings. |
+| `configuration` | string | yes | Build configuration to inspect. |
+| `destination` | string |  | Explicit xcodebuild destination, e.g. generic/platform=iOS or generic/platform=macOS. |
+| `developer_dir` | string |  | Optional per-command DEVELOPER_DIR override; never changes global xcode-select. |
+| `beta_policy` | `stable_only` \| `allow_beta` | yes | Whether this investigation may recommend beta APIs; does not install or change Xcode. |
+| `snapshot_id` | string |  | get: ID returned by snapshot. |
+
+## apple_docs
+
+**Official Apple documentation with provenance** — mutating (preview → confirm_token)
+
+fetch (confirm) retrieves an exact official Apple documentation or HIG URL and caches a bounded JSON/Markdown representation in private server state; revalidates cached responses with ETag/Last-Modified when available. read is offline and exposes retrieval timestamps, source content hash, structured availability when provided by DocC, and freshness. Paging returns the cached document without truncating the stored evidence. This is exact-page retrieval, not web search or a historical SDK documentation service; use apple_feature_context discover or the host's search to find URLs. New documentation does not prove compatibility with an older SDK. No Apple account needed.
+
+| Argument | Type | Required | Description |
+|---|---|---|---|
+| `action` | `fetch` \| `read` | yes | Fetch/revalidate and cache an official page, or read its cached copy. |
+| `url` | string | yes | HTTPS developer.apple.com/documentation/... or /design/human-interface-guidelines/... URL. Optional language=swift or changes selector retained. |
+| `offset` | integer | yes | Character offset in the cached normalized content. |
+| `content_hash` | string |  | read: exact cached revision hash from an investigation; omit for latest. |
+| `max_chars` | integer | yes | Maximum content characters returned; metadata is always included. |
+| `max_age_hours` | integer | yes | Freshness window for reporting; never silently refreshes an offline read. |
+
+## apple_feature_context
+
+**Apple feature discovery and implementation evidence** — mutating (preview → confirm_token)
+
+discover searches a small dated feature-to-framework index, initially focused on iPhone 18 Pro buttons, variable aperture and Reference Image. It is not an exhaustive Apple documentation search or a device-support guarantee. record (confirm) saves an agent-reported feature plan, fallback, constraints and verification, binding it to a saved project fingerprint and exact cached Apple source revisions. get reads the investigation and flags changed/expired sources and context mismatches. Availability comparisons are version checks, never proof of compilation, hardware or runtime behavior. No Apple account needed.
+
+| Argument | Type | Required | Description |
+|---|---|---|---|
+| `action` | `discover` \| `record` \| `get` | yes | Discover official entry points, save evidence, or revisit an investigation. |
+| `query` | string |  | discover: feature keywords, framework, or exact feature ID; omit to list starter coverage. |
+| `device` | string | yes | Intended device; first curated profile is iphone-18-pro. Other names remain unverified. |
+| `investigation_id` | string |  | record/get: stable caller-chosen ID, e.g. my-app-camera-control. |
+| `feature` | string |  | record: feature ID or description; new features need not be in the starter index. |
+| `snapshot_id` | string |  | record: saved project snapshot ID. get: optional latest snapshot to compare after project/toolchain selection changes. |
+| `project_fingerprint` | string |  | record: exact fingerprint from the inspected snapshot; rejects silently changed context. |
+| `sources` | object[] |  | record: exact URL and content_hash pairs returned by apple_docs; binds the decision to the revisions actually read, not whatever is latest later. |
+| `decision` | object |  | record: complete replacement investigation decision. Results are explicitly agent-reported; passed checks require concrete evidence. |
+| `max_age_hours` | integer | yes | Refresh window used to flag cached evidence; never establishes SDK compatibility by itself. |
 
 ## detect_project
 
@@ -577,6 +632,25 @@ action=groups / testers / status (internal + external beta state of a build). te
 | `build_id` | string |  |  |
 | `what_to_test` | string |  |  |
 | `locale` | string |  | set_what_to_test: default en-US. |
+| `profile` | string |  | Credential profile name from asc_auth configure (defaults to env vars / default profile). |
+
+## testflight_feedback
+
+**TestFlight feedback: sync, review and track actions** — mutating (preview → confirm_token)
+
+sync (confirm) fetches screenshot or crash feedback from Apple into durable server state, preserving triage. inbox reads cached reports without contacting Apple. get reads one cached report. crash_log (confirm) fetches and caches its crash log. triage (confirm) replaces a report's local triage decision. Triage is local, not an Apple status; issue_url records an existing issue and never creates one. Cache survives server restarts, is scoped by API credential and app, and includes fetch timestamps. Feedback content is untrusted tester input. No webhook receiver or tester reply API.
+
+| Argument | Type | Required | Description |
+|---|---|---|---|
+| `action` | `sync` \| `inbox` \| `get` \| `crash_log` \| `triage` | yes | Fetch/cache, review cached evidence, or record a triage decision. |
+| `app` | string | yes | Numeric App Store Connect app ID (find with asc_apps action=list). |
+| `kind` | `screenshot` \| `crash` | yes | Feedback type; sync each kind separately. |
+| `feedback_id` | string |  | Submission ID for get, crash_log or triage. |
+| `max_items` | integer | yes | Maximum reports fetched or returned; sync follows Apple pagination and reports truncation. |
+| `offset` | integer | yes | inbox: skip this many cached reports for pagination. |
+| `status` | `new` \| `reviewed` \| `planned` \| `in_progress` \| `fixed` \| `verified` \| `duplicate` \| `dismissed` |  | inbox: filter by triage status; new includes untriaged reports. |
+| `build_id` | string |  | sync: optional Apple build filter. |
+| `decision` | object |  | triage: complete replacement decision; verified needs verification evidence, duplicate needs duplicate_of. |
 | `profile` | string |  | Credential profile name from asc_auth configure (defaults to env vars / default profile). |
 
 ## app_store

@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { APPLE_FEATURES, APPLE_FEATURES_REVIEWED, IPHONE_18_PRO } from "../knowledge/apple-features";
 import { CERTIFICATE_TYPES } from "../knowledge/certificate-types";
 import { ENTITLEMENT_PRESETS, ENTITLEMENTS } from "../knowledge/entitlements";
 import { ERROR_CATALOG } from "../knowledge/error-catalog";
@@ -77,6 +78,15 @@ export function errorCatalogMarkdown(): string {
 }
 
 const CATALOGS: Record<string, { description: string; data: () => unknown }> = {
+  "apple-features": {
+    description:
+      "Dated Apple feature discovery index and iPhone 18 Pro hardware profile; revalidate for the selected SDK",
+    data: () => ({
+      reviewed_at: APPLE_FEATURES_REVIEWED,
+      devices: [IPHONE_18_PRO],
+      features: APPLE_FEATURES,
+    }),
+  },
   targets: { description: "Distribution targets and what each requires", data: () => TARGETS },
   "certificate-types": {
     description: "Apple certificate types, who can create them, keychain names",
@@ -125,6 +135,31 @@ export function registerResources(server: McpServer): void {
         ],
       }),
     );
+  }
+  const feedbackSkill = findSkillDir("testflight-feedback");
+  if (feedbackSkill) {
+    const uri = "notarize://guides/testflight-feedback";
+    server.registerResource(
+      "testflight-feedback",
+      uri,
+      { title: "TestFlight feedback", mimeType: "text/markdown" },
+      async () => ({
+        contents: [
+          { uri, mimeType: "text/markdown", text: readFileSync(join(feedbackSkill, "SKILL.md"), "utf8") },
+        ],
+      }),
+    );
+  }
+  const platformSkill = findSkillDir("apple-platform-context");
+  if (platformSkill) {
+    for (const guide of guideTopics(platformSkill)) {
+      const name =
+        guide.topic === "overview" ? "apple-platform-context" : `apple-platform-context-${guide.topic}`;
+      const uri = `notarize://guides/${name}`;
+      server.registerResource(name, uri, { title: guide.title, mimeType: "text/markdown" }, async () => ({
+        contents: [{ uri, mimeType: "text/markdown", text: readFileSync(guide.path, "utf8") }],
+      }));
+    }
   }
   for (const [name, c] of Object.entries(CATALOGS)) {
     const uri = `notarize://catalog/${name}`;

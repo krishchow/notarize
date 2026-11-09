@@ -30,6 +30,19 @@ export interface KnownError {
 
 export const ERROR_CATALOG: KnownError[] = [
   {
+    id: "tf-feedback-state",
+    source: "upload",
+    pattern: /TestFlight feedback:/,
+    title: "TestFlight feedback request or cached state needs attention",
+    explanation:
+      "The feedback action needs a cached submission, valid triage evidence, or readable server state.",
+    fix: [
+      "Read the specific error, sync the app and feedback kind if missing, and supply the required decision fields.",
+      "For unreadable state, inspect or restore the named server state directory before retrying; do not silently overwrite triage.",
+    ],
+    tool: "testflight_feedback",
+  },
+  {
     id: "tf-no-installable-build",
     source: "upload",
     pattern:
@@ -459,6 +472,19 @@ export const ERROR_CATALOG: KnownError[] = [
     fix: ["Ship in a .dmg with an /Applications link and ask users to move the app", "Notarize + staple"],
   },
   // ---------------- runtime (dyld / AMFI / sandbox) ----------------
+  {
+    id: "apple-platform-context",
+    source: "runtime",
+    pattern: /Apple platform context:/,
+    title: "Apple platform evidence needs attention",
+    explanation:
+      "Project inspection, official documentation retrieval or cached feature evidence could not be validated.",
+    fix: [
+      "Read the specific error; select an explicit project/scheme and check the Mac toolchain when inspecting build settings.",
+      "Use an official Apple documentation URL, refresh missing sources and project snapshots, and restore unreadable state before retrying.",
+    ],
+    tool: "apple_platform_context / apple_docs / apple_feature_context",
+  },
   {
     id: "debug-evidence-unavailable",
     source: "runtime",

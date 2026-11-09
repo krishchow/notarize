@@ -64,6 +64,9 @@ describe("package", () => {
         "skills/apple-distribution/SKILL.md",
         "skills/setup/SKILL.md",
         "skills/app-debugging/SKILL.md",
+        "skills/testflight-feedback/SKILL.md",
+        "skills/apple-platform-context/SKILL.md",
+        "skills/apple-platform-context/references/iphone-18-pro.md",
         "skills/setup/scripts/setup.mjs",
         "cordis.patch.yml",
         "README.md",
@@ -155,7 +158,13 @@ describe("package", () => {
   it("ships skills that satisfy DeepSeek Harness discovery (kebab-case name, description)", () => {
     // DSH silently drops a skill whose frontmatter it rejects, so an invalid name or a missing
     // description would make the skill invisible in a DSH session with no error to grep for.
-    for (const dir of ["apple-distribution", "setup", "app-debugging"]) {
+    for (const dir of [
+      "apple-distribution",
+      "setup",
+      "app-debugging",
+      "testflight-feedback",
+      "apple-platform-context",
+    ]) {
       const file = join(ROOT, "skills", dir, "SKILL.md");
       const front = readFileSync(file, "utf8").match(/^---\n([\s\S]*?)\n---\n/);
       expect(front, `${dir}/SKILL.md needs YAML frontmatter`).toBeTruthy();
@@ -203,7 +212,13 @@ describe("package", () => {
     // The onboarding skill is what Codex offers to run right after install: it is our setup skill.
     expect(onboarding).toBe("./skills/setup/SKILL.md");
     // One directory per skill, each with SKILL.md — the layout Codex discovers under `skills`.
-    for (const dir of ["apple-distribution", "setup", "app-debugging"]) {
+    for (const dir of [
+      "apple-distribution",
+      "setup",
+      "app-debugging",
+      "testflight-feedback",
+      "apple-platform-context",
+    ]) {
       expect(existsSync(join(ROOT, "skills", dir, "SKILL.md")), dir).toBe(true);
     }
 

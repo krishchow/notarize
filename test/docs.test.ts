@@ -116,7 +116,11 @@ describe("skill + docs", () => {
     expect(uris).toContain("notarize://guides/notarization");
     expect(uris).toContain("notarize://guides/frameworks-electron");
     expect(uris).toContain("notarize://catalog/errors");
-    expect(uris.length).toBe(guideTopics(skillDir).length + 7);
+    expect(uris).toContain("notarize://guides/testflight-feedback");
+    expect(uris).toContain("notarize://guides/apple-platform-context");
+    expect(uris).toContain("notarize://guides/apple-platform-context-iphone-18-pro");
+    expect(uris).toContain("notarize://catalog/apple-features");
+    expect(uris.length).toBe(guideTopics(skillDir).length + 11);
     const r = await client.readResource({ uri: "notarize://catalog/targets" });
     expect(JSON.parse((r.contents[0] as { text: string }).text)["mac-developer-id"].exportMethod).toBe(
       "developer-id",
@@ -127,6 +131,7 @@ describe("skill + docs", () => {
       "debug-gatekeeper",
       "debug-notarization",
       "debug-sandbox",
+      "investigate-apple-feature",
       "setup-distribution",
     ]);
     const p = await client.getPrompt({ name: "setup-distribution", arguments: { path: "/tmp/app" } });
