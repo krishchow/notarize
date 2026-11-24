@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { parseFlags, requireArg, watchJob, watchNotarization } from "./cli/watch";
 import { createContext } from "./context";
@@ -10,6 +11,10 @@ const HELP = [
   "Usage:",
   "  notarize-mcp                              speak MCP over stdio (what MCP clients run)",
   "  notarize-mcp --list-tools",
+  "  notarize-mcp install [--harness IDS | --all] [--user | --local] [--dry-run] [--force] [--yes]",
+  "      Install the skills and register this server with your AI coding harnesses (Claude Code, Codex,",
+  "      Cursor, Copilot, Gemini CLI, …), for you (--user) or for one repository (--local). Asks what it",
+  "      was not told. Also: uninstall, status, harnesses. `notarize-mcp install --help` lists every option.",
   "  notarize-mcp watch-job <job-id> [--state-dir DIR] [--interval SECONDS] [--max-minutes N]",
   "      Follow a background job (notarization, signing, upload…). One line per status change;",
   "      exits 0 succeeded, 1 failed, 3 lost (server stopped), 4 max time reached. Built for Claude Code's Monitor tool.",
@@ -27,6 +32,10 @@ const HELP = [
   "  NOTARIZE_MCP_AUTO_CONFIRM=1 skip preview/confirm (CI only)",
   "",
 ].join("\n");
+
+const INSTALLER_COMMANDS = new Set(["install", "uninstall", "status", "harnesses"]);
+// dist/notarize-mcp.js and src/index.ts both sit one directory below the package root.
+const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 async function main(): Promise<number | undefined> {
   const argv = process.argv.slice(2);
@@ -50,6 +59,12 @@ async function main(): Promise<number | undefined> {
       intervalMs: flags.interval ? Number(flags.interval) * 1000 : undefined,
       maxMs: flags["max-minutes"] ? Number(flags["max-minutes"]) * 60000 : undefined,
     });
+  }
+  if (command && INSTALLER_COMMANDS.has(command)) {
+    // The installer is the agentpkg engine reading this package's agentpkg.json; nothing about any
+    // harness lives here. Loaded on demand so starting the MCP server does not pay for it.
+    const { runCli } = await import("agentpkg");
+    return runCli({ packageRoot: PACKAGE_ROOT, argv, bin: "npx notarize-mcp" });
   }
   if (argv.includes("--version") || argv.includes("-v")) {
     process.stdout.write(`${SERVER_VERSION}\n`);

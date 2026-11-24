@@ -8,8 +8,8 @@
       "skills/**/*.mjs",
       "*.ts",
       "*.json",
-      ".claude-plugin/**",
       "!test/fixtures",
+      "!codex.mcp.json",
       "!dist"
     ]
   },

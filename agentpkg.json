@@ -1,0 +1,70 @@
+{
+  "$schema": "./node_modules/agentpkg/schema/agentpkg.schema.json",
+  "engine": "v1",
+  "name": "notarize",
+  "description": "Apple code signing, notarization, certificates, provisioning profiles, entitlements, Gatekeeper/sandbox/TCC debugging, TestFlight and App Store Connect — an MCP server plus a core skill that takes any macOS or iOS app from zero to shipped.",
+  "skills": "./skills",
+  "mcpServers": {
+    "notarize": {
+      "command": "npx",
+      "args": ["-y", "notarize-mcp@{{version}}"],
+      "envPassthrough": [
+        "ASC_KEY_ID",
+        "ASC_ISSUER_ID",
+        "ASC_PRIVATE_KEY",
+        "ASC_PRIVATE_KEY_PATH",
+        "ASC_PROFILE",
+        "NOTARY_KEYCHAIN_PROFILE",
+        "NOTARIZE_MCP_CONFIG_DIR",
+        "NOTARIZE_MCP_LOG_DIR",
+        "NOTARIZE_MCP_STATE_DIR",
+        "NOTARIZE_MCP_AUTO_CONFIRM"
+      ],
+      "startupTimeoutSec": 60,
+      "toolTimeoutSec": 300
+    }
+  },
+  "onboardingSkill": "setup",
+  "listing": {
+    "displayName": "notarize",
+    "shortDescription": "Sign, notarize and ship Apple apps",
+    "longDescription": "Takes a macOS or iOS app from \"I have an app\" to a signed, notarized download, a TestFlight build or an App Store submission, for someone with zero Apple-platform context. Covers Xcode, SwiftPM, Electron, Tauri, Flutter, React Native/Expo and prebuilt .app/.dmg/.pkg/.ipa artifacts, and debugs the hard parts: entitlements, Gatekeeper (\"app is damaged\"), App Sandbox denials, TCC privacy permissions, notarization rejections and ITMS upload errors. Every action that changes anything returns a preview and a confirm token first, and long operations hand off to background jobs instead of blocking.",
+    "category": "Developer Tools",
+    "keywords": [
+      "apple",
+      "macos",
+      "ios",
+      "codesign",
+      "notarization",
+      "app-store-connect",
+      "testflight",
+      "mcp"
+    ],
+    "defaultPrompts": [
+      "Notarize my Mac app and staple the ticket",
+      "Debug why macOS says my app is damaged",
+      "Set up my App Store Connect API key"
+    ],
+    "brandColor": "#1D1D1F",
+    "author": { "name": "krishchow" },
+    "homepage": "https://github.com/krishchow/notarize",
+    "repository": "https://github.com/krishchow/notarize",
+    "license": "MIT"
+  },
+  "pack": {
+    "claude-plugin": {
+      "marketplace": {
+        "description": "Apple signing, notarization, provisioning, entitlements and App Store Connect MCP server + skill."
+      }
+    },
+    "codex-plugin": {
+      "mcpFile": "codex.mcp.json",
+      "capabilities": ["Read", "Write"],
+      "marketplace": {
+        "pluginDisplayName": "notarize — Apple signing, notarization & App Store Connect",
+        "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }
+      }
+    },
+    "dsh-bundle": {}
+  }
+}

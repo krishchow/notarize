@@ -181,6 +181,9 @@ importers:
       '@types/node':
         specifier: ^26.6.4
         version: 26.6.4
+      agentpkg:
+        specifier: link:../agentpkg
+        version: link:../agentpkg
       jose:
         specifier: ^6.2.12
         version: 6.2.12
