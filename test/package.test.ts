@@ -69,6 +69,8 @@ describe("package", () => {
         "skills/apple-platform-context/references/iphone-18-pro.md",
         "skills/setup/scripts/setup.mjs",
         "cordis.patch.yml",
+        // The installer reads the manifest from the installed package (`npx notarize-mcp install`).
+        "agentdist.json",
         "README.md",
         "LICENSE",
       ]),

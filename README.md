@@ -18,6 +18,23 @@ Each release ships one npm package carrying three plugin surfaces plus the serve
 | …the same package as a **DeepSeek Harness bundle** | Mounts the server through `@deepseek-ai/dsh-mcp-client` and both skills through a bundled skill root | DeepSeek Harness |
 | …the same repository as a **Codex plugin** | Declares the server and both skills together, with `setup` as the onboarding skill | Codex |
 | Claude Code plugin (this repo's marketplace) | The `setup` and `apple-distribution` skills, plus the same server pinned to the matching version | Claude Code |
+| …the same package as an **installer**, `npx notarize-mcp install` | Copies the skills and registers the pinned server, for you or for one repository | Claude Code, Codex, Cursor, Copilot, Gemini CLI, OpenCode and nine more |
+
+### Any harness: the installer (skills + MCP server)
+```bash
+npx notarize-mcp install
+```
+It asks which harnesses to install into and whether to install **for you** (every project) or **into this repository** only, shows what it will change, and then copies the skills and registers the server pinned to the same version. Without a terminal, say it all up front:
+```bash
+npx notarize-mcp install --harness claude,codex --user     # for you, in every project
+npx notarize-mcp install --harness cursor --local          # this repository only
+npx notarize-mcp install --all --user --dry-run            # show the plan, change nothing
+npx notarize-mcp status                                    # where it is installed
+npx notarize-mcp uninstall                                 # remove exactly what install wrote
+```
+It supports Claude Code, Codex, Cursor, GitHub Copilot, Gemini CLI, OpenCode, Factory Droid, Devin (Windsurf), Cline, Kilo Code, Qwen Code, Amp, pi, Goose and Zed; `npx notarize-mcp harnesses` lists them. Installed skills are prefixed with the package name (`notarize-setup`, `notarize-apple-distribution`, …) because they share a directory with your own. The installer only removes what it recorded writing, never overwrites a file or config entry it did not write unless you pass `--force`, and does not update itself: run it again after upgrading. See [docs/install.md](docs/install.md).
+
+Use the installer **or** a plugin below for a given harness, not both: each registers the same `notarize` server.
 
 ### Claude Code: the plugin (skill + MCP server)
 ```
@@ -140,6 +157,7 @@ Layout: `src/core` (argv-only command runner, confirm tokens, jobs, config, reda
 
 ## Documentation
 - [docs/agent-integration.md](docs/agent-integration.md): confirm and auto-confirm contract, jobs and Monitor, restarts, permissions, network allowlist.
+- [docs/install.md](docs/install.md): the installer — scopes, what it writes for each harness, ownership and uninstall.
 - [docs/codex.md](docs/codex.md): the Codex plugin — install, what it declares, the environment allowlist and timeouts.
 - [docs/dsh.md](docs/dsh.md): the DeepSeek Harness bundle — install paths, the rows it composes, and its credential caveat.
 - [docs/tools.md](docs/tools.md): every tool, action and argument (generated).
