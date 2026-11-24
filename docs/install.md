@@ -2,7 +2,7 @@
 
 `npx notarize-mcp install` puts the skills and the MCP server registration into an AI coding
 harness directly, for harnesses with no plugin marketplace or when you want the files in a
-repository. It is the agentdist engine reading this
+repository. It is the [agentdist](https://github.com/krishchow/agentdist) engine reading this
 package's [`agentdist.json`](../agentdist.json); nothing about any harness lives in this repository.
 
 ```bash
