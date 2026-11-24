@@ -2,8 +2,8 @@
 
 `npx notarize-mcp install` puts the skills and the MCP server registration into an AI coding
 harness directly, for harnesses with no plugin marketplace or when you want the files in a
-repository. It is the agentpkg engine reading this
-package's [`agentpkg.json`](../agentpkg.json); nothing about any harness lives in this repository.
+repository. It is the agentdist engine reading this
+package's [`agentdist.json`](../agentdist.json); nothing about any harness lives in this repository.
 
 ```bash
 npx notarize-mcp install                 # asks which harnesses, and where
@@ -21,7 +21,7 @@ npx notarize-mcp harnesses               # what it supports, and which it found 
 | Applies to | every project you open | this repository only |
 | Skills go in | the harness's directory under your home, e.g. `~/.claude/skills` | the repository, e.g. `.claude/skills` |
 | Server is registered in | the harness's user config, e.g. `~/.claude.json` | the repository's config, e.g. `.mcp.json` |
-| Record of what was written | `~/.agentpkg/notarize.json` | `.agentpkg/notarize.json` (commit it with the files) |
+| Record of what was written | `~/.agentdist/notarize.json` | `.agentdist/notarize.json` (commit it with the files) |
 
 `--local` uses the nearest directory above the current one that contains `.git`; pass
 `--project-root <dir>` to choose another. Some harnesses have no repository-level MCP config (Cline,
@@ -59,7 +59,7 @@ it is told about, and Gemini CLI and Copilot strip most of them, so for those th
 
 - **Delete or overwrite what it did not write.** Everything it writes is recorded with a hash. An
   existing file or server entry that is not in that record stops the install before anything
-  changes; `--force` replaces it after copying it to `.agentpkg/backup/`.
+  changes; `--force` replaces it after copying it to `.agentdist/backup/`.
 - **Rewrite your config files.** One entry is added or removed. Comments, key order and formatting
   elsewhere in the file are untouched, and a file that does not parse is left alone.
 - **Lose your edits.** A skill file you changed is backed up before an update replaces it. A server

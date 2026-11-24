@@ -70,7 +70,7 @@ describe("package", () => {
         "skills/setup/scripts/setup.mjs",
         "cordis.patch.yml",
         // The installer reads the manifest from the installed package (`npx notarize-mcp install`).
-        "agentpkg.json",
+        "agentdist.json",
         "README.md",
         "LICENSE",
       ]),

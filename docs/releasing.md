@@ -18,7 +18,7 @@ Versions are managed with [Changesets](https://github.com/changesets/changesets)
 | `codex.mcp.json` | — | yes |
 | `cordis.patch.yml` | — | yes |
 
-These plugin files are generated from [`agentpkg.json`](../agentpkg.json), which declares the skills, the MCP server and the listing once. To change what a surface says, edit `agentpkg.json` and run `pnpm pack:plugins`; `test/install.test.ts` fails when a committed surface differs from what the manifest generates at the version it pins. `bump-version.mjs` only moves versions and pins inside those files, which keeps them identical to the generated output for the new version. The same manifest drives `npx notarize-mcp install` ([install.md](install.md)), whose server pin is the version of the package the user ran, so it needs no step here.
+These plugin files are generated from [`agentdist.json`](../agentdist.json), which declares the skills, the MCP server and the listing once. To change what a surface says, edit `agentdist.json` and run `pnpm pack:plugins`; `test/install.test.ts` fails when a committed surface differs from what the manifest generates at the version it pins. `bump-version.mjs` only moves versions and pins inside those files, which keeps them identical to the generated output for the new version. The same manifest drives `npx notarize-mcp install` ([install.md](install.md)), whose server pin is the version of the package the user ran, so it needs no step here.
 
 Because of the pins, **`main` must only pin a version npm already has**. The flow below keeps that order: every plugin surface moves in its own commit, after the publish.
 

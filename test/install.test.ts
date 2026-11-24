@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { HARNESSES, loadPackage, PACK_TARGETS, runCli, runPack } from "agentpkg";
+import { HARNESSES, loadPackage, PACK_TARGETS, runCli, runPack } from "agentdist";
 import { describe, expect, it } from "vitest";
 
 const ROOT = join(__dirname, "..");
@@ -46,7 +46,7 @@ const SKILLS = [
   "testflight-feedback",
 ];
 
-describe("agentpkg.json", () => {
+describe("agentdist.json", () => {
   it("describes everything the package ships", () => {
     const pkg = loadPackage(ROOT);
     expect(pkg.name).toBe("notarize");
@@ -69,7 +69,8 @@ describe("agentpkg.json", () => {
     const pinned = JSON.parse(readFileSync(join(ROOT, ".claude-plugin", "plugin.json"), "utf8")).version;
     pkg.version = pinned;
     for (const node of pkg.nodes) {
-      if (node.kind === "mcpServer") node.args = node.args.map((arg) => arg.replace(/@[^@]+$/, `@${pinned}`));
+      if (node.kind === "mcpServer" && node.transport === "stdio")
+        node.args = node.args.map((arg) => arg.replace(/@[^@]+$/, `@${pinned}`));
     }
     const result = runPack(pkg, PACK_TARGETS, { check: true });
     expect(result.changes.filter((c) => c.change !== "unchanged")).toEqual([]);

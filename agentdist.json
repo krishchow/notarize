@@ -1,5 +1,5 @@
 {
-  "$schema": "./node_modules/agentpkg/schema/agentpkg.schema.json",
+  "$schema": "./node_modules/agentdist/schema/agentdist.schema.json",
   "engine": "v1",
   "name": "notarize",
   "description": "Apple code signing, notarization, certificates, provisioning profiles, entitlements, Gatekeeper/sandbox/TCC debugging, TestFlight and App Store Connect — an MCP server plus a core skill that takes any macOS or iOS app from zero to shipped.",
@@ -24,6 +24,23 @@
       "toolTimeoutSec": 300
     }
   },
+  "environment": {
+    "ASC_KEY_ID": {
+      "description": "App Store Connect API key ID. Optional: a saved profile works instead."
+    },
+    "ASC_ISSUER_ID": {
+      "description": "App Store Connect issuer ID."
+    },
+    "ASC_PRIVATE_KEY_PATH": {
+      "description": "Path to the .p8 private key (or ASC_PRIVATE_KEY for its contents)."
+    },
+    "ASC_PROFILE": {
+      "description": "Name of a saved credential profile."
+    },
+    "NOTARY_KEYCHAIN_PROFILE": {
+      "description": "A notarytool store-credentials profile."
+    }
+  },
   "onboardingSkill": "setup",
   "listing": {
     "displayName": "notarize",
@@ -46,7 +63,9 @@
       "Set up my App Store Connect API key"
     ],
     "brandColor": "#1D1D1F",
-    "author": { "name": "krishchow" },
+    "author": {
+      "name": "krishchow"
+    },
     "homepage": "https://github.com/krishchow/notarize",
     "repository": "https://github.com/krishchow/notarize",
     "license": "MIT"
@@ -62,7 +81,10 @@
       "capabilities": ["Read", "Write"],
       "marketplace": {
         "pluginDisplayName": "notarize — Apple signing, notarization & App Store Connect",
-        "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }
+        "policy": {
+          "installation": "AVAILABLE",
+          "authentication": "ON_INSTALL"
+        }
       }
     },
     "dsh-bundle": {}

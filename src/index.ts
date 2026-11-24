@@ -61,9 +61,9 @@ async function main(): Promise<number | undefined> {
     });
   }
   if (command && INSTALLER_COMMANDS.has(command)) {
-    // The installer is the agentpkg engine reading this package's agentpkg.json; nothing about any
+    // The installer is the agentdist engine reading this package's agentdist.json; nothing about any
     // harness lives here. Loaded on demand so starting the MCP server does not pay for it.
-    const { runCli } = await import("agentpkg");
+    const { runCli } = await import("agentdist");
     return runCli({ packageRoot: PACKAGE_ROOT, argv, bin: "npx notarize-mcp" });
   }
   if (argv.includes("--version") || argv.includes("-v")) {
