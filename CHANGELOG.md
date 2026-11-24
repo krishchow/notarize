@@ -1,5 +1,11 @@
 # notarize-mcp
 
+## 1.6.0
+
+### Minor Changes
+
+- [#29](https://github.com/krishchow/notarize/pull/29) [`a9ad8b8`](https://github.com/krishchow/notarize/commit/a9ad8b8299047da15e763b474ffe46b266bdb8dc) Thanks [@krishchow](https://github.com/krishchow)! - Add `npx notarize-mcp install`: an installer that copies the skills and registers the pinned MCP server for Claude Code, Codex, Cursor, GitHub Copilot, Gemini CLI, OpenCode and nine other harnesses, either for the user or into one repository, with `status` and `uninstall` to match. The plugin manifests are now generated from a single `agentdist.json`.
+
 ## 1.5.0
 
 ### Minor Changes
