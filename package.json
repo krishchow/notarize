@@ -65,7 +65,7 @@
     "@changesets/cli": "^3.0.3",
     "@modelcontextprotocol/sdk": "^1.32.0",
     "@types/node": "^26.6.4",
-    "agentdist": "link:../agentdist",
+    "agentdist": "^0.1.0",
     "jose": "^6.2.12",
     "plist": "^5.0.0",
     "tsup": "^8.5.1",
