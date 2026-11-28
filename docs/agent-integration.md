@@ -130,6 +130,7 @@ Sandboxed or proxied environments must allow:
 | `api.apple-cloudkit.com` | stapler / Gatekeeper ticket lookup |
 | `contentdelivery.itunes.apple.com` | altool uploads |
 | `www.apple.com/certificateauthority` | `keychain install_intermediates` |
+| the host in `NOTARIZE_MCP_FEEDBACK_ENDPOINT`, if set | `submit_feedback`, after the user approves a report; at startup only on a machine that has filed one |
 
 ## Context budget
 Tool definitions have a substantial context cost. Prefer clients that defer tool schemas (Claude Code tool search). Results are sent as a short summary plus structured JSON; the summary always comes first.

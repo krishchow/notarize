@@ -167,6 +167,8 @@ Every tool that changes something returns a **PREVIEW** first and changes nothin
 
 More detail: [references/gatekeeper-debugging.md](references/gatekeeper-debugging.md), [references/sandbox-and-privacy.md](references/sandbox-and-privacy.md), [references/notarization.md](references/notarization.md), [references/entitlements.md](references/entitlements.md).
 
+When a tool itself let you down rather than the app (a wrong diagnosis, a missing catalog entry, a job that never finished), offer to report it (section 10).
+
 ## 8. Per-framework notes
 - **Xcode / SwiftUI / AppKit / UIKit**: `xcode` tool; set `ENABLE_HARDENED_RUNTIME=YES` for Mac targets.
 - **Electron**: electron-builder `mac.hardenedRuntime`, entitlements with `allow-jit`, `mac.notarize` + `APPLE_API_KEY*` env vars, MAS needs separate entitlements → [references/frameworks/electron.md](references/frameworks/electron.md)
@@ -181,6 +183,26 @@ More detail: [references/gatekeeper-debugging.md](references/gatekeeper-debuggin
 - Lead with what you'll do and why in plain language, then show the preview. Avoid jargon dumps; define a term the first time ("a provisioning profile — Apple's permission slip that says this app may use iCloud on these devices").
 - After each milestone, summarize the state: what's signed, what's notarized, what's uploaded, and what's next.
 - When something is manual, give the exact URL and click path and say what value to bring back (Key ID, Issuer ID, path to the .p8, etc.).
+
+## 10. Reporting problems with notarize
+
+`submit_feedback` sends a report about this server's own tools to its maintainers. It is there only when the person running the server has turned feedback on, and it has nothing to do with TestFlight tester feedback (`testflight_feedback`). If it is not in your tool list and the user wants to report a problem, point them at https://github.com/krishchow/notarize/issues instead. Maintainers read reports later with no access to this session or this Mac, so write for that reader.
+
+**When to file**
+- A tool errored, timed out or misled you: a background job that never finished or was lost, a parser that misread `codesign` or notarytool output, `doctor` passing a machine that then failed to sign, a preview that did not match what the tool then did.
+- An error the catalog did not recognise, or whose suggested fix was wrong.
+- The user needed something the tools could not do, or you had to guess arguments, retry, or fall back to the commands in the No-MCP fallback.
+- Something worked notably well.
+
+Do not file about Apple's own rejections the tools explained correctly, the user's app code, Apple service outages, or missing credentials the setup skill covers.
+
+Finish or get blocked on the user's request first. Then show the user the exact report you would file (kind, severity, title, body and context) and ask whether to submit it. File only after an explicit yes to that report; a complaint, a request for help or silence is not a yes. If they change it, show the new version and ask again. One report per distinct problem.
+
+**What to include**: `kind` (`bug`, `tool_failure`, `feature_request`, `friction`, `praise`, `other`), `severity` (`blocker`, `major`, `minor`), a `title` naming the tool and the problem, a `body` saying what happened and why it mattered, `context.goal` / `expected` / `actual`, and `context.tool_calls` in order with short argument summaries and error text. Put the ids involved in `context.references`: `jobId` for a background job, `submissionId` for a notarization. The server adds the macOS and Xcode versions and that job's state.
+
+**What to leave out.** The report leaves this Mac. Never passwords, `.p8` contents, tokens or keychain details. No Apple ID emails, team IDs, signing identity names, bundle IDs, app or project names, or tester details unless the user agrees to include them; describe them instead ("a Developer ID Application identity", "an Electron app"). The server strips known secret shapes and your home directory from what you write, but do not rely on that. Do not fill in `context.server_context`.
+
+**Afterwards.** Tell the user it was filed. If the result says `queued`, the feedback service could not be reached: the report waits on this Mac and goes out the next time the server starts; pass on its note, which says how to cancel it. If the tool reports a size limit, shorten that field and submit again. Otherwise submit once: if a call timed out and you cannot tell whether it went through, say so rather than sending it again.
 
 ## No-MCP fallback
 

@@ -67,6 +67,7 @@
     "@types/node": "^26.6.4",
     "agentdist": "^0.1.0",
     "jose": "^6.2.12",
+    "mcp-feedback": "^0.8.0",
     "plist": "^5.0.0",
     "tsup": "^8.5.1",
     "typescript": "^7.0.2",

@@ -30,6 +30,7 @@ const HELP = [
   "  NOTARIZE_MCP_LOG_DIR        command transcript dir (default ~/Library/Logs/notarize-mcp)",
   "  NOTARIZE_MCP_STATE_DIR      background job state dir (default <log dir>/jobs)",
   "  NOTARIZE_MCP_AUTO_CONFIRM=1 skip preview/confirm (CI only)",
+  "  NOTARIZE_MCP_FEEDBACK_ENDPOINT  mcp-feedback hub for agent feedback about this server (off when unset)",
   "",
 ].join("\n");
 
@@ -89,6 +90,9 @@ async function main(): Promise<number | undefined> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   process.stderr.write(`${SERVER_NAME} MCP server ${SERVER_VERSION} running on stdio (${ctx.platform.os})\n`);
+  // Renews this machine's feedback token and sends reports queued while the hub was unreachable,
+  // without holding up startup. Contacts the hub only if this machine has filed feedback before.
+  void ctx.feedback?.start?.();
   return undefined;
 }
 

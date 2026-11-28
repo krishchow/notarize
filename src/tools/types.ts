@@ -4,6 +4,7 @@ import type { AscClient } from "../asc/client";
 import type { ConfigStore } from "../core/config";
 import { CONFIRM_TOKEN_ARG, type ConfirmManager, type Plan, previewData } from "../core/confirm";
 import type { CommandRunner } from "../core/exec";
+import type { FeedbackChannel } from "../core/feedback";
 import type { JobManager } from "../core/jobs";
 import type { PlatformInfo } from "../core/platform";
 import type { ToolOutput } from "../core/result";
@@ -18,6 +19,8 @@ export interface ToolContext {
   /** Build an authenticated App Store Connect client for a credential profile. */
   asc(profile?: string): Promise<AscClient>;
   now(): Date;
+  /** Where submit_feedback sends reports; absent when feedback is off (NOTARIZE_MCP_FEEDBACK_ENDPOINT unset). */
+  feedback?: FeedbackChannel;
 }
 
 export interface ToolExtra {

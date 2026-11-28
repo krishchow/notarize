@@ -67,3 +67,5 @@ Preserve the installed build and app state. Offer `app_debugging action=relaunch
 Apply source fixes in the app's workspace using its conventions and correctness checks. Verify the same reproduction and identify whether verification used the original TestFlight build, a new distributed build, local Release artifact, simulator, or source/asset tests. Never describe a source reproduction as captured phone evidence or proof that the shipped build is fixed.
 
 Finish with a compact handoff: symptom/reproduction, target/app/extensions and channel, established build identity, timestamped evidence/artifacts, facts versus hypotheses, changes made, checks performed, verification runtime/build, and remaining gaps with exact next calls.
+
+If `app_debugging` itself failed or misled you, offer to report it with `submit_feedback` when that tool is present (apple-distribution skill, section 10).

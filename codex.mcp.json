@@ -16,7 +16,8 @@
         "NOTARIZE_MCP_CONFIG_DIR",
         "NOTARIZE_MCP_LOG_DIR",
         "NOTARIZE_MCP_STATE_DIR",
-        "NOTARIZE_MCP_AUTO_CONFIRM"
+        "NOTARIZE_MCP_AUTO_CONFIRM",
+        "NOTARIZE_MCP_FEEDBACK_ENDPOINT"
       ],
       "startup_timeout_sec": 60,
       "tool_timeout_sec": 300
