@@ -30,7 +30,7 @@ const HELP = [
   "  NOTARIZE_MCP_LOG_DIR        command transcript dir (default ~/Library/Logs/notarize-mcp)",
   "  NOTARIZE_MCP_STATE_DIR      background job state dir (default <log dir>/jobs)",
   "  NOTARIZE_MCP_AUTO_CONFIRM=1 skip preview/confirm (CI only)",
-  "  NOTARIZE_MCP_FEEDBACK_ENDPOINT  mcp-feedback hub for agent feedback about this server (off when unset)",
+  "  NOTARIZE_MCP_FEEDBACK_ENDPOINT  mcp-feedback hub for agent feedback about this server; else MCP_FEEDBACK_ENDPOINT (off when neither is set)",
   "",
 ].join("\n");
 

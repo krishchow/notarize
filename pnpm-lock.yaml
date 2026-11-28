@@ -188,8 +188,8 @@ importers:
         specifier: ^6.2.12
         version: 6.2.12
       mcp-feedback:
-        specifier: ^0.8.0
-        version: 0.8.0(@modelcontextprotocol/sdk@1.32.0(zod@4.6.5))(zod@4.6.5)
+        specifier: ^0.9.0
+        version: 0.9.0(@modelcontextprotocol/sdk@1.32.0(zod@4.6.5))(zod@4.6.5)
       plist:
         specifier: ^5.0.0
         version: 5.0.0
@@ -1355,8 +1355,8 @@ packages:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
 
-  mcp-feedback@0.8.0:
-    resolution: {integrity: sha512-Indbi0/tjoB4YIA7jUciadsVCbhGsD3Rdt0ShBnk/GQpf+5Ynqb+Bl09AgPEOQdt8hgEy9xEODn+UF7tqa541Q==}
+  mcp-feedback@0.9.0:
+    resolution: {integrity: sha512-nPL3OjXGFZ/4c02CGjPP+32ueiwGwNICIaRTR81uUKR7hXpWGxa8fSFEF58vHTFhmuLBPNfakd4WPF+hlzRSbA==}
     engines: {node: '>=22.13'}
     hasBin: true
     peerDependencies:
@@ -2768,7 +2768,7 @@ snapshots:
 
   math-intrinsics@1.1.0: {}
 
-  mcp-feedback@0.8.0(@modelcontextprotocol/sdk@1.32.0(zod@4.6.5))(zod@4.6.5):
+  mcp-feedback@0.9.0(@modelcontextprotocol/sdk@1.32.0(zod@4.6.5))(zod@4.6.5):
     dependencies:
       '@modelcontextprotocol/sdk': 1.32.0(zod@4.6.5)
       agentdist: 0.1.0

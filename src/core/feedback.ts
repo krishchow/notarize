@@ -1,8 +1,9 @@
 /**
  * Agent feedback about this server's own tools, through mcp-feedback. A copy running on a user's Mac
  * has no store its maintainer could read, so reports go to an mcp-feedback ingest hub, and only when
- * the person running the server names one in NOTARIZE_MCP_FEEDBACK_ENDPOINT. The repository names no
- * hub: without the variable there is no submit_feedback tool and nothing is sent anywhere.
+ * the person running the server names one: NOTARIZE_MCP_FEEDBACK_ENDPOINT, or MCP_FEEDBACK_ENDPOINT,
+ * shared by every server that reads it. The repository names no hub: with neither set there is no
+ * submit_feedback tool and nothing is sent anywhere.
  *
  * Every report is shown to the user and sent only after they confirm it. On the way out it passes
  * through `redact` and loses the home directory from paths, and the server adds only versions and
@@ -17,7 +18,7 @@ import {
   feedbackConfirmInstructions,
   registerFeedback,
 } from "mcp-feedback";
-import { feedbackDisabled, remoteStore } from "mcp-feedback/remote";
+import { feedbackEndpoint, remoteStore } from "mcp-feedback/remote";
 import type { ToolContext } from "../tools/types";
 import { defaultConfigDir } from "./config";
 import { ok } from "./exec";
@@ -34,13 +35,16 @@ export interface FeedbackChannel {
 const log = (error: unknown) =>
   process.stderr.write(`notarize feedback: ${error instanceof Error ? error.message : String(error)}\n`);
 
-/** The channel NOTARIZE_MCP_FEEDBACK_ENDPOINT names, or undefined when feedback is off. */
+/**
+ * The channel to the hub NOTARIZE_MCP_FEEDBACK_ENDPOINT names, or else MCP_FEEDBACK_ENDPOINT; undefined
+ * when feedback is off (neither set, or MCP_FEEDBACK_DISABLED).
+ */
 export function feedbackFromEnv(
   homeDir: string,
   env: NodeJS.ProcessEnv = process.env,
 ): FeedbackChannel | undefined {
-  const endpoint = env.NOTARIZE_MCP_FEEDBACK_ENDPOINT?.trim();
-  if (!endpoint || feedbackDisabled(env)) return undefined;
+  const endpoint = feedbackEndpoint({ variable: "NOTARIZE_MCP_FEEDBACK_ENDPOINT", env });
+  if (!endpoint) return undefined;
   try {
     const store = remoteStore({
       endpoint,

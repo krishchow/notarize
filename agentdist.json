@@ -19,7 +19,9 @@
         "NOTARIZE_MCP_LOG_DIR",
         "NOTARIZE_MCP_STATE_DIR",
         "NOTARIZE_MCP_AUTO_CONFIRM",
-        "NOTARIZE_MCP_FEEDBACK_ENDPOINT"
+        "NOTARIZE_MCP_FEEDBACK_ENDPOINT",
+        "MCP_FEEDBACK_ENDPOINT",
+        "MCP_FEEDBACK_DISABLED"
       ],
       "startupTimeoutSec": 60,
       "toolTimeoutSec": 300
@@ -42,7 +44,13 @@
       "description": "A notarytool store-credentials profile."
     },
     "NOTARIZE_MCP_FEEDBACK_ENDPOINT": {
-      "description": "URL of an mcp-feedback ingest hub. When set, agents can report problems with this server's tools there, each report confirmed by the user first. Unset, feedback is off."
+      "description": "URL of an mcp-feedback ingest hub. When set, agents can report problems with this server's tools there, each report confirmed by the user first. Unset, MCP_FEEDBACK_ENDPOINT is used; with neither, feedback is off."
+    },
+    "MCP_FEEDBACK_ENDPOINT": {
+      "description": "The same, shared by every MCP server that reads it, so one setting covers them all."
+    },
+    "MCP_FEEDBACK_DISABLED": {
+      "description": "1 turns feedback off whatever endpoint is set."
     }
   },
   "onboardingSkill": "setup",

@@ -66,7 +66,7 @@ all:
 | `NOTARY_KEYCHAIN_PROFILE` | A `notarytool store-credentials` profile, for scripts and CI |
 | `NOTARIZE_MCP_CONFIG_DIR`, `NOTARIZE_MCP_LOG_DIR`, `NOTARIZE_MCP_STATE_DIR` | Where config, transcripts and job state live |
 | `NOTARIZE_MCP_AUTO_CONFIRM` | Unattended runs; see [agent-integration.md](agent-integration.md) |
-| `NOTARIZE_MCP_FEEDBACK_ENDPOINT` | Turns on `submit_feedback`; see the README's Feedback section |
+| `NOTARIZE_MCP_FEEDBACK_ENDPOINT`, `MCP_FEEDBACK_ENDPOINT`, `MCP_FEEDBACK_DISABLED` | Turn `submit_feedback` on (this server's hub, or the one shared by every server) or off; see the README's Feedback section |
 
 You do **not** need any of these. `/notarize:setup` (and `asc_auth action=configure`) writes
 `~/.config/notarize-mcp/config.json`, and `HOME` always reaches the server, so a saved profile is

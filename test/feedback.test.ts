@@ -105,7 +105,7 @@ describe("agent feedback", () => {
 });
 
 describe("feedbackFromEnv", () => {
-  it("is off unless NOTARIZE_MCP_FEEDBACK_ENDPOINT names a hub, and when MCP_FEEDBACK_DISABLED is set", () => {
+  it("is off unless a hub is named, and when MCP_FEEDBACK_DISABLED is set", () => {
     expect(feedbackFromEnv("/home/u", {})).toBeUndefined();
     expect(feedbackFromEnv("/home/u", { NOTARIZE_MCP_FEEDBACK_ENDPOINT: "  " })).toBeUndefined();
     expect(
@@ -114,6 +114,17 @@ describe("feedbackFromEnv", () => {
         MCP_FEEDBACK_DISABLED: "1",
       }),
     ).toBeUndefined();
+  });
+
+  it("reads NOTARIZE_MCP_FEEDBACK_ENDPOINT, then the shared MCP_FEEDBACK_ENDPOINT", () => {
+    const shared = { MCP_FEEDBACK_ENDPOINT: "https://shared.example.com" };
+    expect(feedbackFromEnv("/home/u", shared)?.destination).toBe(
+      "the feedback service at shared.example.com",
+    );
+    expect(
+      feedbackFromEnv("/home/u", { ...shared, NOTARIZE_MCP_FEEDBACK_ENDPOINT: "https://own.example.com" })
+        ?.destination,
+    ).toBe("the feedback service at own.example.com");
   });
 
   it("turns feedback off, without throwing, for an endpoint it cannot use", () => {
