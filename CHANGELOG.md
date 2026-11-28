@@ -1,5 +1,15 @@
 # notarize-mcp
 
+## 2.0.0
+
+### Major Changes
+
+- [#32](https://github.com/krishchow/notarize/pull/32) [`61066ad`](https://github.com/krishchow/notarize/commit/61066ade2e825210999fcfd50cfaaddfd84fcf66) Thanks [@krishchow](https://github.com/krishchow)! - Require Node 22.13 or later, since Node 20 reached end of life in April 2026; on older Node the server now says so and exits instead of failing later.
+
+### Minor Changes
+
+- [#32](https://github.com/krishchow/notarize/pull/32) [`f3d9e32`](https://github.com/krishchow/notarize/commit/f3d9e327bfe076fa68d1d78d973ad8b8fc2205d8) Thanks [@krishchow](https://github.com/krishchow)! - Add `submit_feedback`, so agents can report problems with notarize's own tools to an mcp-feedback hub you name in `NOTARIZE_MCP_FEEDBACK_ENDPOINT` or the shared `MCP_FEEDBACK_ENDPOINT`; each report is shown to the user first, and nothing is sent when neither is set.
+
 ## 1.6.0
 
 ### Minor Changes
