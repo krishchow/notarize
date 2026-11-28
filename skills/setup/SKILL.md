@@ -29,7 +29,7 @@ This skill puts a machine, and optionally a project, into the state that the `ap
 
 ## Part 1: credentials (deterministic script)
 
-`scripts/setup.mjs` lives in this skill's base directory. It needs Node 20+ and has no dependencies. It prints one JSON object on stdout, and nothing it prints contains key material.
+`scripts/setup.mjs` lives in this skill's base directory. It needs Node 22.13+ and has no dependencies. It prints one JSON object on stdout, and nothing it prints contains key material.
 
 ```bash
 node <skill-dir>/scripts/setup.mjs check            # read-only; exit 0 = ready, 1 = not ready

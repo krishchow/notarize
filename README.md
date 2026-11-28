@@ -10,7 +10,7 @@ A local **stdio MCP server** plus a **core skill** that take any macOS or iOS ap
 - **Skill** (`skills/apple-distribution`) teaches the agent the mental model, the zero-context workflow, golden rules and a debugging playbook, with references per topic and per framework.
 
 ## Install
-Each release ships one npm package carrying three plugin surfaces plus the server itself. All need Node ≥ 20 on your Mac.
+Each release ships one npm package carrying three plugin surfaces plus the server itself. All need Node ≥ 22.13 on your Mac.
 
 | Surface | What it is | For |
 |---|---|---|
