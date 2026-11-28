@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -87,6 +87,32 @@ describe("package", () => {
     expect(files).not.toContain("codex.mcp.json");
     expect(files).not.toContain(".mcp.json");
   });
+
+  // The check lives in tsup's banner so it runs before any bundled code; `npx` only warns about engines.
+  it.skipIf(!existsSync(join(ROOT, "dist", "notarize-mcp.js")))(
+    "refuses to start on Node older than its engines, saying so plainly",
+    () => {
+      const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+      expect(pkg.engines.node).toBe(">=22.13");
+      const run = (version: string) =>
+        spawnSync(
+          process.execPath,
+          [
+            "--import",
+            `data:text/javascript,Object.defineProperty(process.versions,"node",{value:"${version}"})`,
+            join(ROOT, "dist", "notarize-mcp.js"),
+            "--version",
+          ],
+          { encoding: "utf8" },
+        );
+      for (const old of ["20.18.0", "22.12.0"]) {
+        const result = run(old);
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(`notarize-mcp needs Node 22.13 or later; this is Node ${old}.`);
+      }
+      expect(run("22.13.0")).toMatchObject({ status: 0, stdout: `${pkg.version}\n` });
+    },
+  );
 
   it("declares a DeepSeek Harness bundle that mounts the server and both skills", async () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));

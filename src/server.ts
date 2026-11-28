@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import pkg from "../package.json";
 import { CONFIRM_TOKEN_ARG } from "./core/confirm";
+import { FEEDBACK_INSTRUCTIONS, registerAgentFeedback } from "./core/feedback";
 import { errorOutput, toCallToolResult } from "./core/result";
 import { registerPrompts } from "./prompts/index";
 import { registerResources } from "./resources/index";
@@ -21,7 +22,10 @@ Read notarize://guides/* resources (or the apple-distribution skill) for backgro
 export function createServer(ctx: ToolContext, tools: ToolDef<any>[] = allTools): McpServer {
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
-    { instructions: SERVER_INSTRUCTIONS, capabilities: { logging: {} } },
+    {
+      instructions: SERVER_INSTRUCTIONS + (ctx.feedback ? FEEDBACK_INSTRUCTIONS : ""),
+      capabilities: { logging: {} },
+    },
   );
 
   for (const def of tools) {
@@ -63,6 +67,7 @@ export function createServer(ctx: ToolContext, tools: ToolDef<any>[] = allTools)
     );
   }
 
+  if (ctx.feedback) registerAgentFeedback(server, ctx, ctx.feedback, SERVER_VERSION);
   registerResources(server);
   registerPrompts(server);
   return server;

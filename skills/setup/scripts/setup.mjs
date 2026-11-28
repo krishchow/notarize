@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // notarize setup — check (and with `apply`, create) the App Store Connect credential state
-// every other notarize skill assumes. Zero dependencies: Node >= 20 builtins only, no shell.
+// every other notarize skill assumes. Zero dependencies: Node >= 22.13 builtins only, no shell.
 //
 //   node setup.mjs [check] [--online] [--profile NAME] [--individual-key] [--pretty]
 //   node setup.mjs plan  [--key-id ID] [--issuer-id UUID] [--team-id ID] [--p8 PATH] [--shell-rc PATH] [--profile NAME]
@@ -368,15 +368,15 @@ async function runChecks(ctx, flags) {
           "Run on a Mac for signing and notarization.",
         ),
   );
-  const nodeMajor = Number(process.versions.node.split(".")[0]);
+  const [nodeMajor, nodeMinor] = process.versions.node.split(".").map(Number);
   checks.push(
-    nodeMajor >= 20
+    nodeMajor > 22 || (nodeMajor === 22 && nodeMinor >= 13)
       ? check("node_version", "ok", `Node ${process.versions.node}`)
       : check(
           "node_version",
           "fail",
           `Node ${process.versions.node} is too old.`,
-          "Install Node 20 or newer.",
+          "Install Node 22.13 or newer.",
         ),
   );
 

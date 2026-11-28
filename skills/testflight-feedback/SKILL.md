@@ -5,7 +5,7 @@ description: Review and triage feedback submitted by TestFlight testers, inspect
 
 # TestFlight feedback
 
-Use `testflight_feedback` for tester submissions. Apple beta app review is a separate distribution process handled by `testflight`. Credentials use the existing setup skill; find the numeric app ID with `asc_apps action=list`.
+Use `testflight_feedback` for tester submissions. Apple beta app review is a separate distribution process handled by `testflight`. Credentials use the existing setup skill; find the numeric app ID with `asc_apps action=list`. `submit_feedback`, when present, is something else: it reports problems with this server's own tools to its maintainers (apple-distribution skill, section 10), and never carries tester reports.
 
 ## Review the inbox
 

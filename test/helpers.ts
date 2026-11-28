@@ -7,6 +7,7 @@ import { createContext } from "../src/context";
 import { ConfigStore } from "../src/core/config";
 import { type AutoConfirmPolicy, ConfirmManager } from "../src/core/confirm";
 import { FakeRunner } from "../src/core/fake-runner";
+import type { FeedbackChannel } from "../src/core/feedback";
 import { createServer } from "../src/server";
 import type { ToolContext } from "../src/tools/types";
 // Shared test helpers.
@@ -27,6 +28,7 @@ export async function makeCtx(
     fetch?: typeof fetch;
     now?: Date;
     policy?: AutoConfirmPolicy;
+    feedback?: FeedbackChannel;
   } = {},
 ): Promise<{ ctx: ToolContext; runner: FakeRunner; home: string }> {
   const home = await mkdtemp(join(tmpdir(), "notarize-home-"));
@@ -39,6 +41,8 @@ export async function makeCtx(
     confirm: new ConfirmManager(opts.policy ? { policy: opts.policy } : { autoConfirm: false }),
     fetch: opts.fetch,
     now: opts.now ? () => opts.now! : undefined,
+    // Always given, so a NOTARIZE_MCP_FEEDBACK_ENDPOINT in the developer's shell never reaches a test.
+    feedback: opts.feedback,
   });
   return { ctx, runner, home };
 }

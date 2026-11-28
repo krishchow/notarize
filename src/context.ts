@@ -3,6 +3,7 @@ import { AscClient } from "./asc/client";
 import { ConfigStore } from "./core/config";
 import { ConfirmManager } from "./core/confirm";
 import { type CommandRunner, SpawnRunner } from "./core/exec";
+import { type FeedbackChannel, feedbackFromEnv } from "./core/feedback";
 import { JobManager } from "./core/jobs";
 import { defaultJobsDir, FileLogWriter } from "./core/logs";
 import { detectPlatform, type PlatformInfo } from "./core/platform";
@@ -16,6 +17,8 @@ export interface ContextOverrides {
   jobs?: JobManager;
   fetch?: typeof fetch;
   now?: () => Date;
+  /** Present (even as undefined) to replace the channel NOTARIZE_MCP_FEEDBACK_ENDPOINT would give. */
+  feedback?: FeedbackChannel;
 }
 
 export function createContext(o: ContextOverrides = {}): ToolContext {
@@ -32,6 +35,7 @@ export function createContext(o: ContextOverrides = {}): ToolContext {
     jobs: o.jobs ?? new JobManager(defaultJobsDir(platform.os, platform.homeDir)),
     fetch: fetchFn,
     now: o.now ?? (() => new Date()),
+    feedback: "feedback" in o ? o.feedback : feedbackFromEnv(platform.homeDir),
     async asc(profile?: string) {
       const creds = await config.resolveAsc(profile);
       const cacheKey = `${creds.keyId}:${creds.issuerId ?? "individual"}`;

@@ -50,7 +50,7 @@ Captures, imports, reproduction markers, cancellation, and app relaunch use the 
 
 ## Preflight: `skills/setup/scripts/setup.mjs`
 
-A zero-dependency Node (≥20) script that skills and CI can run before any notarize work. `check`, the default, is read-only. It prints a single JSON object `{schema: 1, ready, resolved, checks[], next_steps[]}` and exits 0 when ready, 1 when not ready, or 2 on bad input. Each check has a stable `id` (`asc_key_id`, `asc_issuer_id`, `p8_path`, `p8_readable`, `p8_mode`, `team_id`, `persisted_shell`, `persisted_profile`, …), a `status` of `ok`/`warn`/`fail`, and a `fix`. `--online` adds one authenticated `GET /v1/apps`. `plan` / `apply` mirror the confirm contract: `plan` lists `actions[]` and changes nothing, and `apply` with the same arguments performs them. The actions install the `.p8` at mode 600, write a marked `~/.zshrc` block and save a profile. The script resolves credentials in exactly the server's order, and never reads key material from arguments or prints it.
+A zero-dependency Node (≥22.13) script that skills and CI can run before any notarize work. `check`, the default, is read-only. It prints a single JSON object `{schema: 1, ready, resolved, checks[], next_steps[]}` and exits 0 when ready, 1 when not ready, or 2 on bad input. Each check has a stable `id` (`asc_key_id`, `asc_issuer_id`, `p8_path`, `p8_readable`, `p8_mode`, `team_id`, `persisted_shell`, `persisted_profile`, …), a `status` of `ok`/`warn`/`fail`, and a `fix`. `--online` adds one authenticated `GET /v1/apps`. `plan` / `apply` mirror the confirm contract: `plan` lists `actions[]` and changes nothing, and `apply` with the same arguments performs them. The actions install the `.p8` at mode 600, write a marked `~/.zshrc` block and save a profile. The script resolves credentials in exactly the server's order, and never reads key material from arguments or prints it.
 
 ## Unattended runs: `NOTARIZE_MCP_AUTO_CONFIRM`
 
@@ -130,6 +130,7 @@ Sandboxed or proxied environments must allow:
 | `api.apple-cloudkit.com` | stapler / Gatekeeper ticket lookup |
 | `contentdelivery.itunes.apple.com` | altool uploads |
 | `www.apple.com/certificateauthority` | `keychain install_intermediates` |
+| the host in `NOTARIZE_MCP_FEEDBACK_ENDPOINT` (or `MCP_FEEDBACK_ENDPOINT`), if set | `submit_feedback`, after the user approves a report; at startup only on a machine that has filed one |
 
 ## Context budget
 Tool definitions have a substantial context cost. Prefer clients that defer tool schemas (Claude Code tool search). Results are sent as a short summary plus structured JSON; the summary always comes first.

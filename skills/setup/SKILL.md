@@ -23,13 +23,13 @@ This skill puts a machine, and optionally a project, into the state that the `ap
 
 **Never ask for or handle key contents.** Only ever ask for the Key ID, the Issuer ID, the Team ID and the *path* to the downloaded `.p8`.
 
-**Where requests go.** If the user asks, the `notarize` MCP server is a local process on their Mac (the plugin starts it with `npx`, talking over stdio). It signs a short-lived token with the `.p8` locally and calls `api.appstoreconnect.apple.com` directly. No other server sits in between, and the key never leaves the machine. A preview may read from Apple to build its plan, but it never changes anything; only the call with `confirm_token` does.
+**Where requests go.** If the user asks, the `notarize` MCP server is a local process on their Mac (the plugin starts it with `npx`, talking over stdio). It signs a short-lived token with the `.p8` locally and calls `api.appstoreconnect.apple.com` directly. No other server sits in between, and the key never leaves the machine. A preview may read from Apple to build its plan, but it never changes anything; only the call with `confirm_token` does. The only other place the server sends anything is a feedback service, and only when its operator has set `NOTARIZE_MCP_FEEDBACK_ENDPOINT` (or `MCP_FEEDBACK_ENDPOINT`) and the user approves a report (apple-distribution skill, section 10).
 
 **When you ask for values, say where to find them.** Ask for everything the user still owes you in a single message, and tell them where each value comes from (which site, roughly where on the page). Include the `.p8` if they still need to create one. The user shouldn't have to come back and ask "how do I get these?". You don't need to repeat exact click paths you aren't sure of: point them in the right direction, and mention that every value except the `.p8` file is safe to paste into the chat.
 
 ## Part 1: credentials (deterministic script)
 
-`scripts/setup.mjs` lives in this skill's base directory. It needs Node 20+ and has no dependencies. It prints one JSON object on stdout, and nothing it prints contains key material.
+`scripts/setup.mjs` lives in this skill's base directory. It needs Node 22.13+ and has no dependencies. It prints one JSON object on stdout, and nothing it prints contains key material.
 
 ```bash
 node <skill-dir>/scripts/setup.mjs check            # read-only; exit 0 = ready, 1 = not ready

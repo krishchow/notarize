@@ -48,3 +48,5 @@ Return the source-linked plan or answer the user's question. Implement when the 
 Source revisions remain retrievable with `apple_docs action=read url=<url> content_hash=<recorded hash>`. Cache age defaults to seven days; a refresh window is a policy, not proof of correctness. Failed refreshes retain cached evidence and never mark it fresh. Private JSON state lives under `<MCP state directory>/apple-platform-context/`, persists until manually removed, and includes local project paths and agent-written investigation notes. It is not automatically committed to the app repository.
 
 A successful build does not verify a physical button, camera mechanism, lock-screen flow, or authenticity behavior. Record separately what passed in compilation, in a simulator, and on the actual device/OS/build, along with remaining gaps.
+
+If one of these tools failed or returned something wrong, offer to report it with `submit_feedback` when that tool is present (apple-distribution skill, section 10).
